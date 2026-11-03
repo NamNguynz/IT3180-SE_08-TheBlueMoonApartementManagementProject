@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="BackEnd\Infrastructures\Persistences\DBContexts\" />
+    <Folder Include="BackEnd\Models\Enities\" />
+    <Folder Include="BackEnd\Models\DTOs\" />
+    <Folder Include="BackEnd\Models\Interfaces\" />
+    <Folder Include="BackEnd\Controllers\" />
+    <Folder Include="BackEnd\Repositories\" />
+    <Folder Include="BackEnd\Services\" />
+  </ItemGroup>
+
+</Project>
