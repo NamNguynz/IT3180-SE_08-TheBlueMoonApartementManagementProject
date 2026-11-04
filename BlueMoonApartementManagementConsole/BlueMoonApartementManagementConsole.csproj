@@ -1,20 +1,28 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <UserSecretsId>07fcfcd1-eab2-4a87-83a2-7ac92047f27a</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="BackEnd\Infrastructures\Persistences\DBContexts\" />
-    <Folder Include="BackEnd\Models\Enities\" />
-    <Folder Include="BackEnd\Models\DTOs\" />
     <Folder Include="BackEnd\Models\Interfaces\" />
-    <Folder Include="BackEnd\Controllers\" />
-    <Folder Include="BackEnd\Repositories\" />
-    <Folder Include="BackEnd\Services\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
 </Project>

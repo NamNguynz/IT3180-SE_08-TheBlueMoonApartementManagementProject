@@ -1,0 +1,234 @@
+﻿@page "/login"
+@attribute [ExcludeFromInteractiveRouting]
+@layout BlueMoonApartementManagementConsole.Components.Layout.AuthLayout
+
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs
+@using BlueMoonApartementManagementConsole.BackEnd.Models.Enities
+@using BlueMoonApartementManagementConsole.BackEnd.Services
+
+@inject IAuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>@(IsRegisterMode ? "Đăng ký" : "Đăng nhập") - Bluemoon</PageTitle>
+
+<header class="auth-header">
+    <h1>Bluemoon</h1>
+    <p class="auth-subtitle">Hệ thống quản lý chung cư</p>
+</header>
+
+@if (!IsRegisterMode)
+{
+    <EditForm Model="Input" FormName="login" OnValidSubmit="HandleLoginAsync" class="auth-form">
+        <DataAnnotationsValidator />
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert" role="alert">@_error</div>
+        }
+
+        <div class="form-group">
+            <label for="role">Tư cách đăng nhập</label>
+            <InputSelect id="role" @bind-Value="Input.Role">
+                <option value="@UserRole.CU_DAN">Cư dân</option>
+                <option value="@UserRole.KE_TOAN">Kế toán</option>
+                <option value="@UserRole.BQT">Ban quản trị</option>
+            </InputSelect>
+        </div>
+
+        <div class="form-group">
+            <label for="username">Tài khoản</label>
+            <InputText id="username" @bind-Value="Input.Username"
+                       autocomplete="username" maxlength="50" />
+            <ValidationMessage For="() => Input.Username" class="field-error" />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Mật khẩu</label>
+            <InputText id="password" type="password" @bind-Value="Input.Password"
+                       autocomplete="current-password" />
+            <ValidationMessage For="() => Input.Password" class="field-error" />
+        </div>
+
+        <button type="submit" class="btn-primary">Đăng nhập</button>
+    </EditForm>
+
+    <p class="auth-switch">
+        Chưa có tài khoản? <a href="/login?mode=register">Đăng ký</a>
+    </p>
+}
+else
+{
+    <EditForm Model="RegInput" FormName="register" OnValidSubmit="HandleRegisterAsync" class="auth-form">
+        <DataAnnotationsValidator />
+
+        @if (!string.IsNullOrEmpty(_regError))
+        {
+            <div class="alert" role="alert">@_regError</div>
+        }
+        @if (!string.IsNullOrEmpty(_regSuccess))
+        {
+            <div class="alert alert-success" role="status">@_regSuccess</div>
+        }
+
+        <div class="form-group">
+            <label for="fullName">Tên người dùng</label>
+            <InputText id="fullName" @bind-Value="RegInput.FullName" maxlength="100" />
+            <ValidationMessage For="() => RegInput.FullName" class="field-error" />
+        </div>
+
+        <div class="form-group">
+            <label for="regUsername">Tài khoản</label>
+            <InputText id="regUsername" @bind-Value="RegInput.Username"
+                       autocomplete="username" maxlength="50" />
+            <ValidationMessage For="() => RegInput.Username" class="field-error" />
+        </div>
+
+        <div class="form-group">
+            <label for="regPassword">Mật khẩu</label>
+            <InputText id="regPassword" type="password" @bind-Value="RegInput.Password"
+                       autocomplete="new-password" />
+            <ValidationMessage For="() => RegInput.Password" class="field-error" />
+        </div>
+
+        <div class="form-group">
+            <label for="regRole">Vai trò</label>
+            <InputSelect id="regRole" @bind-Value="RegInput.Role">
+                <option value="@UserRole.CU_DAN">Cư dân</option>
+                <option value="@UserRole.KE_TOAN">Kế toán</option>
+                <option value="@UserRole.BQT">Ban quản trị</option>
+            </InputSelect>
+        </div>
+
+        <button type="submit" class="btn-primary">Đăng ký</button>
+    </EditForm>
+
+    <p class="auth-switch">
+        Đã có tài khoản? <a href="/login">Đăng nhập</a>
+    </p>
+}
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm] private LoginInput Input { get; set; } = new();
+    [SupplyParameterFromForm] private RegisterInput RegInput { get; set; } = new();
+
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery] public string? Mode { get; set; }
+
+    private bool IsRegisterMode => Mode == "register";
+
+    private string? _error;
+    private string? _regError;
+    private string? _regSuccess;
+
+    private async Task HandleLoginAsync()
+    {
+        _error = null;
+
+        var result = await Auth.LoginAsync(
+            new LoginRequest(Input.Username.Trim(), Input.Password, Input.Role));
+
+        if (result.Status != LoginStatus.Success)
+        {
+            Input.Password = string.Empty;
+            _error = result.Status switch
+            {
+                LoginStatus.Locked => "Tài khoản tạm bị khóa do đăng nhập sai nhiều lần. Vui lòng thử lại sau 15 phút.",
+                LoginStatus.PendingApproval => "Tài khoản đang chờ Ban quản trị xác nhận.",
+                _ => "Tài khoản, mật khẩu hoặc tư cách đăng nhập không đúng."
+            };
+            return;
+        }
+
+        var user = result.User!;
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Username),
+            new("full_name", user.FullName),
+            new(ClaimTypes.Role, user.Role.ToString())
+        };
+
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            principal,
+            new AuthenticationProperties { IsPersistent = false });
+
+        Nav.NavigateTo(SafeReturnUrl(), forceLoad: true);
+    }
+
+    private async Task HandleRegisterAsync()
+    {
+        _regError = null;
+        _regSuccess = null;
+
+        var role = RegInput.Role;
+        var result = await Auth.RegisterAsync(new RegisterRequest(
+            RegInput.Username, RegInput.Password, RegInput.FullName, RegInput.Role));
+
+        if (result.Status == RegisterStatus.Success)
+        {
+            RegInput = new();
+            _regSuccess = result.User!.Status == UserStatus.PendingApproval
+                ? "Đăng ký thành công. Tài khoản cần được Ban quản trị khác xác nhận trước khi đăng nhập."
+                : "Đăng ký thành công. Bạn có thể đăng nhập ngay.";
+            return;
+        }
+
+        RegInput.Password = string.Empty;
+        _regError = RegisterMessage(result.Status);
+    }
+
+    private static string RegisterMessage(RegisterStatus status) => status switch
+    {
+        RegisterStatus.UsernameTaken => "Tài khoản này đã tồn tại.",
+        RegisterStatus.InvalidUsername => "Tài khoản phải từ 3 đến 50 ký tự.",
+        RegisterStatus.InvalidFullName => "Tên người dùng phải từ 1 đến 100 ký tự.",
+        RegisterStatus.InvalidPassword => "Mật khẩu phải từ 8 đến 100 ký tự.",
+        RegisterStatus.InvalidRole => "Vai trò không hợp lệ.",
+        _ => "Đăng ký thất bại. Vui lòng thử lại."
+    };
+
+    // Chỉ cho phép đường dẫn nội bộ, tránh open redirect
+    private string SafeReturnUrl() =>
+        !string.IsNullOrEmpty(ReturnUrl) && ReturnUrl.StartsWith('/') && !ReturnUrl.StartsWith("//")
+            ? ReturnUrl
+            : "/";
+
+    public class LoginInput
+    {
+        [Required(ErrorMessage = "Vui lòng nhập tài khoản.")]
+        [StringLength(50)]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập mật khẩu.")]
+        public string Password { get; set; } = string.Empty;
+
+        public UserRole Role { get; set; } = UserRole.CU_DAN;
+    }
+
+    public class RegisterInput
+    {
+        [Required(ErrorMessage = "Vui lòng nhập tên người dùng.")]
+        [StringLength(100)]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập tài khoản.")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "Tài khoản từ 3 đến 50 ký tự.")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập mật khẩu.")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "Mật khẩu tối thiểu 8 ký tự.")]
+        public string Password { get; set; } = string.Empty;
+
+        public UserRole Role { get; set; }
+    }
+}
