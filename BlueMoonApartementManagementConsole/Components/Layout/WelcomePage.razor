@@ -1,0 +1,92 @@
+﻿@page "/"
+@attribute [Authorize]
+@layout BlueMoonApartementManagementConsole.Components.Layout.DashboardLayout
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using BlueMoonApartementManagementConsole.Components.Layout
+
+<PageTitle>Trang chủ - Bluemoon</PageTitle>
+
+<section class="welcome">
+    <h1>Xin chào, @_fullName</h1>
+    <p class="welcome-role">Bạn đang đăng nhập với vai trò <strong>@_roleLabel</strong>.</p>
+
+    <AuthorizeView Roles="BQT">
+        <Authorized>
+            <div class="welcome-card">
+                <h2>Công việc thường dùng</h2>
+                <div class="quick-grid">
+                    <a class="quick-card" href="/quan-tri/duyet-tai-khoan">
+                        <h3>Duyệt tài khoản</h3>
+                        <p>Xác nhận tài khoản kế toán và ban quản trị đăng ký mới.</p>
+                    </a>
+                    <a class="quick-card" href="/can-ho/ho-so">
+                        <h3>Hồ sơ căn hộ</h3>
+                        <p>Tạo và cập nhật hồ sơ căn hộ, hộ gia đình.</p>
+                    </a>
+                    <a class="quick-card" href="/nhan-khau/ho">
+                        <h3>Nhân khẩu</h3>
+                        <p>Quản lý chủ hộ, thành viên và biến động.</p>
+                    </a>
+                    <a class="quick-card" href="/quan-tri/nhat-ky">
+                        <h3>Nhật ký</h3>
+                        <p>Xem lịch sử thao tác quan trọng trong hệ thống.</p>
+                    </a>
+                </div>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="KE_TOAN">
+        <Authorized>
+            <div class="welcome-card">
+                <h2>Công việc thường dùng</h2>
+                <div class="quick-grid">
+                    <a class="quick-card" href="/ky-thu">
+                        <h3>Kỳ thu</h3>
+                        <p>Tạo kỳ thu và xem bảng kê phải thu theo hộ.</p>
+                    </a>
+                    <a class="quick-card" href="/thu-tien">
+                        <h3>Ghi nhận thanh toán</h3>
+                        <p>Ghi nhận khoản thu thực tế, kể cả nộp một phần.</p>
+                    </a>
+                    <a class="quick-card" href="/cong-no">
+                        <h3>Công nợ</h3>
+                        <p>Đối chiếu công nợ và xem danh sách hộ chưa đóng.</p>
+                    </a>
+                    <a class="quick-card" href="/bao-cao/thu-cong-no">
+                        <h3>Báo cáo</h3>
+                        <p>Xem tổng hợp thu và công nợ theo kỳ.</p>
+                    </a>
+                </div>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="CU_DAN">
+        <Authorized>
+            <div class="welcome-card">
+                <p class="muted">Cổng thông tin cư dân sẽ được bổ sung trong phiên bản sau.</p>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+</section>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private string _fullName = string.Empty;
+    private string _roleLabel = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null)
+            return;
+
+        var user = (await AuthState).User;
+        _fullName = user.FindFirst("full_name")?.Value ?? user.Identity?.Name ?? string.Empty;
+        _roleLabel = DashboardLayout.RoleLabel(user.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty);
+    }
+}

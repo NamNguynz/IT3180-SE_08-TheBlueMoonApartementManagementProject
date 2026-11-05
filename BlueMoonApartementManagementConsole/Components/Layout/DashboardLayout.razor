@@ -1,0 +1,144 @@
+﻿@inherits LayoutComponentBase
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+
+@inject NavigationManager Nav
+
+<HeadContent>
+    <link rel="stylesheet" href="css/dashboard.css" />
+</HeadContent>
+
+<AuthorizeView Context="auth">
+    <Authorized>
+        @{
+            var user = auth.User;
+            var role = user.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+            var fullName = user.FindFirst("full_name")?.Value;
+            var displayName = string.IsNullOrWhiteSpace(fullName) ? "Unnamed" : fullName;
+            var accountLabel = $"{RoleLabel(role)} - {displayName}";
+            var pageName = CurrentPageName();
+        }
+
+        <input type="checkbox" id="nav-toggle" class="nav-toggle" />
+        <label for="nav-toggle" class="nav-overlay"></label>
+
+        <div class="dash-shell">
+            <aside class="dash-sidebar">
+                <div class="brand">
+                    <span class="brand-name">Bluemoon</span>
+                    <span class="brand-sub">Quản lý chung cư</span>
+                </div>
+
+                <div class="building-card">
+                    <span class="building-label">Chung cư đang quản lý</span>
+                    <span class="building-name">Bluemoon Residence</span>
+                    <span class="building-stats">? tòa nhà · ? căn hộ</span>
+                </div>
+
+                <nav class="dash-nav">
+                    <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Trang chủ</NavLink>
+
+                    <AuthorizeView Roles="BQT">
+                        <div class="nav-group">
+                            <div class="nav-title">Căn hộ & cư dân</div>
+                            <NavLink class="nav-link" href="/can-ho/ho-so">Hồ sơ căn hộ</NavLink>
+                            <NavLink class="nav-link" href="/can-ho/danh-sach">Danh sách căn hộ</NavLink>
+                            <NavLink class="nav-link" href="/nhan-khau/ho">Hộ & nhân khẩu</NavLink>
+                            <NavLink class="nav-link" href="/nhan-khau/bien-dong">Biến động nhân khẩu</NavLink>
+                        </div>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="BQT,KE_TOAN">
+                        <div class="nav-group">
+                            <div class="nav-title">Tài chính</div>
+                            <NavLink class="nav-link" href="/khoan-thu/danh-muc">Danh mục khoản thu</NavLink>
+                            <NavLink class="nav-link" href="/don-gia">Đơn giá</NavLink>
+                            <NavLink class="nav-link" href="/ky-thu">Kỳ thu</NavLink>
+                            <NavLink class="nav-link" href="/thu-tien">Ghi nhận thanh toán</NavLink>
+                            <NavLink class="nav-link" href="/cong-no">Công nợ</NavLink>
+                        </div>
+
+                        <div class="nav-group">
+                            <div class="nav-title">Báo cáo</div>
+                            <NavLink class="nav-link" href="/bao-cao/thu-cong-no">Thu & công nợ</NavLink>
+                            <NavLink class="nav-link" href="/bao-cao/thu-chi">Thu–chi</NavLink>
+                        </div>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="BQT">
+                        <div class="nav-group">
+                            <div class="nav-title">Quản trị</div>
+                            <NavLink class="nav-link" href="/quan-tri/tai-khoan">Tài khoản & phân quyền</NavLink>
+                            <NavLink class="nav-link" href="/quan-tri/duyet-tai-khoan">Duyệt tài khoản</NavLink>
+                            <NavLink class="nav-link" href="/quan-tri/nhat-ky">Nhật ký</NavLink>
+                        </div>
+                    </AuthorizeView>
+                </nav>
+            </aside>
+
+            <div class="dash-main">
+                <header class="dash-header">
+                    <label for="nav-toggle" class="nav-burger" aria-label="Mở menu">&#9776;</label>
+
+                    <nav class="breadcrumb" aria-label="Breadcrumb">
+                        <span class="crumb-root">Bluemoon Residence</span>
+                        <span class="crumb-sep">/</span>
+                        <span class="crumb-current">@pageName</span>
+                    </nav>
+
+                    <div class="header-user">
+                        <span class="user-name">@accountLabel</span>
+                        <form method="post" action="/logout">
+                            <button type="submit" class="btn-logout">Đăng xuất</button>
+                        </form>
+                    </div>
+                </header>
+
+                <main class="dash-content">
+                    @Body
+                </main>
+            </div>
+        </div>
+    </Authorized>
+
+    <NotAuthorized>
+        <p>Vui lòng <a href="/login">đăng nhập</a> để tiếp tục.</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private static readonly Dictionary<string, string> PageTitles = new()
+    {
+        [""] = "Trang chủ",
+        ["can-ho/ho-so"] = "Hồ sơ căn hộ",
+        ["can-ho/danh-sach"] = "Danh sách căn hộ",
+        ["nhan-khau/ho"] = "Hộ & nhân khẩu",
+        ["nhan-khau/bien-dong"] = "Biến động nhân khẩu",
+        ["khoan-thu/danh-muc"] = "Danh mục khoản thu",
+        ["don-gia"] = "Đơn giá",
+        ["ky-thu"] = "Kỳ thu",
+        ["thu-tien"] = "Ghi nhận thanh toán",
+        ["cong-no"] = "Công nợ",
+        ["bao-cao/thu-cong-no"] = "Thu & công nợ",
+        ["bao-cao/thu-chi"] = "Thu–chi",
+        ["quan-tri/tai-khoan"] = "Tài khoản & phân quyền",
+        ["quan-tri/duyet-tai-khoan"] = "Duyệt tài khoản",
+        ["quan-tri/nhat-ky"] = "Nhật ký",
+    };
+
+    private string CurrentPageName()
+    {
+        var path = new Uri(Nav.Uri).AbsolutePath.Trim('/');
+        return PageTitles.TryGetValue(path, out var title) ? title : "Trang hiện tại";
+    }
+
+    public static string RoleLabel(string role) => role switch
+    {
+        "BQT" => "Ban Quản Trị",
+        "KE_TOAN" => "Kế Toán",
+        "CU_DAN" => "Cư Dân",
+        _ => role
+    };
+}

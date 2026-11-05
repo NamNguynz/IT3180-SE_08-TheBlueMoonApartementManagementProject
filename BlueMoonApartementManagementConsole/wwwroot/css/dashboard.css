@@ -1,0 +1,359 @@
+﻿:root {
+    --primary: #1e4fa0;
+    --navy: #16325c;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --bg: #f3f5f9;
+    --card: #ffffff;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--bg);
+}
+
+/* ===== Khung ===== */
+.nav-toggle {
+    display: none;
+}
+
+.dash-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.dash-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== Sidebar ===== */
+.dash-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--navy);
+    color: #e5edf9;
+}
+
+.brand {
+    flex-shrink: 0;
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.brand-name {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.brand-sub {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.building-card {
+    flex-shrink: 0;
+    margin: 14px 16px 6px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+}
+
+.building-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.65;
+}
+
+.building-name {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.building-stats {
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.dash-nav {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px 0 24px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.nav-group {
+    margin-top: 8px;
+}
+
+.nav-title {
+    padding: 14px 20px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+}
+
+.nav-link {
+    display: block;
+    padding: 9px 20px 9px 28px;
+    font-size: 14px;
+    color: inherit;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background 0.15s;
+}
+
+    .nav-link:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .nav-link.active {
+        background: rgba(255, 255, 255, 0.14);
+        border-left-color: #7fb0ff;
+        font-weight: 600;
+    }
+
+/* ===== Header ===== */
+.dash-header {
+    position: sticky;
+    align-items: center;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 64px;
+    padding: 0 24px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+}
+
+.breadcrumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.crumb-root {
+    font-weight: 600;
+    color: var(--navy);
+    white-space: nowrap;
+}
+
+.crumb-sep {
+    color: var(--muted);
+    opacity: 0.6;
+}
+
+.crumb-current {
+    color: var(--text);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nav-burger {
+    display: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: var(--navy);
+    padding: 4px 8px;
+}
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.25;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.user-role {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.btn-logout {
+    padding: 7px 14px;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+    .btn-logout:hover {
+        background: #f9fafb;
+    }
+
+    .btn-logout:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(30, 79, 160, 0.25);
+    }
+
+/* ===== Nội dung ===== */
+.dash-content {
+    padding: 28px 24px;
+}
+
+.welcome h1 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    color: var(--navy);
+}
+
+.welcome-role {
+    margin: 0;
+    color: var(--muted);
+}
+
+    .welcome-role strong {
+        color: var(--text);
+    }
+
+.welcome-card {
+    margin-top: 20px;
+    padding: 20px 22px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+    .welcome-card h2 {
+        margin: 0 0 14px;
+        font-size: 17px;
+        color: var(--navy);
+    }
+
+.quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.quick-card {
+    display: block;
+    padding: 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: inherit;
+    text-decoration: none;
+    transition: box-shadow 0.15s, transform 0.15s;
+}
+
+    .quick-card:hover {
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .quick-card h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        color: var(--primary);
+    }
+
+    .quick-card p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+.muted {
+    color: var(--muted);
+}
+
+/* ===== Di động: sidebar trượt ra ===== */
+.nav-overlay {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .dash-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 20;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+    }
+
+    .nav-toggle:checked ~ .dash-shell .dash-sidebar {
+        transform: translateX(0);
+    }
+
+    .nav-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 15;
+        background: rgba(15, 23, 42, 0.4);
+    }
+
+    .nav-toggle:checked ~ .nav-overlay {
+        display: block;
+    }
+
+    .nav-burger {
+        display: block;
+    }
+
+    .dash-content {
+        padding: 20px 16px;
+    }
+}
+
+@media (max-width: 600px) {
+    .crumb-root, .crumb-sep {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+    }
+}
