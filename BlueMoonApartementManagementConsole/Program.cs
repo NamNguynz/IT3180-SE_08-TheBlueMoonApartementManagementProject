@@ -24,9 +24,12 @@ builder.Services.AddControllers()
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddCascadingAuthenticationState();
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
         .AddCookie(o =>
         {
+            o.LoginPath = "/login";
             o.Cookie.HttpOnly = true;
             o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             o.Cookie.SameSite = SameSiteMode.Strict;
@@ -34,12 +37,18 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             o.SlidingExpiration = true;
             o.Events.OnRedirectToLogin = ctx =>
             {
-                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                if (ctx.Request.Path.StartsWithSegments("/api"))
+                    ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                else
+                    ctx.Response.Redirect(ctx.RedirectUri);
                 return Task.CompletedTask;
             };
             o.Events.OnRedirectToAccessDenied = ctx =>
             {
-                ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                if (ctx.Request.Path.StartsWithSegments("/api"))
+                    ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                else
+                    ctx.Response.Redirect("/403");
                 return Task.CompletedTask;
             };
         });
