@@ -49,7 +49,8 @@ BlueMoonApartementManagementConsole/
 }
 ```
 3. Cập nhật Cơ sở dữ liệu (Database Migration):
-- Mở Package Manager Console trong Visual Studio hoặc chạy lệnh terminal:
+- Cách 1 : Mở Package Manager Console trong Visual Studio
+- Cách 2 : Chạy terminal. cd đến thư mục BlueMoonApartementManagementConsole
 ```
 dotnet ef database update
 ```
@@ -59,4 +60,6 @@ dotnet user-secrets init
 dotnet user-secrets set "ADMIN_INIT_PWD" "<mật-khẩu-vừa-sinh>"
 ```
 5. Chạy ứng dụng
-- Chạy nút tam giác màu xanh lá (Start Without Debugging) hoặc dùng tổ hợp phím Ctrl + F5.
+- Cách 1 : Chạy nút tam giác màu xanh lá (Start Without Debugging) hoặc dùng tổ hợp phím Ctrl + F5
+- Cách 2 : dotnet run
+- Sử dụng http://localhost:5105/
