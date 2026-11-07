@@ -45,7 +45,7 @@ BlueMoonApartementManagementConsole/
 - Mở file appsettings.json và cập nhật ConnectionString phù hợp với PostgreSQL của bạn:
 ```
 "ConnectionStrings": {
-  "DefaultConnection": "Host=localhost;Port=____;Database=BlueMoon;Username=____;Password=______;;"
+  "DefaultConnection": "Host=localhost;Port=____;Database=BlueMoon;Username=____;Password=______;"
 }
 ```
 3. Cập nhật Cơ sở dữ liệu (Database Migration):
