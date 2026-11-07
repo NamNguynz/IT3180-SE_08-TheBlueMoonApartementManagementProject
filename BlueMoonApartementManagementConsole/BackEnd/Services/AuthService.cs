@@ -34,6 +34,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
     public class AuthService(
         IAppUserRepo users,
         IPasswordHasher<AppUserEntity> hasher,
+        IAuditService audit,
         ILogger<AuthService> log) : IAuthService
     {
         private const int MaxFailedAttempts = 5;
@@ -46,14 +47,14 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
             // Không phân biệt "sai tài khoản" và "sai mật khẩu" ra ngoài
             if (user is null || !user.IsActive)
             {
-                log.LogWarning("Đăng nhập thất bại: tài khoản không hợp lệ hoặc bị vô hiệu");
+                await audit.LogAsync(AuditAction.LoginFailed, request.Username, detail: "Tài khoản không tồn tại hoặc bị vô hiệu");
                 return new(LoginStatus.InvalidCredentials);
             }
 
             var now = DateTimeOffset.UtcNow;
             if (user.LockedUntil is { } until && until > now)
             {
-                log.LogWarning("Đăng nhập bị từ chối: tài khoản {UserId} đang bị khóa", user.Id);
+                await audit.LogAsync(AuditAction.LoginLocked, user.Username, user.Id, detail: $"Khóa đến {until.ToLocalTime():HH:mm:ss dd/MM/yyyy}");
                 return new(LoginStatus.Locked);
             }
 
@@ -68,7 +69,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
                     user.FailedAttempts = 0;
                 }
                 await users.SaveChangesAsync(ct);
-                log.LogWarning("Sai mật khẩu: tài khoản {UserId}, số lần sai {Count}", user.Id, user.FailedAttempts);
+                await audit.LogAsync(AuditAction.LoginFailed, user.Username, user.Id, target: user.Id.ToString(), detail: $"Sai mật khẩu, lần {user.FailedAttempts}");
                 return new(LoginStatus.InvalidCredentials);
             }
 
@@ -78,7 +79,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
 
             if (user.Role != request.Role)
             {
-                log.LogWarning("Đăng nhập sai tư cách: tài khoản {UserId}", user.Id);
+                await audit.LogAsync(AuditAction.LoginFailed, user.Username, user.Id, detail: $"Sai tư cách đăng nhập: chọn {request.Role}");
                 return new(LoginStatus.InvalidCredentials);
             }
 
@@ -88,9 +89,12 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
 
             // Mật khẩu đúng rồi mới báo trạng thái chờ duyệt, tránh lộ thông tin khi chưa xác thực
             if (user.Status == UserStatus.PendingApproval)
+            {
+                await audit.LogAsync(AuditAction.LoginFailed, user.Username, user.Id, detail: "Tài khoản đang chờ xác nhận");
                 return new(LoginStatus.PendingApproval);
+            }
 
-            log.LogInformation("Đăng nhập thành công: tài khoản {UserId}", user.Id);
+            await audit.LogAsync(AuditAction.LoginSuccess, user.Username, user.Id, target: user.Id.ToString());
             return new(LoginStatus.Success, user);
         }
 
@@ -143,8 +147,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
                 throw;
             }
 
-            log.LogInformation("Đăng ký tài khoản {UserId}, vai trò {Role}, trạng thái {Status}",
-                user.Id, user.Role, user.Status);
+            await audit.LogAsync(AuditAction.Register, user.Username, user.Id, target: user.Id.ToString(), detail: $"Vai trò {user.Role}, trạng thái {user.Status}");
 
             return new(RegisterStatus.Success, user);
         }
@@ -175,7 +178,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
             target.ApprovedAt = DateTimeOffset.UtcNow;
             await users.SaveChangesAsync(ct);
 
-            log.LogInformation("Tài khoản {UserId} được xác nhận bởi {ApproverId}", userId, approverId);
+            await audit.LogAsync(AuditAction.ApproveAccount, approver.Username, approverId, target: userId.ToString(), detail: $"Xác nhận tài khoản {target.Username}");
             return ApproveStatus.Success;
         }
     }

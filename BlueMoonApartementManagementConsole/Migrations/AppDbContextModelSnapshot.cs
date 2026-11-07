@@ -85,6 +85,47 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Target")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.HasIndex("Username");
+
+                    b.ToTable("audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", b =>
                 {
                     b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", null)
