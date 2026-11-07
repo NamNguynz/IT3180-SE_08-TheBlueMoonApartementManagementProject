@@ -25,5 +25,8 @@
         public int FailedAttempts { get; set; }
         public DateTimeOffset? LockedUntil { get; set; }
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public int? GrantedById { get; set; }          // người cấp tài khoản; null với admin gốc và cư dân tự đăng ký chưa duyệt
+        public bool MustChangePassword { get; set; }   // true khi mật khẩu do BQT cấp lại, buộc đổi ở lần đăng nhập sau
+        public DateTimeOffset? PasswordChangedAt { get; set; }
     }
 }

@@ -7,7 +7,13 @@
         LoginLocked,
         Logout,
         Register,
-        ApproveAccount
+        ApproveAccount,
+        CreateAccount,
+        DisableAccount,
+        EnableAccount,
+        UnlockAccount,
+        ResetPassword,
+        ChangePassword
     }
 
     public class AuditLog

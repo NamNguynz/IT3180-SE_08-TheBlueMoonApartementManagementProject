@@ -49,10 +49,21 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasColumnType("character varying(100)")
                         .HasDefaultValueSql("''");
 
+                    b.Property<int?>("GrantedById")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("MustChangePassword")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("PasswordChangedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PasswordHash")
@@ -78,6 +89,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApprovedById");
+
+                    b.HasIndex("GrantedById");
 
                     b.HasIndex("Username")
                         .IsUnique();
@@ -132,6 +145,11 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .WithMany()
                         .HasForeignKey("ApprovedById")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("GrantedById")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618
         }
