@@ -1,0 +1,41 @@
+﻿@page "/quan-tri/duyet-tai-khoan"
+@attribute [Authorize(Policy = "QuanTriHeThong")]
+@layout BlueMoonApartementManagementConsole.Components.Layout.DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Duyệt tài khoản - Bluemoon</PageTitle>
+
+<section class="page">
+    <div class="page-head page-head-row">
+        <div>
+            <h1>Duyệt tài khoản</h1>
+            <p class="muted">Tài khoản Kế toán và Ban quản trị cần được Ban quản trị khác xác nhận trước khi đăng nhập.</p>
+        </div>
+        <button type="button" id="approvalRefresh" class="btn-refresh"
+                title="Tải lại danh sách" aria-label="Tải lại danh sách">&#8635;</button>
+    </div>
+
+    <div id="approvalAlert" class="alert" role="alert" hidden></div>
+
+    <div id="approvalLoading" class="empty-state">Đang tải danh sách...</div>
+
+    <div id="approvalEmpty" class="empty-state" hidden>
+        Không có tài khoản nào đang chờ xác nhận.
+    </div>
+
+    <div id="approvalTable" class="table-wrap" hidden>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Tài khoản</th>
+                    <th>Vai trò</th>
+                    <th>Ngày đăng ký</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="approvalBody"></tbody>
+        </table>
+    </div>
+</section>

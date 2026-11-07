@@ -1,0 +1,78 @@
+﻿@page "/quan-tri/nhat-ky"
+@attribute [Authorize(Policy = "QuanTriHeThong")]
+@layout BlueMoonApartementManagementConsole.Components.Layout.DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Nhật ký - Bluemoon</PageTitle>
+
+<section class="page">
+    <div class="page-head">
+        <h1>Nhật ký thao tác</h1>
+        <p class="muted">Ghi nhận đăng nhập, đăng xuất, đăng ký và xác nhận tài khoản. Nhật ký chỉ đọc, không thể sửa hoặc xóa.</p>
+    </div>
+
+    <form id="auditFilter" class="filter-bar">
+        <label>
+            Từ ngày
+            <input type="date" name="from" />
+        </label>
+        <label>
+            Đến ngày
+            <input type="date" name="to" />
+        </label>
+        <label>
+            Hành động
+            <select name="action">
+                <option value="">Tất cả</option>
+                <option value="LoginSuccess">Đăng nhập thành công</option>
+                <option value="LoginFailed">Đăng nhập thất bại</option>
+                <option value="LoginLocked">Bị khóa tạm thời</option>
+                <option value="Logout">Đăng xuất</option>
+                <option value="Register">Đăng ký</option>
+                <option value="ApproveAccount">Xác nhận tài khoản</option>
+                <option value="CreateAccount">Tạo tài khoản mới</option>
+                <option value="DisableAccount">Vô hiệu hóa tài khoản</option>
+                <option value="EnableAccount">Kích hoạt tài khoản</option>
+                <option value="UnlockAccount">Mở khóa tài khoản</option>
+                <option value="ResetPassword">Reset mật khẩu</option>
+                <option value="ChangePassword">Thay đổi mật khẩu</option>
+            </select>
+        </label>
+        <label>
+            Tài khoản
+            <input type="text" name="username" maxlength="50" />
+        </label>
+        <div class="filter-actions">
+            <button type="submit" class="btn-approve">Lọc</button>
+            <button type="button" id="auditReset" class="btn-link">Xóa lọc</button>
+        </div>
+    </form>
+
+    <div id="auditAlert" class="alert" role="alert" hidden></div>
+
+    <div id="auditLoading" class="empty-state">Đang tải nhật ký...</div>
+
+    <div id="auditEmpty" class="empty-state" hidden>Không có nhật ký phù hợp.</div>
+
+    <div id="auditTable" class="table-wrap" hidden>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>Tài khoản</th>
+                    <th>Hành động</th>
+                    <th>Đối tượng</th>
+                    <th>Chi tiết</th>
+                </tr>
+            </thead>
+            <tbody id="auditBody"></tbody>
+        </table>
+    </div>
+
+    <nav id="auditPager" class="pager" hidden>
+        <button type="button" id="auditPrev" class="btn-link">← Trước</button>
+        <span id="auditPageInfo"></span>
+        <button type="button" id="auditNext" class="btn-link">Sau →</button>
+    </nav>
+</section>

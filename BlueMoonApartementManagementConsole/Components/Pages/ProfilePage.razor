@@ -1,0 +1,77 @@
+﻿@page "/ho-so"
+@attribute [Authorize]
+@layout BlueMoonApartementManagementConsole.Components.Layout.DashboardLayout
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using BlueMoonApartementManagementConsole.Components.Layout
+
+<PageTitle>Hồ sơ cá nhân - Bluemoon</PageTitle>
+
+<section class="page">
+    <div class="page-head">
+        <h1>Hồ sơ cá nhân</h1>
+    </div>
+
+    @if (_mustChange)
+    {
+        <div class="alert alert-warn" role="alert">
+            Mật khẩu hiện tại là mật khẩu tạm do Ban quản trị cấp. Vui lòng đổi mật khẩu trước khi tiếp tục sử dụng hệ thống.
+        </div>
+    }
+
+    <div class="card-box profile-info">
+        <div><span class="muted">Tài khoản:</span> <strong>@_username</strong></div>
+        <div><span class="muted">Họ tên:</span> <strong>@_displayName</strong></div>
+        <div><span class="muted">Vai trò:</span> <strong>@_roleLabel</strong></div>
+    </div>
+
+    <div class="card-box">
+        <h2 class="card-title">Đổi mật khẩu</h2>
+        <form id="passwordForm" class="pw-form">
+            <input type="text" name="username" autocomplete="username" value="@_username" hidden />
+            <div id="pwAlert" class="alert" role="alert" hidden></div>
+
+            <label>
+                Mật khẩu hiện tại
+                <input type="password" name="current" autocomplete="current-password" required />
+            </label>
+            <label>
+                Mật khẩu mới (tối thiểu 8 ký tự)
+                <input type="password" name="next" autocomplete="new-password" minlength="8" maxlength="100" required />
+            </label>
+            <label>
+                Nhập lại mật khẩu mới
+                <input type="password" name="confirm" autocomplete="new-password" minlength="8" maxlength="100" required />
+            </label>
+
+            <button type="submit" class="btn-approve">Đổi mật khẩu</button>
+        </form>
+    </div>
+</section>
+
+<script src="js/profile.js"></script>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private string _username = string.Empty;
+    private string _displayName = "Unnamed";
+    private string _roleLabel = string.Empty;
+    private bool _mustChange;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null) return;
+
+        var user = (await AuthState).User;
+        _username = user.Identity?.Name ?? string.Empty;
+
+        var fullName = user.FindFirst("full_name")?.Value;
+        _displayName = string.IsNullOrWhiteSpace(fullName) ? "Unnamed" : fullName;
+
+        _roleLabel = DashboardLayout.RoleLabel(user.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty);
+        _mustChange = user.FindFirst("must_change_password")?.Value == "1";
+    }
+}

@@ -49,10 +49,21 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasColumnType("character varying(100)")
                         .HasDefaultValueSql("''");
 
+                    b.Property<int?>("GrantedById")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("MustChangePassword")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("PasswordChangedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PasswordHash")
@@ -79,10 +90,53 @@ namespace BlueMoonApartementManagementConsole.Migrations
 
                     b.HasIndex("ApprovedById");
 
+                    b.HasIndex("GrantedById");
+
                     b.HasIndex("Username")
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Detail")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Target")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.HasIndex("Username");
+
+                    b.ToTable("audit_logs", (string)null);
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", b =>
@@ -91,6 +145,11 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .WithMany()
                         .HasForeignKey("ApprovedById")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("GrantedById")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618
         }
