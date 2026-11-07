@@ -12,6 +12,8 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Repositories
         Task<List<AppUserEntity>> GetPendingAsync(CancellationToken ct = default);
         Task AddAsync(AppUserEntity user, CancellationToken ct = default);
         Task SaveChangesAsync(CancellationToken ct = default);
+        Task<List<AppUserEntity>> GetAllAsync(CancellationToken ct = default);
+
     }
 
     public class AppUserRepo(AppDbContext db) : IAppUserRepo
@@ -31,5 +33,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Repositories
               .ToListAsync(ct);
         public Task SaveChangesAsync(CancellationToken ct = default) =>
             db.SaveChangesAsync(ct);
+        public Task<List<AppUserEntity>> GetAllAsync(CancellationToken ct = default) =>
+            db.Users.OrderBy(u => u.Role).ThenBy(u => u.Username).ToListAsync(ct);
     }
 }

@@ -175,6 +175,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
 
             target.Status = UserStatus.Approved;
             target.ApprovedById = approverId;
+            target.GrantedById = approverId;
             target.ApprovedAt = DateTimeOffset.UtcNow;
             await users.SaveChangesAsync(ct);
 

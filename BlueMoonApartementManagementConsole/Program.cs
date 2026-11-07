@@ -1,4 +1,5 @@
 using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
+using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Repositories;
 using BlueMoonApartementManagementConsole.BackEnd.Services;
@@ -15,6 +16,7 @@ builder.Services.AddSingleton<IPasswordHasher<AppUserEntity>, PasswordHasher<App
 builder.Services.AddScoped<IAppUserRepo, AppUserRepo>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IAccountManagementService, AccountManagementService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
@@ -54,6 +56,30 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                     ctx.Response.Redirect("/403");
                 return Task.CompletedTask;
             };
+            o.Events.OnValidatePrincipal = async ctx =>
+            {
+                var users = ctx.HttpContext.RequestServices.GetRequiredService<IAppUserRepo>();
+
+                var userId = ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var user = int.TryParse(userId, out var id) ? await users.GetByIdAsync(id, ctx.HttpContext.RequestAborted) : null;
+
+                // Bị vô hiệu hóa, bị xóa hoặc chưa được duyệt: đăng xuất ngay
+                if (user is null || !user.IsActive || user.Status != UserStatus.Approved)
+                {
+                    ctx.RejectPrincipal();
+                    await ctx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    return;
+                }
+
+                // Vai trò và cờ đổi mật khẩu lấy từ DB, nên thay đổi có hiệu lực ở request kế tiếp
+                var claims = ctx.Principal!.Claims
+                    .Where(c => c.Type is not (ClaimTypes.Role or "must_change_password"))
+                    .ToList();
+                claims.Add(new Claim(ClaimTypes.Role, user.Role.ToString()));
+                claims.Add(new Claim("must_change_password", user.MustChangePassword ? "1" : "0"));
+
+                ctx.ReplacePrincipal(new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
+            };
         });
 
 builder.Services.AddAuthorization(o =>
@@ -64,10 +90,40 @@ builder.Services.AddAuthorization(o =>
 });
 
 var app = builder.Build();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 app.MapControllers();
+
+app.Use(async (ctx, next) =>
+{
+    var mustChange = ctx.User.FindFirst("must_change_password")?.Value == "1";
+    var path = ctx.Request.Path.Value ?? string.Empty;
+
+    var allowed = Path.HasExtension(path)
+               || path.StartsWith("/ho-so", StringComparison.OrdinalIgnoreCase)
+               || path.StartsWith("/api/ho-so", StringComparison.OrdinalIgnoreCase)
+               || path.StartsWith("/logout", StringComparison.OrdinalIgnoreCase)
+               || path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+               || path.StartsWith("/403", StringComparison.OrdinalIgnoreCase)
+               || path.StartsWith("/_", StringComparison.OrdinalIgnoreCase);
+
+    if (mustChange && !allowed)
+    {
+        if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await ctx.Response.WriteAsJsonAsync(new ApiError("PASSWORD_CHANGE_REQUIRED", "Vui lòng đổi mật khẩu tạm trước khi tiếp tục."));
+            return;
+        }
+
+        ctx.Response.Redirect("/ho-so");
+        return;
+    }
+
+    await next();
+});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

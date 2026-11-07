@@ -7,7 +7,13 @@
         LoginLocked: 'Bị khóa tạm thời',
         Logout: 'Đăng xuất',
         Register: 'Đăng ký',
-        ApproveAccount: 'Xác nhận tài khoản'
+        ApproveAccount: 'Xác nhận tài khoản',
+        CreateAccount: 'Tạo tài khoản mới',
+        DisableAccount: 'Vô hiệu hóa tài khoản',
+        EnableAccount: 'Kích hoạt tài khoản',
+        UnlockAccount: 'Mở khóa tài khoản',
+        ResetPassword: 'Reset mật khẩu',
+        ChangePassword: 'Thay đổi mật khẩu'
     };
 
     const el = (id) => document.getElementById(id);

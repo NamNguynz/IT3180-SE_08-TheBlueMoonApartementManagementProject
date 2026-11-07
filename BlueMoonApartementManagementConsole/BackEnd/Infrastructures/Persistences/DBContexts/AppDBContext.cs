@@ -35,6 +35,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany()
              .HasForeignKey(u => u.ApprovedById)
              .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasOne<AppUserEntity>()
+             .WithMany()
+             .HasForeignKey(u => u.GrantedById)
+             .OnDelete(DeleteBehavior.Restrict);   // không xóa cha khi còn con
+
+            e.HasIndex(u => u.GrantedById);
+
+            e.Property(u => u.MustChangePassword).HasDefaultValue(false);
         });
 
         modelBuilder.Entity<AuditLog>(e =>
