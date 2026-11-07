@@ -1,3 +1,6 @@
 <Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/BlueMoonApartementManagementConsole.Tests/BlueMoonApartementManagementConsole.Tests.csproj" />
+  </Folder>
   <Project Path="BlueMoonApartementManagementConsole/BlueMoonApartementManagementConsole.csproj" />
 </Solution>
