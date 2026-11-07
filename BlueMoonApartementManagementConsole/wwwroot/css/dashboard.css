@@ -506,3 +506,77 @@ body {
         transform: rotate(360deg);
     }
 }
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 16px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+    .filter-bar label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .filter-bar input,
+    .filter-bar select {
+        min-width: 160px;
+        padding: 8px 10px;
+        font-size: 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+    }
+
+.filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-link {
+    padding: 0;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+    .btn-link:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+.mono {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 13px;
+}
+
+.col-wrap {
+    white-space: normal;
+    min-width: 240px;
+}
+
+.pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    font-size: 14px;
+}
+
+    .pager a {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+    }

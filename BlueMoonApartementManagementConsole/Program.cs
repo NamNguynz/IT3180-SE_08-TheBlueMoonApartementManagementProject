@@ -7,11 +7,14 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<IPasswordHasher<AppUserEntity>, PasswordHasher<AppUserEntity>>();
 builder.Services.AddScoped<IAppUserRepo, AppUserRepo>();
+builder.Services.AddScoped<IAuditRepository, AuditRepository>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
@@ -82,8 +85,11 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapPost("/logout", async (HttpContext ctx) =>
+app.MapPost("/logout", async (HttpContext ctx, IAuditService audit) =>
 {
+    var username = ctx.User.Identity?.Name ?? "unknown";
+    int? userId = int.TryParse(ctx.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+    await audit.LogAsync(AuditAction.Logout, username, userId, userId?.ToString());
     await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 }).RequireAuthorization();
