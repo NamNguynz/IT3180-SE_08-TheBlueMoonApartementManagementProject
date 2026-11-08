@@ -20,6 +20,9 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAccountManagementService, AccountManagementService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IApartmentProfileService, ApartmentProfileService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IFeeItemRepository, FeeItemRepository>();
+builder.Services.AddScoped<IFeeItemService, FeeItemService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

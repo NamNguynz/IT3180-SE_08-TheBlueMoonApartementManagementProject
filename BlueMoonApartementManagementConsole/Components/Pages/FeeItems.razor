@@ -1,0 +1,106 @@
+@page "/tai-chinh/khoan-thu"
+@layout DashboardLayout
+@attribute [Authorize(Policy = "TaiChinh")]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+<div id="fee-items-page" class="page">
+    <header class="page-head">
+        <h1>Khoản thu và đơn giá</h1>
+        <p class="muted">Danh mục khoản thu, cơ sở tính và lịch sử đơn giá theo thời điểm hiệu lực.</p>
+    </header>
+
+    <div id="fee-message" class="alert" hidden></div>
+
+    <AuthorizeView Policy="QuanTriHeThong" Context="auth">
+        <Authorized>
+            <section id="fee-create-section" class="card-box">
+                <h2>Thêm khoản thu</h2>
+                <form id="fee-create-form" class="filter-bar">
+                    <label>Mã khoản thu
+                        <input name="code" required maxlength="30" placeholder="VD: PHI_DICH_VU" />
+                    </label>
+                    <label>Tên khoản thu
+                        <input name="name" required maxlength="100" />
+                    </label>
+                    <label>Loại
+                        <select name="feeType" required>
+                            <option value="BatBuoc">Bắt buộc</option>
+                            <option value="TuNguyen">Tự nguyện</option>
+                            <option value="BaoTriRieng" disabled>Bảo trì riêng (chưa khả dụng)</option>
+                        </select>
+                    </label>
+                    <label>Phạm vi
+                        <select name="feeScope" required>
+                            <option value="Chung">Toàn chung cư</option>
+                            <option value="ChiDinh">Chỉ định hộ</option>
+                        </select>
+                    </label>
+                    <label>Chu kỳ
+                        <select name="feeCycle" required>
+                            <option value="MotLan">Một lần</option>
+                            <option value="Thang">Hàng tháng</option>
+                            <option value="Nam">Hàng năm</option>
+                        </select>
+                    </label>
+                    <label>Cơ sở tính
+                        <select name="calculationBasis" required>
+                            <option value="DienTich">Diện tích căn hộ</option>
+                            <option value="NhanKhau">Số nhân khẩu</option>
+                            <option value="Ho">Theo hộ</option>
+                            <option value="CoDinh">Cố định</option>
+                        </select>
+                    </label>
+                    <label>Đơn vị tính
+                        <input name="unit" required maxlength="20" placeholder="VD: m², người, hộ" />
+                    </label>
+                    <label>Đơn giá (đ)
+                        <input name="rate" type="number" min="0" step="1" required />
+                    </label>
+                    <label>Hiệu lực từ
+                        <input name="effectiveFrom" type="date" required />
+                    </label>
+                    <label>Hết hiệu lực (không bắt buộc)
+                        <input name="effectiveTo" type="date" />
+                    </label>
+                    <label>Ghi chú
+                        <input name="note" maxlength="500" />
+                    </label>
+                    <div class="filter-actions">
+                        <button type="submit" class="btn-approve">Tạo khoản thu</button>
+                    </div>
+                </form>
+            </section>
+        </Authorized>
+    </AuthorizeView>
+
+    <div class="filter-bar">
+        <select id="fee-filter-type" aria-label="Lọc theo loại">
+            <option value="">Tất cả loại</option>
+            <option value="BatBuoc">Bắt buộc</option>
+            <option value="TuNguyen">Tự nguyện</option>
+            <option value="BaoTriRieng">Bảo trì riêng</option>
+        </select>
+        <input id="fee-filter-text" type="search" placeholder="Tìm theo mã hoặc tên" aria-label="Tìm kiếm" />
+    </div>
+
+    <div class="card-box">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Mã</th>
+                    <th>Tên khoản thu</th>
+                    <th>Loại</th>
+                    <th>Phạm vi</th>
+                    <th>Chu kỳ</th>
+                    <th>Cơ sở tính</th>
+                    <th>Đơn vị</th>
+                    <th>Đơn giá hiện hành</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="fee-items-body"></tbody>
+        </table>
+        <p id="fee-empty" class="muted" hidden>Chưa có khoản thu nào.</p>
+    </div>
+</div>
