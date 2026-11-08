@@ -1,0 +1,104 @@
+@baseUrl = http://localhost:5105
+@apartmentId = 1
+@householdId = 1
+
+### List apartments (BQT)
+GET {{baseUrl}}/api/can-ho
+
+### Get an apartment and its household/residents (BQT)
+GET {{baseUrl}}/api/can-ho/{{apartmentId}}
+
+### Create an apartment (BQT)
+POST {{baseUrl}}/api/can-ho
+Content-Type: application/json
+
+{
+  "code": "A-101",
+  "building": "A",
+  "floor": 1,
+  "area": 68.5,
+  "bedroomCount": 2,
+  "status": "Đang sử dụng",
+  "notes": null
+}
+
+### Update an apartment (BQT)
+PUT {{baseUrl}}/api/can-ho/{{apartmentId}}
+Content-Type: application/json
+
+{
+  "code": "A-101",
+  "building": "A",
+  "floor": 1,
+  "area": 70,
+  "bedroomCount": 2,
+  "status": "Đang sử dụng",
+  "notes": "Đã cập nhật diện tích"
+}
+
+### Get household registration and residents (BQT)
+GET {{baseUrl}}/api/ho-gia-dinh/{{householdId}}
+
+### Create household registration and initial residents (BQT)
+POST {{baseUrl}}/api/ho-gia-dinh/can-ho/{{apartmentId}}
+Content-Type: application/json
+
+{
+  "householdNumber": "HK-0001",
+  "headName": "Nguyễn Văn An",
+  "houseNumber": "A-101",
+  "registeredAt": "2026-11-08T00:00:00+07:00",
+  "residents": [
+    {
+      "fullName": "Nguyễn Văn An",
+      "alias": null,
+      "dateOfBirth": "1980-04-20T00:00:00+07:00",
+      "gender": "Nam",
+      "placeOfBirth": "Hà Nội",
+      "hometown": "Nam Định",
+      "ethnicity": "Kinh",
+      "religion": null,
+      "occupation": "Kỹ sư",
+      "workplace": "Công ty ABC",
+      "identityNumber": "001080000001",
+      "identityIssuedAt": "2021-06-01T00:00:00+07:00",
+      "identityIssuePlace": "Cục Cảnh sát QLHC về TTXH",
+      "previousResidence": "Nam Định",
+      "notes": null
+    }
+  ]
+}
+
+### Update household registration and add/update residents (BQT)
+PUT {{baseUrl}}/api/ho-gia-dinh/{{householdId}}
+Content-Type: application/json
+
+{
+  "householdNumber": "HK-0001",
+  "headName": "Nguyễn Văn An",
+  "houseNumber": "A-101",
+  "registeredAt": "2026-11-08T00:00:00+07:00",
+  "residents": [
+    {
+      "id": 1,
+      "fullName": "Nguyễn Văn An",
+      "alias": null,
+      "dateOfBirth": "1980-04-20T00:00:00+07:00",
+      "gender": "Nam",
+      "placeOfBirth": "Hà Nội",
+      "hometown": "Nam Định",
+      "ethnicity": "Kinh",
+      "religion": null,
+      "occupation": "Kỹ sư",
+      "workplace": "Công ty ABC",
+      "identityNumber": "001080000001",
+      "identityIssuedAt": "2021-06-01T00:00:00+07:00",
+      "identityIssuePlace": "Cục Cảnh sát QLHC về TTXH",
+      "previousResidence": "Nam Định",
+      "notes": null
+    }
+  ]
+}
+
+### Error path: apartment does not exist
+GET {{baseUrl}}/api/can-ho/999999
