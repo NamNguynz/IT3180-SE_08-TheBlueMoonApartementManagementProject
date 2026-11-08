@@ -68,12 +68,17 @@
 
     const renderApartments = () => {
         const query = $('#apSearch').value.trim().toLocaleLowerCase('vi');
+        const areaValue = $('#apAreaSearch').value.trim();
+        const areaInCents = areaValue === '' ? null : Math.round(Number(areaValue) * 100);
         const matching = apartments.filter((apartment) =>
-            !query ||
-            apartment.code.toLocaleLowerCase('vi').includes(query) ||
-            apartment.building.toLocaleLowerCase('vi').includes(query));
+            (!query ||
+                apartment.code.toLocaleLowerCase('vi').includes(query) ||
+                apartment.building.toLocaleLowerCase('vi').includes(query)) &&
+            (areaInCents === null || Math.round(Number(apartment.area) * 100) === areaInCents));
 
-        $('#apCount').textContent = `${apartments.length} căn hộ`;
+        $('#apCount').textContent = query || areaInCents !== null
+            ? `${matching.length} / ${apartments.length} căn hộ`
+            : `${apartments.length} căn hộ`;
         $('#apListLoading').hidden = true;
         $('#apListEmpty').hidden = matching.length > 0;
 
@@ -450,6 +455,7 @@
             if (event.target.id === 'residentForm') onResidentSubmit(event);
         });
         $('#apSearch').addEventListener('input', renderApartments);
+        $('#apAreaSearch').addEventListener('input', renderApartments);
         void loadApartments(false);
     };
 

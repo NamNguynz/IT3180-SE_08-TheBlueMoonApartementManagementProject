@@ -40,12 +40,22 @@
     margin-top: 3px;
 }
 
-.ap-search {
+.ap-search,
+.ap-area-search {
     display: block;
     margin-bottom: 10px;
 }
 
+.ap-area-search span {
+    display: block;
+    margin-bottom: 5px;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .ap-search input,
+.ap-area-search input,
 .ap-form input,
 .ap-form select,
 .ap-form textarea {
@@ -65,6 +75,7 @@
 }
 
 .ap-search input:focus,
+.ap-area-search input:focus,
 .ap-form input:focus,
 .ap-form select:focus,
 .ap-form textarea:focus {

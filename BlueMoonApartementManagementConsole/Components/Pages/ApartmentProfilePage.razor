@@ -32,7 +32,12 @@
             </div>
             <label class="ap-search">
                 <span class="sr-only">Tìm căn hộ</span>
-                <input id="apSearch" type="search" placeholder="Tìm mã căn, tòa nhà..." autocomplete="off" />
+                <input id="apSearch" type="search" placeholder="Tìm một phần mã căn, tòa nhà..." autocomplete="off" />
+            </label>
+            <label class="ap-area-search">
+                <span>Diện tích chính xác (m²)</span>
+                <input id="apAreaSearch" type="number" min="0.01" max="100000" step="0.01"
+                       placeholder="Ví dụ: 68.5" inputmode="decimal" />
             </label>
             <div id="apListLoading" class="ap-list-message">Đang tải danh sách căn hộ...</div>
             <div id="apListEmpty" class="ap-list-message" hidden>Chưa có căn hộ phù hợp.</div>
