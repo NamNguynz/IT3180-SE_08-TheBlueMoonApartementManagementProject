@@ -1,0 +1,395 @@
+.apartment-profiles .page-head p {
+    margin: 0;
+}
+
+.ap-workspace {
+    display: grid;
+    grid-template-columns: minmax(250px, 310px) minmax(0, 1fr);
+    align-items: start;
+    gap: 18px;
+}
+
+.ap-list-panel {
+    position: sticky;
+    top: 82px;
+    margin-bottom: 0;
+    padding: 14px;
+}
+
+.ap-panel-heading,
+.ap-section-heading,
+.ap-resident-heading,
+.ap-form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.ap-panel-heading {
+    margin-bottom: 12px;
+}
+
+.ap-panel-heading .card-title,
+.ap-section-heading .card-title {
+    margin: 0;
+}
+
+.ap-panel-heading .small {
+    display: block;
+    margin-top: 3px;
+}
+
+.ap-search {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.ap-search input,
+.ap-form input,
+.ap-form select,
+.ap-form textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 11px;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+}
+
+.ap-form textarea {
+    resize: vertical;
+}
+
+.ap-search input:focus,
+.ap-form input:focus,
+.ap-form select:focus,
+.ap-form textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(30, 79, 160, 0.16);
+}
+
+.apartment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+}
+
+.apartment-list-item {
+    display: grid;
+    width: 100%;
+    gap: 5px;
+    padding: 12px;
+    text-align: left;
+    color: var(--text);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.apartment-list-item:hover,
+.apartment-list-item.is-active {
+    background: #f3f7fd;
+    border-color: #9bb9e7;
+}
+
+.apartment-list-item.is-active {
+    box-shadow: inset 3px 0 var(--primary);
+}
+
+.apartment-list-code {
+    font-weight: 700;
+    color: var(--navy);
+}
+
+.apartment-list-meta {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.apartment-list-item .badge {
+    justify-self: start;
+    margin-top: 2px;
+}
+
+.ap-list-message {
+    padding: 18px 8px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.ap-list-message[hidden],
+.ap-detail-column [hidden],
+.ap-dialog-backdrop[hidden] {
+    display: none !important;
+}
+
+.ap-detail-column {
+    min-width: 0;
+}
+
+.ap-selection-empty {
+    padding: 44px 24px;
+}
+
+.ap-section {
+    margin-bottom: 18px;
+    padding: 20px;
+}
+
+.ap-section-heading {
+    margin-bottom: 18px;
+}
+
+.ap-eyebrow {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.ap-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+}
+
+.ap-form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ap-span-2 {
+    grid-column: span 2;
+}
+
+.required-mark {
+    color: #b91c1c;
+}
+
+.ap-form-actions {
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+.btn-secondary {
+    padding: 8px 13px;
+    color: var(--navy);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: #f9fafb;
+}
+
+.ap-hint {
+    margin-bottom: 16px;
+    padding: 11px 13px;
+    color: #1e3a8a;
+    font-size: 13px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+}
+
+.ap-resident-heading {
+    align-items: flex-start;
+    margin-top: 24px;
+    margin-bottom: 12px;
+}
+
+.ap-resident-heading h3 {
+    margin: 0 0 4px;
+    color: var(--navy);
+    font-size: 15px;
+}
+
+.ap-resident-heading p {
+    margin: 0;
+}
+
+.resident-list {
+    display: grid;
+    gap: 8px;
+}
+
+.resident-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #f9fafb;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+}
+
+.resident-card-info {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.resident-card-info strong {
+    overflow: hidden;
+    color: var(--navy);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.resident-card-info span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.ap-resident-empty {
+    padding: 18px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    border-radius: 9px;
+}
+
+.ap-resident-empty[hidden] {
+    display: none;
+}
+
+.ap-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.ap-dialog {
+    width: min(760px, 100%);
+    max-height: min(90vh, 900px);
+    overflow-y: auto;
+    padding: 22px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.ap-dialog-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.ap-dialog-heading h2 {
+    margin: 0;
+    color: var(--navy);
+    font-size: 20px;
+}
+
+.ap-dialog-close {
+    width: 34px;
+    height: 34px;
+    color: var(--muted);
+    font-size: 25px;
+    line-height: 1;
+    background: #f3f4f6;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+}
+
+@media (max-width: 1000px) {
+    .ap-workspace {
+        grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .ap-section {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 760px) {
+    .ap-workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ap-list-panel {
+        position: static;
+    }
+
+    .apartment-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        max-height: 260px;
+    }
+}
+
+@media (max-width: 520px) {
+    .apartment-profiles .page-head-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .ap-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ap-span-2 {
+        grid-column: auto;
+    }
+
+    .ap-section-heading,
+    .ap-resident-heading {
+        align-items: flex-start;
+    }
+
+    .ap-resident-heading {
+        flex-direction: column;
+    }
+
+    .ap-dialog-backdrop {
+        padding: 8px;
+    }
+
+    .ap-dialog {
+        max-height: 95vh;
+        padding: 16px;
+    }
+}

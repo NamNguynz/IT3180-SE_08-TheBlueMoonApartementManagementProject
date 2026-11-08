@@ -1,0 +1,206 @@
+@page "/can-ho/ho-so"
+@attribute [Authorize(Policy = "QuanTriHeThong")]
+@layout BlueMoonApartementManagementConsole.Components.Layout.DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Hồ sơ căn hộ - Bluemoon</PageTitle>
+
+<HeadContent>
+    <link rel="stylesheet" href="css/apartment-profiles.css" />
+</HeadContent>
+
+<section id="apartmentProfiles" class="page apartment-profiles">
+    <div class="page-head page-head-row">
+        <div>
+            <h1>Hồ sơ căn hộ</h1>
+            <p class="muted">Quản lý thông tin căn hộ, hộ khẩu và nhân khẩu cư trú.</p>
+        </div>
+        <button type="button" class="btn-approve" data-action="new-apartment">+ Thêm căn hộ</button>
+    </div>
+
+    <div id="apAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <div class="ap-workspace">
+        <aside class="card-box ap-list-panel" aria-label="Danh sách căn hộ">
+            <div class="ap-panel-heading">
+                <div>
+                    <h2 class="card-title">Căn hộ</h2>
+                    <span id="apCount" class="muted small">Đang tải...</span>
+                </div>
+                <button type="button" class="btn-refresh" data-action="refresh" aria-label="Tải lại danh sách">↻</button>
+            </div>
+            <label class="ap-search">
+                <span class="sr-only">Tìm căn hộ</span>
+                <input id="apSearch" type="search" placeholder="Tìm mã căn, tòa nhà..." autocomplete="off" />
+            </label>
+            <div id="apListLoading" class="ap-list-message">Đang tải danh sách căn hộ...</div>
+            <div id="apListEmpty" class="ap-list-message" hidden>Chưa có căn hộ phù hợp.</div>
+            <div id="apartmentList" class="apartment-list"></div>
+        </aside>
+
+        <div class="ap-detail-column">
+            <div id="apSelectionEmpty" class="empty-state ap-selection-empty">
+                Chọn một căn hộ trong danh sách hoặc tạo hồ sơ mới để bắt đầu.
+            </div>
+
+            <div id="apSelection" hidden>
+                <section class="card-box ap-section">
+                    <div class="ap-section-heading">
+                        <div>
+                            <span class="ap-eyebrow">THÔNG TIN CĂN HỘ</span>
+                            <h2 id="apSelectedTitle" class="card-title">Căn hộ mới</h2>
+                        </div>
+                        <span id="apSelectedBadge" class="badge">Chưa lưu</span>
+                    </div>
+
+                    <form id="apartmentForm" class="ap-form">
+                        <div class="ap-form-grid">
+                            <label>Mã căn hộ <span class="required-mark">*</span>
+                                <input name="code" maxlength="30" required placeholder="Ví dụ: A-101" />
+                            </label>
+                            <label>Tòa nhà <span class="required-mark">*</span>
+                                <input name="building" maxlength="100" required placeholder="Ví dụ: Tòa A" />
+                            </label>
+                            <label>Tầng <span class="required-mark">*</span>
+                                <input name="floor" type="number" min="0" max="200" required />
+                            </label>
+                            <label>Diện tích (m²) <span class="required-mark">*</span>
+                                <input name="area" type="number" min="0.01" max="100000" step="0.01" required />
+                            </label>
+                            <label>Số phòng ngủ <span class="required-mark">*</span>
+                                <input name="bedroomCount" type="number" min="0" max="50" required />
+                            </label>
+                            <label>Trạng thái <span class="required-mark">*</span>
+                                <input name="status" maxlength="30" required placeholder="Đang sử dụng" />
+                            </label>
+                            <label class="ap-span-2">Ghi chú
+                                <textarea name="notes" rows="2" maxlength="500" placeholder="Thông tin bổ sung về căn hộ"></textarea>
+                            </label>
+                        </div>
+                        <div class="ap-form-actions">
+                            <button type="button" class="btn-secondary" data-action="cancel-apartment">Hủy</button>
+                            <button type="submit" class="btn-approve" data-action="save-apartment" data-role="save-apartment">Tạo căn hộ</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section id="householdPanel" class="card-box ap-section">
+                    <div class="ap-section-heading">
+                        <div>
+                            <span class="ap-eyebrow">HỘ KHẨU & NHÂN KHẨU</span>
+                            <h2 id="householdTitle" class="card-title">Hồ sơ hộ gia đình</h2>
+                        </div>
+                        <span id="householdBadge" class="badge badge-muted">Chưa lập hộ khẩu</span>
+                    </div>
+
+                    <div id="householdHint" class="ap-hint" hidden>
+                        Căn hộ này chưa có hộ khẩu. Nhập thông tin bên dưới để tạo hồ sơ và khai báo nhân khẩu.
+                    </div>
+
+                    <form id="householdForm" class="ap-form">
+                        <div class="ap-form-grid">
+                            <label>Số hộ khẩu <span class="required-mark">*</span>
+                                <input name="householdNumber" maxlength="30" required placeholder="Ví dụ: HK-0001" />
+                            </label>
+                            <label>Họ tên chủ hộ <span class="required-mark">*</span>
+                                <input name="headName" maxlength="100" required />
+                            </label>
+                            <label>Số nhà <span class="required-mark">*</span>
+                                <input name="houseNumber" maxlength="30" required />
+                            </label>
+                            <label>Ngày lập hộ khẩu <span class="required-mark">*</span>
+                                <input name="registeredAt" type="date" required />
+                            </label>
+                        </div>
+
+                        <div class="ap-resident-heading">
+                            <div>
+                                <h3>Danh sách nhân khẩu</h3>
+                                <p class="muted small">Thêm mới hoặc chỉnh sửa thông tin từng thành viên trong hộ.</p>
+                            </div>
+                            <button type="button" class="btn-secondary" data-action="add-resident">+ Thêm nhân khẩu</button>
+                        </div>
+                        <div id="residentList" class="resident-list"></div>
+                        <div id="residentEmpty" class="ap-resident-empty">Chưa khai báo nhân khẩu.</div>
+
+                        <div class="ap-form-actions">
+                            <button type="submit" class="btn-approve" data-action="save-household" data-role="save-household">Tạo hồ sơ hộ khẩu</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="residentDialog" class="ap-dialog-backdrop" hidden>
+        <section class="ap-dialog" role="dialog" aria-modal="true" aria-labelledby="residentDialogTitle">
+            <div class="ap-dialog-heading">
+                <div>
+                    <span class="ap-eyebrow">THÔNG TIN CƯ DÂN</span>
+                    <h2 id="residentDialogTitle">Thêm nhân khẩu</h2>
+                </div>
+                <button type="button" class="ap-dialog-close" data-action="close-resident" aria-label="Đóng">×</button>
+            </div>
+            <form id="residentForm" class="ap-form">
+                <input name="id" type="hidden" />
+                <div class="ap-form-grid">
+                    <label class="ap-span-2">Họ tên <span class="required-mark">*</span>
+                        <input name="fullName" maxlength="100" required />
+                    </label>
+                    <label>Bí danh
+                        <input name="alias" maxlength="100" />
+                    </label>
+                    <label>Ngày sinh <span class="required-mark">*</span>
+                        <input name="dateOfBirth" type="date" required />
+                    </label>
+                    <label>Giới tính <span class="required-mark">*</span>
+                        <select name="gender" required>
+                            <option value="">Chọn giới tính</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </label>
+                    <label>Nơi sinh
+                        <input name="placeOfBirth" maxlength="100" />
+                    </label>
+                    <label>Nguyên quán
+                        <input name="hometown" maxlength="100" />
+                    </label>
+                    <label>Dân tộc
+                        <input name="ethnicity" maxlength="50" />
+                    </label>
+                    <label>Tôn giáo
+                        <input name="religion" maxlength="50" />
+                    </label>
+                    <label>Nghề nghiệp
+                        <input name="occupation" maxlength="100" />
+                    </label>
+                    <label>Nơi làm việc
+                        <input name="workplace" maxlength="150" />
+                    </label>
+                    <label>Số CMND/CCCD
+                        <input name="identityNumber" maxlength="30" inputmode="numeric" />
+                    </label>
+                    <label>Ngày cấp
+                        <input name="identityIssuedAt" type="date" />
+                    </label>
+                    <label class="ap-span-2">Nơi cấp
+                        <input name="identityIssuePlace" maxlength="150" />
+                    </label>
+                    <label class="ap-span-2">Nơi cư trú trước khi chuyển đến
+                        <textarea name="previousResidence" rows="2" maxlength="500"></textarea>
+                    </label>
+                    <label class="ap-span-2">Ghi chú
+                        <textarea name="notes" rows="2" maxlength="500"></textarea>
+                    </label>
+                </div>
+                <div class="ap-form-actions">
+                    <button type="button" class="btn-secondary" data-action="close-resident">Hủy</button>
+                    <button type="submit" class="btn-approve">Lưu nhân khẩu</button>
+                </div>
+            </form>
+        </section>
+    </div>
+</section>
