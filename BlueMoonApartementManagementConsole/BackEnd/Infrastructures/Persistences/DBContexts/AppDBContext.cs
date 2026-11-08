@@ -7,6 +7,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<AppUserEntity> Users => Set<AppUserEntity>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<ApartmentEntity> Apartments => Set<ApartmentEntity>();
+    public DbSet<HouseholdEntity> Households => Set<HouseholdEntity>();
+    public DbSet<ResidentEntity> Residents => Set<ResidentEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -60,6 +63,58 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             e.HasIndex(a => a.OccurredAt);
             e.HasIndex(a => a.Username);
+        });
+
+        modelBuilder.Entity<ApartmentEntity>(e =>
+        {
+            e.ToTable("apartments");
+            e.HasKey(a => a.Id);
+            e.Property(a => a.Code).HasMaxLength(30).IsRequired();
+            e.Property(a => a.Building).HasMaxLength(100).IsRequired();
+            e.Property(a => a.Area).HasPrecision(10, 2);
+            e.Property(a => a.Status).HasMaxLength(30).IsRequired();
+            e.Property(a => a.Notes).HasMaxLength(500);
+            e.HasIndex(a => a.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<HouseholdEntity>(e =>
+        {
+            e.ToTable("households");
+            e.HasKey(h => h.Id);
+            e.Property(h => h.HouseholdNumber).HasMaxLength(30).IsRequired();
+            e.Property(h => h.HeadName).HasMaxLength(100).IsRequired();
+            e.Property(h => h.HouseNumber).HasMaxLength(30).IsRequired();
+            e.HasIndex(h => h.HouseholdNumber).IsUnique();
+            e.HasIndex(h => h.ApartmentId).IsUnique();
+            e.HasOne(h => h.Apartment)
+                .WithOne(a => a.Household)
+                .HasForeignKey<HouseholdEntity>(h => h.ApartmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ResidentEntity>(e =>
+        {
+            e.ToTable("residents");
+            e.HasKey(r => r.Id);
+            e.Property(r => r.FullName).HasMaxLength(100).IsRequired();
+            e.Property(r => r.Alias).HasMaxLength(100);
+            e.Property(r => r.Gender).HasMaxLength(20).IsRequired();
+            e.Property(r => r.PlaceOfBirth).HasMaxLength(100);
+            e.Property(r => r.Hometown).HasMaxLength(100);
+            e.Property(r => r.Ethnicity).HasMaxLength(50);
+            e.Property(r => r.Religion).HasMaxLength(50);
+            e.Property(r => r.Occupation).HasMaxLength(100);
+            e.Property(r => r.Workplace).HasMaxLength(150);
+            e.Property(r => r.IdentityNumber).HasMaxLength(30);
+            e.Property(r => r.IdentityIssuePlace).HasMaxLength(150);
+            e.Property(r => r.PreviousResidence).HasMaxLength(500);
+            e.Property(r => r.Notes).HasMaxLength(500);
+            e.HasIndex(r => r.IdentityNumber).IsUnique()
+                .HasFilter("\"IdentityNumber\" IS NOT NULL");
+            e.HasOne(r => r.Household)
+                .WithMany(h => h.Residents)
+                .HasForeignKey(r => r.HouseholdId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -14,10 +14,12 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<IPasswordHasher<AppUserEntity>, PasswordHasher<AppUserEntity>>();
 builder.Services.AddScoped<IAppUserRepo, AppUserRepo>();
+builder.Services.AddScoped<IApartmentProfileRepository, ApartmentProfileRepository>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAccountManagementService, AccountManagementService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IApartmentProfileService, ApartmentProfileService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

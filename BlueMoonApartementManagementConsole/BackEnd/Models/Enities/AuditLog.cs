@@ -13,7 +13,11 @@
         EnableAccount,
         UnlockAccount,
         ResetPassword,
-        ChangePassword
+        ChangePassword,
+        CreateApartmentProfile,
+        UpdateApartmentProfile,
+        CreateHouseholdProfile,
+        UpdateHouseholdProfile
     }
 
     public class AuditLog
