@@ -17,7 +17,9 @@
         CreateApartmentProfile,
         UpdateApartmentProfile,
         CreateHouseholdProfile,
-        UpdateHouseholdProfile
+        UpdateHouseholdProfile,
+        CreateFeeItem,
+        ChangeRate,
     }
 
     public class AuditLog

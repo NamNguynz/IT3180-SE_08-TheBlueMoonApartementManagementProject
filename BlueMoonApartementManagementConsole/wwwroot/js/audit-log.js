@@ -13,7 +13,9 @@
         EnableAccount: 'Kích hoạt tài khoản',
         UnlockAccount: 'Mở khóa tài khoản',
         ResetPassword: 'Reset mật khẩu',
-        ChangePassword: 'Thay đổi mật khẩu'
+        ChangePassword: 'Thay đổi mật khẩu',
+        CreateFeeItem: 'Tạo khoản thu',
+        ChangeRate: 'Điều chỉnh giá khoản thu'
     };
 
     const el = (id) => document.getElementById(id);

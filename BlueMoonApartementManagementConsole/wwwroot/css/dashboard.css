@@ -542,6 +542,45 @@ body {
     gap: 12px;
 }
 
+.rate-lookup {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin: 8px 0 12px;
+}
+
+    .rate-lookup label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .rate-lookup input[type="date"] {
+        min-width: 160px;
+        padding: 8px 10px;
+        font-size: 14px;
+        color: #111827;
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        color-scheme: light;
+        cursor: pointer;
+    }
+
+        .rate-lookup input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 1;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+            .rate-lookup input[type="date"]::-webkit-calendar-picker-indicator:hover {
+                background-color: #e5e7eb;
+            }
+
 .btn-link {
     padding: 0;
     font-family: inherit;

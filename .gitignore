@@ -36,3 +36,6 @@ Desktop.ini
 
 # User-specific files
 BlueMoonApartementManagementConsole/appsettings.json
+
+# AI Context files
+.claude/

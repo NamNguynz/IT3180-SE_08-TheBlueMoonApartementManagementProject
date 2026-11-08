@@ -13,6 +13,35 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include=".claude\docs\architecture.md" />
+    <None Include=".claude\docs\audit-log.md" />
+    <None Include=".claude\docs\auth-and-accounts.md" />
+    <None Include=".claude\docs\conventions.md" />
+    <None Include=".claude\docs\frontend.md" />
+    <None Include=".claude\docs\open-questions.md" />
+    <None Include=".claude\docs\pitfalls.md" />
+    <None Include=".claude\docs\project-overview.md" />
+    <None Include=".claude\docs\requirements-and-status.md" />
+    <None Include=".claude\docs\tech-stack.md" />
+    <None Include=".claude\Project Charter.xlsx" />
+    <None Include=".claude\README.md" />
+    <None Include=".claude\SE_08_AcceptanceCriteria.xlsx" />
+    <None Include=".claude\SE_08_As-IsScenario.xlsx" />
+    <None Include=".claude\SE_08_ClientWishList.xlsx" />
+    <None Include=".claude\SE_08_DefinitionOfDone.docx" />
+    <None Include=".claude\SE_08_Epics.xlsx" />
+    <None Include=".claude\SE_08_Features.xlsx" />
+    <None Include=".claude\SE_08_ProductBackLog.xlsx" />
+    <None Include=".claude\SE_08_RawCollection.xlsx" />
+    <None Include=".claude\SE_08_RawLog.xlsx" />
+    <None Include=".claude\SE_08_RawNFR.xlsx" />
+    <None Include=".claude\SE_08_TraceabilityMatrix.xlsx" />
+    <None Include=".claude\SE_08_UserStories.xlsx" />
+    <None Include=".claude\SE_08_VisionaryScenario.xlsx" />
+    <None Include=".claude\Work Distribution %282%29.xlsx" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
       <PrivateAssets>all</PrivateAssets>
