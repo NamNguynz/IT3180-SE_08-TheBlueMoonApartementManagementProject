@@ -11,6 +11,25 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # PostgreSQL tạm cho test tích hợp (tests/.../Integration). Container bị xóa sau mỗi lần chạy.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bluemoon
+          POSTGRES_PASSWORD: bluemoon
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Thiếu biến này thì test tích hợp bị skip. Tên database phải chứa "IntegrationTest".
+      BLUEMOON_TEST_CONNECTION: Host=localhost;Port=5432;Database=BlueMoon_IntegrationTest;Username=bluemoon;Password=bluemoon
+
     steps:
     - uses: actions/checkout@v4
     
