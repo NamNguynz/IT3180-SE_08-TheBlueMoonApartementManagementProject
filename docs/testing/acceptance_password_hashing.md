@@ -2,6 +2,10 @@
 
 > Tài liệu dành cho **người kiểm thử độc lập** (không phải người viết code/test).
 > Người kiểm thử chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
+>
+> **Tự động hóa (09/11/2026):** case ghi "Tự động" đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
+> file `tests/.../Integration/Acceptance/PasswordHashingAcceptanceTests.cs`. Chạy riêng một case: `dotnet test --filter "Acceptance=A1"`.
+> Người kiểm thử **chỉ cần chạy tay các bước ghi "Chạy tay"**, rồi ký nghiệm thu ở cuối.
 
 ## 1. Mục đích và phạm vi
 
@@ -43,13 +47,15 @@ Các lệnh `psql` bên dưới dùng `-d BlueMoon_AT`. Nếu dùng tên databas
 
 ### A1. Mật khẩu được lưu dạng hash, có salt
 
+> **Tự động** (`Acceptance=A1`). Không cần chạy tay.
+
 **Tiền điều kiện:** app đang chạy, chưa có tài khoản `cudan_at01`, `cudan_at02`.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Vào `/login`, bấm **Đăng ký**. Nhập Tên người dùng `Cu dan AT 01`, Tài khoản `cudan_at01`, Mật khẩu `TestPass@01`, Vai trò **Cư dân**, bấm **Đăng ký** | Hiện "Đăng ký thành công. Bạn có thể đăng nhập ngay." |
 | 2 | Lặp lại bước 1 với `cudan_at02`, cùng mật khẩu `TestPass@01` | Đăng ký thành công |
-| 3 | Đăng ký `cudan_at03` với mật khẩu 7 ký tự `Abc@123` | Bị từ chối, báo mật khẩu phải từ 8 đến 100 ký tự |
+| 3 | Đăng ký `cudan_at03` với mật khẩu 7 ký tự `Abc@123` | Bị từ chối, báo "Mật khẩu tối thiểu 8 ký tự." |
 | 4 | Chạy `psql -d BlueMoon_AT -c 'select "Username", "PasswordHash" from users;'` | Cột `PasswordHash` **không** chứa `TestPass@01`. Là chuỗi base64 dài khoảng 84 ký tự |
 | 5 | So sánh `PasswordHash` của `cudan_at01` và `cudan_at02` | Hai chuỗi **khác nhau** dù cùng mật khẩu |
 | 6 | Kiểm tra `cudan_at03` không có trong bảng `users` | Không có |
@@ -59,6 +65,8 @@ Các lệnh `psql` bên dưới dùng `-d BlueMoon_AT`. Nếu dùng tên databas
 | | | |
 
 ### A2. Đăng nhập và khóa tài khoản khi sai nhiều lần
+
+> **Tự động** (`Acceptance=A2`). Không cần chạy tay.
 
 **Tiền điều kiện:** đã chạy A1.
 
@@ -76,6 +84,8 @@ Các lệnh `psql` bên dưới dùng `-d BlueMoon_AT`. Nếu dùng tên databas
 | | | |
 
 ### A3. BQT cấp lại mật khẩu
+
+> **Tự động** (`Acceptance=A3`). Không cần chạy tay.
 
 **Tiền điều kiện:** đã chạy A2. Có thể chờ hết 15 phút, hoặc để BQT **Mở khóa** `cudan_at01` trước.
 
@@ -95,12 +105,16 @@ Các lệnh `psql` bên dưới dùng `-d BlueMoon_AT`. Nếu dùng tên databas
 
 ### A4. Tự đổi mật khẩu
 
+> **Tự động** (`Acceptance=A4`) trừ bước 4.
+> **Chạy tay bước 4:** ở trang Hồ sơ, gõ "Nhập lại mật khẩu mới" khác "Mật khẩu mới" rồi bấm **Đổi mật khẩu**.
+> Phải thấy câu "Mật khẩu nhập lại không khớp." Câu này do trình duyệt tự kiểm, không gửi lên server nên test tự động không kiểm được.
+
 **Tiền điều kiện:** đăng nhập `cudan_at02` / `TestPass@01`. Vào `/ho-so`, mục **Đổi mật khẩu**.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Nhập mật khẩu hiện tại **sai**, mật khẩu mới `NewPass@02` hai lần, bấm **Đổi mật khẩu** | Bị từ chối, báo mật khẩu hiện tại không đúng |
-| 2 | Nhập đúng mật khẩu hiện tại, mật khẩu mới `Abc@123` (7 ký tự) | Bị từ chối, báo mật khẩu mới tối thiểu 8 ký tự |
+| 2 | Nhập đúng mật khẩu hiện tại, mật khẩu mới `Abc@123` (7 ký tự) | Bị từ chối, báo "Mật khẩu mới phải từ 8 đến 100 ký tự." |
 | 3 | Nhập đúng mật khẩu hiện tại, mật khẩu mới bằng chính `TestPass@01` | Bị từ chối, báo mật khẩu mới phải khác mật khẩu hiện tại |
 | 4 | Nhập "Nhập lại mật khẩu mới" không khớp | Báo "Mật khẩu nhập lại không khớp." |
 | 5 | Nhập đúng: hiện tại `TestPass@01`, mới `NewPass@02` hai lần | Báo "Đã đổi mật khẩu. Đang chuyển đến trang chủ..." |
@@ -112,6 +126,8 @@ Các lệnh `psql` bên dưới dùng `-d BlueMoon_AT`. Nếu dùng tên databas
 | | | |
 
 ### A5. Nhật ký hệ thống không chứa mật khẩu
+
+> **Tự động** (`Acceptance=A5`). Không cần chạy tay.
 
 **Tiền điều kiện:** đã chạy A1 đến A4.
 
@@ -134,7 +150,7 @@ Các lỗi dưới đây đã được ghi nhận và sẽ sửa ở task riêng
 | # | Mô tả | Ảnh hưởng tới |
 |---|---|---|
 | 1 | `ADMIN_INIT_PWD` không bị kiểm tra độ dài tối thiểu 8 ký tự | Tài khoản `admin` có thể có mật khẩu ngắn |
-| 2 | Hash được tạo lại khi đăng nhập không được lưu nếu người dùng chọn sai tư cách | Không thấy được khi test tay |
+| 2 | **Đính chính (09/11/2026): không phải lỗi.** Hash tạo lại khi đăng nhập sai tư cách **vẫn được lưu**, vì lệnh ghi nhật ký lưu luôn thay đổi trên cùng kết nối DB. Test Q10 (`AuditLogQueryTests`) đã xác nhận | — |
 | 3 | Lần sai mật khẩu thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" thay vì "lần 5" | A2, A5 |
 
 ## 6. Tổng hợp và nghiệm thu

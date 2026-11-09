@@ -2,6 +2,11 @@
 
 > Tài liệu dành cho **người kiểm thử độc lập** (không phải người viết code/test).
 > Người kiểm thử chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
+>
+> **Tự động hóa (09/11/2026):** case ghi "Tự động" đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
+> dùng đồng hồ giả nên không phải chờ 10 phút. File `tests/.../Integration/Acceptance/SessionTimeoutAcceptanceTests.cs`
+> và `tests/.../Integration/SessionTimeoutTests.cs`. Chạy riêng một case: `dotnet test --filter "Acceptance=T1"`.
+> Người kiểm thử **chỉ cần chạy tay T4 bước 5** (mất khoảng 12 phút), rồi ký nghiệm thu ở cuối. Lịch chạy song song ở mục 3 không còn cần.
 
 ## 1. Mục đích và phạm vi
 
@@ -63,6 +68,8 @@ Mỗi trình duyệt là một phiên riêng nên chạy song song được. **K
 
 ### T1. Ranh giới 10 phút và quay về đúng trang
 
+> **Tự động** (`Acceptance=T1`). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi | Giờ thực tế |
 |---|---|---|---|
 | 1 | Đăng nhập `admin`, vào `/quan-tri/nhat-ky`. Ghi giờ (gọi là **t0**) | Vào được | |
@@ -75,6 +82,8 @@ Mỗi trình duyệt là một phiên riêng nên chạy song song được. **K
 | | | |
 
 ### T2. Thao tác sớm rồi để yên (kiểm chứng H1)
+
+> **Tự động** bằng test S5 (`SessionTimeoutTests`). Không cần chạy tay. Kết quả: **H1 xảy ra** (thao tác ở phút 4 không gia hạn phiên).
 
 | # | Bước | Kết quả mong đợi | Giờ thực tế |
 |---|---|---|---|
@@ -90,6 +99,8 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 ### T3. Hết phiên rồi không thực hiện được thao tác
 
+> **Tự động** (`Acceptance=T3`). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi | Giờ thực tế |
 |---|---|---|---|
 | 1 | Đăng nhập `admin`, vào `/quan-tri/tai-khoan`. Ghi giờ **t0** | Thấy dòng `cudan_tg` trạng thái "Đang hoạt động" | |
@@ -102,6 +113,10 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 | | | |
 
 ### T4. Điền form lâu hơn 10 phút (H2, H3)
+
+> **Tự động** (`Acceptance=T4`) phần server: hết phiên thì đổi mật khẩu bị từ chối và mật khẩu cũ vẫn dùng được.
+> **Chạy tay bước 5:** làm bước 1 – 4 trên trình duyệt thật, rồi ghi lại sau khi đăng nhập lại app đưa về trang nào.
+> Việc chuyển trang này do JavaScript của trang Hồ sơ quyết định, nên test tự động không kiểm được (lỗi H3).
 
 | # | Bước | Kết quả mong đợi | Giờ thực tế |
 |---|---|---|---|
@@ -117,6 +132,8 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 ### T5. Nhiều tab trong cùng một trình duyệt
 
+> **Tự động** bằng test S4 (`SessionTimeoutTests`): các tab dùng chung một cookie, nên thao tác ở tab nào cũng gia hạn cùng một phiên. Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi | Giờ thực tế |
 |---|---|---|---|
 | 1 | Đăng nhập `cudan_tg` ở **tab A**. Mở thêm **tab B** cùng trình duyệt, vào `/ho-so`. Ghi giờ **t0** | Cả hai tab đều đã đăng nhập | |
@@ -128,6 +145,8 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 | | | |
 
 ### T6. Đóng trình duyệt thì mất phiên
+
+> **Tự động** bằng test S7 (`SessionTimeoutTests`): cookie không có `Expires`/`Max-Age`, tức là cookie phiên, mất khi thoát trình duyệt. Không cần chạy tay.
 
 **Trước khi test:** tắt tùy chọn khôi phục phiên trước của trình duyệt (Chrome: *Settings → On startup → Open the New Tab page*; Safari: *Settings → General → Safari opens with: A new window*), vì tùy chọn khôi phục có thể giữ lại cookie phiên.
 
@@ -142,6 +161,8 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 | | | |
 
 ### T7. Nhật ký khi hết phiên (H4)
+
+> **Tự động** (`Acceptance=T7`). Không cần chạy tay. Test ghi nhận hành vi hiện tại: hết phiên không có dòng nhật ký nào.
 
 **Tiền điều kiện:** đã chạy T1 (phiên `admin` đã hết hạn ở bước 3).
 

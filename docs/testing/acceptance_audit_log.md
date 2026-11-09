@@ -2,6 +2,12 @@
 
 > Tài liệu dành cho **người kiểm thử độc lập** (không phải người viết code/test).
 > Người kiểm thử chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
+>
+> **Tự động hóa (09/11/2026):** case ghi "Tự động" đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
+> file `tests/.../Integration/Acceptance/AuditLogAcceptanceTests.cs` và `tests/.../Integration/AuditLogQueryTests.cs`.
+> Chạy riêng một case: `dotnet test --filter "Acceptance=D1"`. Test kiểm dữ liệu mà trang nhận được từ server.
+> Người kiểm thử **chỉ cần chạy tay các bước ghi "Chạy tay"**: đó là phần hiển thị trên trình duyệt (nút bấm, chữ hiện ra).
+> Để có dữ liệu cho các bước chạy tay, vẫn làm D1 trên app thật như hướng dẫn.
 
 ## 1. Mục đích và phạm vi
 
@@ -78,6 +84,8 @@ Cột **Đối tượng** là **Id** (số) của tài khoản bị tác động
 
 ### D1. Ghi đủ 12 loại thao tác
 
+> **Tự động** (`Acceptance=D1`). Không cần kiểm tra lại. Chỉ cần làm các bước để có dữ liệu cho D3, D5, D6, D8, D9.
+
 Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính (`admin`), mở `/quan-tri/nhat-ky` và kiểm tra **dòng trên cùng**
 (hoặc các dòng trên cùng, nếu bước đó sinh nhiều dòng).
 
@@ -110,6 +118,8 @@ Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính 
 
 ### D2. Lọc theo hành động
 
+> **Tự động** (`Acceptance=D2`). Không cần chạy tay.
+
 **Tiền điều kiện:** đã chạy D1.
 
 | # | Bước | Kết quả mong đợi |
@@ -124,6 +134,10 @@ Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính 
 
 ### D3. Lọc theo tài khoản (J2)
 
+> **Tự động** (`Acceptance=D3`) trừ bước 5.
+> **Chạy tay bước 5:** gõ tên tài khoản có khoảng trắng ở hai đầu vào ô Tài khoản, bấm **Lọc**. Kết quả phải giống bước 1.
+> Việc cắt khoảng trắng do trình duyệt làm trước khi gửi, nên test tự động không kiểm được.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Ô Tài khoản: `cudan_nk`, bấm **Lọc** | Chỉ có các dòng mà **người thực hiện** là `cudan_nk` |
@@ -137,6 +151,8 @@ Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính 
 | | | |
 
 ### D4. Lọc theo ngày (J4)
+
+> **Tự động** (`Acceptance=D4`). Không cần chạy tay. Test làm lại đúng cách trang đổi ngày giờ Việt Nam sang giờ chuẩn trước khi gửi.
 
 Ngày tính theo **giờ Việt Nam**. "Đến ngày" được tính **trọn ngày đó**.
 
@@ -154,6 +170,9 @@ Ngày tính theo **giờ Việt Nam**. "Đến ngày" được tính **trọn ng
 
 ### D5. Kết hợp bộ lọc và nút Xóa lọc
 
+> **Tự động** (`Acceptance=D5`) trừ bước 2.
+> **Chạy tay bước 2:** sau khi lọc ở bước 1, bấm **Xóa lọc**. Mọi ô lọc phải về trống hoặc "Tất cả", danh sách hiện lại mọi dòng và về Trang 1.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Hành động **Đăng nhập thất bại**, Tài khoản `cudan_nk`, Từ ngày = Đến ngày = hôm nay, bấm **Lọc** | Chỉ có các dòng thỏa **cả ba** điều kiện (D1 bước 6 và bước 10), không có dòng của `ketoan_nk` hay `khong_ton_tai` |
@@ -164,6 +183,10 @@ Ngày tính theo **giờ Việt Nam**. "Đến ngày" được tính **trọn ng
 | | | |
 
 ### D6. Phân trang
+
+> **Tự động** (`Acceptance=D6`) phần dữ liệu: mỗi trang 20 dòng, hai trang không trùng nhau, mới nhất lên trước (bước 2).
+> **Chạy tay bước 1, 3, 4, 5, 6:** bấm nút **Sau →**, **← Trước** và xem dòng "Trang X / Y (N bản ghi)",
+> nút có bị mờ đúng lúc không, lọc xong có về Trang 1 không.
 
 **Tiền điều kiện:** tổng số bản ghi lớn hơn 20 (xem dòng "Trang 1 / X (N bản ghi)" dưới bảng).
 Nếu chưa đủ, ở trình duyệt phụ đăng nhập `khong_ton_tai` / `abc12345` nhiều lần cho đủ.
@@ -182,6 +205,8 @@ Nếu chưa đủ, ở trình duyệt phụ đăng nhập `khong_ton_tai` / `abc
 | | | |
 
 ### D7. Chỉ đọc (J6)
+
+> **Tự động** bằng test Q11, Q12 (`AuditLogQueryTests`) và D10. Không cần chạy tay.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -204,6 +229,8 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 
 ### D8. Hiển thị an toàn
 
+> **Chạy tay toàn bộ.** Cần trình duyệt thật để xem chữ lạ có bị hiểu thành mã và bật hộp thoại hay không.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Trình duyệt phụ: đăng nhập với Tài khoản `<img src=x onerror=alert(1)>`, Mật khẩu `abc12345`, tư cách bất kỳ | Báo sai tài khoản hoặc mật khẩu |
@@ -217,6 +244,8 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 
 ### D9. Thời gian hiển thị (J7)
 
+> **Chạy tay toàn bộ.** Cách hiện ngày giờ do trình duyệt quyết định, nên phải xem trên trình duyệt thật.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Trình duyệt phụ: đăng nhập `ketoan_nk` (Tư cách Kế toán). Ghi giờ đồng hồ Việt Nam lúc bấm: ____ | Vào được |
@@ -228,6 +257,8 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 | | | |
 
 ### D10. Mô tả trang khớp chức năng (J3)
+
+> **Tự động** (`Acceptance=D10`). Không cần chạy tay. Test ghi nhận mô tả hiện tại (vẫn chỉ nhắc 4 loại thao tác).
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
