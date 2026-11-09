@@ -1,0 +1,19 @@
+@page "/can-ho/danh-sach"
+@page "/nhan-khau/ho"
+@page "/nhan-khau/bien-dong"
+@attribute [Authorize(Policy = "QuanTriHeThong")]
+@layout DashboardLayout
+@using Microsoft.AspNetCore.Authorization
+
+@* Trang tạm cho các link nhóm "Căn hộ & cư dân" trên menu chưa có trang thật (lỗi F3).
+   Policy giống menu: chỉ Ban quản trị. Tên trang hiện ở breadcrumb (PageTitles trong DashboardLayout).
+   Khi làm trang thật: XÓA dòng @page tương ứng ở trên, nếu không test R19 sẽ báo trùng route. *@
+
+<PageTitle>Đang phát triển - Bluemoon</PageTitle>
+
+<section class="page">
+    <div class="page-head">
+        <h1>Tính năng đang phát triển</h1>
+        <p class="muted">Chức năng này đang được xây dựng.</p>
+    </div>
+</section>
