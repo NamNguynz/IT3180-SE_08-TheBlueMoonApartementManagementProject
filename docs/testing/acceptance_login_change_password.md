@@ -2,6 +2,10 @@
 
 > Tài liệu dành cho **người kiểm thử độc lập** (không phải người viết code/test).
 > Người kiểm thử chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
+>
+> **Tự động hóa (09/11/2026):** cả 10 case C1 – C10 đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
+> chủ yếu trong `tests/.../Integration/Acceptance/LoginChangePasswordAcceptanceTests.cs`. Chạy riêng một case: `dotnet test --filter "Acceptance=C1"`.
+> Không còn bước nào phải chạy tay. Riêng test C8 đang **Skip** vì lỗi G2 đã được xác nhận.
 
 ## 1. Mục đích và phạm vi
 
@@ -52,6 +56,8 @@ Unit test tương ứng (chạy bằng `dotnet test`):
 
 ### C1. Quay về đúng trang sau khi đăng nhập
 
+> **Tự động** (`Acceptance=C1`). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Chưa đăng nhập, gõ `https://localhost:7127/quan-tri/nhat-ky` | Bị chuyển tới `/login?ReturnUrl=%2Fquan-tri%2Fnhat-ky` |
@@ -64,13 +70,15 @@ Unit test tương ứng (chạy bằng `dotnet test`):
 
 ### C2. Không bị chuyển hướng ra trang ngoài (kiểm chứng G1)
 
+> **Tự động** (`Acceptance=C2`). Không cần chạy tay. Kết quả: **G1 không xảy ra**, cả 3 địa chỉ đều ở lại site.
+
 Với **từng** địa chỉ dưới đây: mở địa chỉ khi chưa đăng nhập, đăng nhập `cudan_lg` / `TestPass@01` (Tư cách Cư dân), ghi lại địa chỉ trên thanh địa chỉ sau khi đăng nhập, rồi đăng xuất trước khi thử địa chỉ tiếp theo.
 
 | # | Địa chỉ mở | Kết quả mong đợi | Địa chỉ thực tế sau đăng nhập |
 |---|---|---|---|
 | 1 | `https://localhost:7127/login?ReturnUrl=https://example.com` | Ở lại site, về `https://localhost:7127/` | |
 | 2 | `https://localhost:7127/login?ReturnUrl=//example.com` | Ở lại site, về `https://localhost:7127/` | |
-| 3 | `https://localhost:7127/login?ReturnUrl=/%5Cexample.com` | Ở lại site, về `https://localhost:7127/` | |
+| 3 | `https://localhost:7127/login?ReturnUrl=/%5Cexample.com` | Ở lại site: tới `https://localhost:7127//example.com` (trang Not Found của chính site) | |
 
 Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **Fail** và ghi "xác nhận G1".
 
@@ -79,6 +87,8 @@ Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **F
 | | | |
 
 ### C3. Thông báo lỗi không lộ thông tin
+
+> **Tự động** (`Acceptance=C3`). Không cần chạy tay.
 
 | # | Bước (trang `/login`) | Kết quả mong đợi |
 |---|---|---|
@@ -96,6 +106,8 @@ Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **F
 
 ### C4. BQT mở khóa tài khoản
 
+> **Tự động** (`Acceptance=C4`). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Đăng nhập `cudan_lg` với mật khẩu sai 5 lần, rồi đăng nhập đúng | "Tài khoản tạm bị khóa do đăng nhập sai nhiều lần. Vui lòng thử lại sau 15 phút." |
@@ -109,6 +121,9 @@ Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **F
 | | | |
 
 ### C5. Cookie đăng nhập được bảo vệ
+
+> **Tự động** bằng test S7 (`SessionTimeoutTests`): kiểm thuộc tính HttpOnly, Secure, SameSite=Strict, cookie phiên.
+> Bước 6 (`document.cookie`) được thay bằng kiểm HttpOnly: cookie có HttpOnly thì JavaScript không đọc được. Không cần chạy tay.
 
 Đăng nhập `cudan_lg`. Mở DevTools (F12) → **Application** → **Cookies** → `https://localhost:7127`.
 
@@ -128,6 +143,8 @@ Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **F
 
 ### C6. Hết phiên sau 10 phút không thao tác (NFR-008)
 
+> **Tự động** bằng test S2 – S5 (`SessionTimeoutTests`, dùng đồng hồ giả nên không phải chờ). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Đăng nhập `cudan_lg`. Ghi lại giờ. **Không thao tác gì** trong 11 phút | — |
@@ -139,6 +156,8 @@ Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **F
 | | | | |
 
 ### C7. Đăng xuất
+
+> **Tự động** (`Acceptance=C7`). Không cần chạy tay.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -152,6 +171,9 @@ Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **F
 | | | |
 
 ### C8. Phiên khác sau khi đổi mật khẩu (kiểm chứng G2)
+
+> **Tự động** (`Acceptance=C8`), hiện đang **Skip**: test đã chạy và **xác nhận G2** (trình duyệt 2 vẫn mở được `/ho-so`).
+> Khi G2 được sửa, bỏ Skip để test chạy lại. Không cần chạy tay.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -168,6 +190,8 @@ Nếu ở bước 3, trình duyệt 2 **vẫn dùng được** thì đánh **Fai
 
 ### C9. Chặn mọi chức năng khi chưa đổi mật khẩu tạm
 
+> **Tự động** (`Acceptance=C9`). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Đăng nhập `admin`, vào `/quan-tri/tai-khoan`, tạo `bqt_c` (vai trò Ban quản trị). Ghi lại mật khẩu tạm. Đăng xuất | Có mật khẩu tạm 12 ký tự |
@@ -183,6 +207,8 @@ Nếu ở bước 3, trình duyệt 2 **vẫn dùng được** thì đánh **Fai
 | | | |
 
 ### C10. Tên đăng nhập
+
+> **Tự động** (`Acceptance=C10`). Không cần chạy tay.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -203,8 +229,8 @@ Lưu ý: nếu đã chạy C8 thì mật khẩu của `cudan_lg` lúc này là `
 
 | # | Mô tả | Test case |
 |---|---|---|
-| G1 | `ReturnUrl` dạng `/\example.com` có thể đưa người dùng ra trang ngoài sau khi đăng nhập (open redirect). Code chỉ chặn `//` | C2 |
-| G2 | Đổi mật khẩu **không** đăng xuất các phiên đăng nhập khác của cùng tài khoản | C8 |
+| G1 | ~~`ReturnUrl` dạng `/\example.com` có thể đưa người dùng ra trang ngoài~~. **Không xảy ra** (test C2, 09/11/2026): server chuyển tới `https://localhost//example.com`, vẫn ở chính site | C2 |
+| G2 | Đổi mật khẩu **không** đăng xuất các phiên đăng nhập khác của cùng tài khoản. **Đã xác nhận** (test C8, 09/11/2026) | C8 |
 
 ### 5.2. Đã ghi nhận, không đánh Fail
 

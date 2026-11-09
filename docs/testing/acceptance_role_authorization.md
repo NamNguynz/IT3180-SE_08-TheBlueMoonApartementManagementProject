@@ -2,6 +2,10 @@
 
 > Tài liệu dành cho **người kiểm thử độc lập** (không phải người viết code/test).
 > Người kiểm thử chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
+>
+> **Tự động hóa (09/11/2026):** cả 8 case B1 – B8 đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
+> file `tests/.../Integration/Acceptance/RoleAuthorizationAcceptanceTests.cs`. Chạy riêng một case: `dotnet test --filter "Acceptance=B1"`.
+> Không còn bước nào phải chạy tay. Người kiểm thử xem kết quả test rồi ký nghiệm thu ở cuối.
 
 ## 1. Mục đích và phạm vi
 
@@ -66,6 +70,8 @@ cudan_01 (Cư Dân)              tự đăng ký ở B1
 
 ### B1. Tài khoản riêng
 
+> **Tự động** (`Acceptance=B1`). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Vào `/login`, bấm **Đăng ký**. Tên người dùng `Cu Dan 01`, Tài khoản `cudan_01`, Mật khẩu `TestPass@01`, Vai trò **Cư dân**, bấm **Đăng ký** | "Đăng ký thành công. Bạn có thể đăng nhập ngay." |
@@ -81,6 +87,8 @@ cudan_01 (Cư Dân)              tự đăng ký ở B1
 
 ### B2. Duyệt tài khoản theo vai trò
 
+> **Tự động** (`Acceptance=B2`). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Đăng ký `ketoan_tudk` / `TestPass@01`, Vai trò **Kế toán** | "Đăng ký thành công. Tài khoản cần được Ban quản trị khác xác nhận trước khi đăng nhập." |
@@ -95,6 +103,8 @@ cudan_01 (Cư Dân)              tự đăng ký ở B1
 
 ### B3. Menu và trang chủ theo vai trò
 
+> **Tự động** (`Acceptance=B3`). Không cần chạy tay.
+
 Đăng nhập lần lượt từng tài khoản, quan sát menu bên trái và mục "Công việc thường dùng" trên trang chủ.
 
 | Tài khoản | Menu mong đợi | Không được thấy |
@@ -108,6 +118,8 @@ cudan_01 (Cư Dân)              tự đăng ký ở B1
 | | | |
 
 ### B4. Chặn truy cập trang quản trị bằng URL
+
+> **Tự động** (`Acceptance=B4`). Không cần chạy tay. Test xác nhận F1: bị đưa tới `/403` và trang đó hiện "Not Found".
 
 Gõ thẳng từng địa chỉ vào thanh địa chỉ: `/quan-tri/tai-khoan`, `/quan-tri/duyet-tai-khoan`, `/quan-tri/nhat-ky`.
 
@@ -124,6 +136,8 @@ Gõ thẳng từng địa chỉ vào thanh địa chỉ: `/quan-tri/tai-khoan`, 
 
 ### B5. Chặn gọi API trực tiếp
 
+> **Tự động** (`Acceptance=B5`). Không cần chạy tay.
+
 Gõ thẳng từng địa chỉ vào thanh địa chỉ: `/api/tai-khoan`, `/api/tai-khoan/cho-xac-nhan`, `/api/nhat-ky`.
 Xem **mã trạng thái** ở DevTools (F12) → tab **Network** → cột **Status**.
 
@@ -139,6 +153,8 @@ Xem **mã trạng thái** ở DevTools (F12) → tab **Network** → cột **Sta
 | | | |
 
 ### B6. Phạm vi quản lý theo cây người cấp
+
+> **Tự động** (`Acceptance=B6`). Không cần chạy tay.
 
 Vào `/quan-tri/tai-khoan`, quan sát cột cuối (thao tác) của từng dòng. Có nút (**Vô hiệu hóa**, **Cấp lại mật khẩu**...) nghĩa là được quản lý, `—` nghĩa là không.
 
@@ -159,6 +175,8 @@ Thêm: kiểm tra cột **Người cấp** của `ketoan_a1` là `bqt_a`, của 
 
 ### B7. Thu hồi quyền có hiệu lực ngay
 
+> **Tự động** (`Acceptance=B7`). Không cần chạy tay.
+
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | **Trình duyệt 2:** đăng nhập `ketoan_a1`, đang ở trang chủ | Vào được |
@@ -173,6 +191,8 @@ Thêm: kiểm tra cột **Người cấp** của `ketoan_a1` là `bqt_a`, của 
 | | | |
 
 ### B8. Nhật ký ghi đúng người thực hiện
+
+> **Tự động** (`Acceptance=B8`). Không cần chạy tay.
 
 Đăng nhập `admin`, vào `/quan-tri/nhat-ky`.
 
