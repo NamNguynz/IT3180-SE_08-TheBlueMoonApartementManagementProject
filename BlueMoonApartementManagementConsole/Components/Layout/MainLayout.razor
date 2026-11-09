@@ -1,23 +1,9 @@
 ﻿@inherits LayoutComponentBase
+@layout AuthLayout
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@* Layout cho các trang báo lỗi (Không tìm thấy trang, Không có quyền truy cập, Đã xảy ra lỗi).
+   Dùng lại khung thẻ của trang đăng nhập (AuthLayout), thêm link về trang chủ. *@
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+@Body
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
-
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
+<p class="auth-switch"><a href="/">Về trang chủ</a></p>
