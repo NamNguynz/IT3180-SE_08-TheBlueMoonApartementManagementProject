@@ -13,9 +13,10 @@ namespace BlueMoonApartementManagementConsole.Tests.Security;
 public class AuthorizationMetadataTests
 {
     private const string AdminPolicy = "QuanTriHeThong";
+    private const string FinancePolicy = "TaiChinh";
 
     /// <summary>Các trang được phép truy cập khi chưa đăng nhập.</summary>
-    private static readonly Type[] PublicPages = [typeof(Login), typeof(NotFound), typeof(Error)];
+    private static readonly Type[] PublicPages = [typeof(Login), typeof(NotFound), typeof(Error), typeof(AccessDenied)];
 
     private static AuthorizeAttribute[] AuthorizeOf(Type type) =>
         type.GetCustomAttributes<AuthorizeAttribute>(inherit: true).ToArray();
@@ -69,11 +70,23 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(AccountManagementPage))]
     [InlineData(typeof(AccountApprovalPage))]
     [InlineData(typeof(AuditLogPage))]
+    [InlineData(typeof(InDevelopmentResidentPage))]
     public void AdminPages_RequireAdminPolicy(Type page)
     {
         var attrs = AuthorizeOf(page);
 
         Assert.Contains(attrs, a => a.Policy == AdminPolicy);
+    }
+
+    [Theory]
+    [Trait("TestId", "R17")]
+    [InlineData(typeof(FeeItems))]
+    [InlineData(typeof(InDevelopmentFinancePage))]
+    public void FinancePages_RequireFinancePolicy(Type page)
+    {
+        var attrs = AuthorizeOf(page);
+
+        Assert.Contains(attrs, a => a.Policy == FinancePolicy);
     }
 
     [Theory]
@@ -115,5 +128,27 @@ public class AuthorizationMetadataTests
     {
         // Nếu sau này trang Login bị gắn [Authorize] thì không ai đăng nhập được
         Assert.All(PublicPages, p => Assert.Empty(AuthorizeOf(p)));
+    }
+
+    // ===== R19: Mỗi route chỉ thuộc một trang =====
+
+    /// <summary>
+    /// Link menu chưa có trang thật đang dùng trang tạm InDevelopmentResidentPage / InDevelopmentFinancePage.
+    /// Khi làm trang thật mà quên xóa dòng @page ở trang tạm thì hai trang cùng route và app lỗi khi mở link đó.
+    /// </summary>
+    [Fact]
+    [Trait("TestId", "R19")]
+    public void EachRoute_BelongsToOnlyOnePage()
+    {
+        var duplicated = typeof(Login).Assembly.GetTypes()
+            .SelectMany(t => t.GetCustomAttributes<ComponentRoute>(inherit: false)
+                .Select(r => (Route: r.Template.TrimEnd('/').ToLowerInvariant(), Page: t.Name)))
+            .GroupBy(x => x.Route)
+            .Where(g => g.Count() > 1)
+            .Select(g => $"{g.Key} ({string.Join(", ", g.Select(x => x.Page))})")
+            .ToList();
+
+        Assert.True(duplicated.Count == 0,
+            "Các route sau thuộc nhiều trang, hãy xóa dòng @page ở trang tạm InDevelopment*Page: " + string.Join("; ", duplicated));
     }
 }

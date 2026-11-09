@@ -6,7 +6,7 @@ using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 namespace BlueMoonApartementManagementConsole.Tests.Integration.Acceptance;
 
 /// <summary>
-/// Tự động hóa docs/testing/acceptance_role_authorization.md (B1 – B8).
+/// Tự động hóa docs/testing/acceptance_role_authorization.md (B1 – B9).
 /// Cây tài khoản ở mục 3.1 của tài liệu được tạo thẳng trong DB (trừ B2, B8: đi qua luồng thật).
 /// </summary>
 [Collection(SequentialDatabaseCollection.Name)]
@@ -26,7 +26,28 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
 
     private static readonly string[] AdminApis = ["/api/tai-khoan", "/api/tai-khoan/cho-xac-nhan", "/api/nhat-ky"];
 
+    private const string AccessDeniedTitle = "<h1>Không có quyền truy cập</h1>";
+    private const string NotFoundTitle = "<h1>Không tìm thấy trang</h1>";
+    private const string InDevelopmentTitle = "<h1>Tính năng đang phát triển</h1>";
+
+    // Link menu đang dùng trang tạm (F3), chia theo policy như menu
+    private static readonly string[] ResidentPlaceholders = ["/can-ho/danh-sach", "/nhan-khau/ho", "/nhan-khau/bien-dong"];
+    private static readonly string[] FinancePlaceholders =
+        ["/khoan-thu/danh-muc", "/don-gia", "/ky-thu", "/thu-tien", "/cong-no", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
+
     private static string RoleLine(string label) => $"Bạn đang đăng nhập với vai trò <strong>{label}</strong>.";
+
+    /// <summary>Các link trên trang chủ mà người dùng bấm được: menu bên trái, thẻ truy cập nhanh, tên tài khoản.</summary>
+    private static async Task<string[]> LinksOnHomeAsync(HttpClient browser)
+    {
+        var html = (await UiFlow.GetAsync(browser, "/")).Html;
+        return Regex.Matches(html, "<a\\b[^>]*>")
+            .Select(m => m.Value)
+            .Where(tag => Regex.IsMatch(tag, "class=\"[^\"]*\\b(nav-link|quick-card|user-name)\\b"))
+            .Select(tag => Regex.Match(tag, "href=\"([^\"]*)\"").Groups[1].Value)
+            .Distinct()
+            .ToArray();
+    }
 
     [SkippableFact]
     [Trait("Acceptance", "B1")]
@@ -125,10 +146,13 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
                 var page = await UiFlow.GetAsync(browser, path);
                 Assert.True(page.IsRedirect, $"{username} mở được {path}");
                 Assert.DoesNotContain($"<h1>{title}</h1>", page.Html);
-                // Ghi nhận F1: bị đưa tới /403, nhưng app chưa có trang /403 nên hiện "Not Found"
                 Assert.Equal("/403", page.RedirectPath);
             }
-            Assert.Contains("Not Found", (await UiFlow.GetAsync(browser, "/403")).Html);
+            // F1 đã sửa: trang /403 báo "Không có quyền truy cập", không còn ra trang "Không tìm thấy"
+            var denied = await UiFlow.GetAsync(browser, "/403");
+            Assert.Equal(HttpStatusCode.Forbidden, denied.Status);
+            Assert.Contains(AccessDeniedTitle, denied.Html);
+            Assert.DoesNotContain(NotFoundTitle, denied.Html);
         }
 
         var anonymous = NewBrowser();
@@ -282,5 +306,51 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
         AssertLogged(AuditAction.EnableAccount, Accounts.Name("bqt_a"), ketoanA1.Id);
         Assert.Contains(logs, l => l.Action == AuditAction.LoginFailed && l.Username == cudan
             && l.Detail == "Sai tư cách đăng nhập: chọn KE_TOAN");
+    }
+
+    [SkippableFact]
+    [Trait("Acceptance", "B9")]
+    public async Task B9_EveryLinkOnHome_Opens_AndInDevelopmentPages_KeepRoleRules()
+    {
+        SkipIfNoDatabase();
+        var adminId = await Accounts.AdminIdAsync();
+        var bqtA = await Accounts.SeedAsync("bqt_a", UserRole.BQT, grantedById: adminId);
+        var ketoan = await Accounts.SeedAsync("ketoan_a1", UserRole.KE_TOAN, grantedById: bqtA.Id);
+        var cudan = await Accounts.SeedAsync("cudan_01", UserRole.CU_DAN);
+
+        var bqt = await LoginAsync(bqtA.Username, UserRole.BQT);
+        var accountant = await LoginAsync(ketoan.Username, UserRole.KE_TOAN);
+        var resident = await LoginAsync(cudan.Username, UserRole.CU_DAN);
+
+        // Phần 1 (F3): mọi link người dùng thấy trên trang chủ đều mở được, không link nào ra "Không tìm thấy trang"
+        (UserRole Role, HttpClient Browser)[] users = [(UserRole.BQT, bqt), (UserRole.KE_TOAN, accountant), (UserRole.CU_DAN, resident)];
+        foreach (var (role, browser) in users)
+        {
+            var links = await LinksOnHomeAsync(browser);
+            Assert.Contains("/", links);
+            foreach (var link in links)
+            {
+                var page = await UiFlow.GetAsync(browser, link);
+                Assert.True(page.Status == HttpStatusCode.OK, $"{role} mở {link}: trả {(int)page.Status} {page.RedirectPath}");
+                Assert.DoesNotContain(NotFoundTitle, page.Html);
+            }
+        }
+        Assert.Superset(ResidentPlaceholders.Concat(FinancePlaceholders).ToHashSet(), (await LinksOnHomeAsync(bqt)).ToHashSet());
+
+        // Phần 2: trang tạm giữ đúng phân quyền như menu
+        var anonymous = NewBrowser();
+        foreach (var path in ResidentPlaceholders.Concat(FinancePlaceholders))
+        {
+            Assert.Contains(InDevelopmentTitle, (await UiFlow.GetAsync(bqt, path)).Html);
+
+            var byAccountant = await UiFlow.GetAsync(accountant, path);
+            if (FinancePlaceholders.Contains(path))
+                Assert.Contains(InDevelopmentTitle, byAccountant.Html);
+            else
+                Assert.Equal("/403", byAccountant.RedirectPath);
+
+            Assert.Equal("/403", (await UiFlow.GetAsync(resident, path)).RedirectPath);
+            Assert.Equal("/login?ReturnUrl=" + Uri.EscapeDataString(path), (await UiFlow.GetAsync(anonymous, path)).RedirectPath);
+        }
     }
 }
