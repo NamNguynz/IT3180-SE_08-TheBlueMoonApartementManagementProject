@@ -78,7 +78,7 @@ Với **từng** địa chỉ dưới đây: mở địa chỉ khi chưa đăng 
 |---|---|---|---|
 | 1 | `https://localhost:7127/login?ReturnUrl=https://example.com` | Ở lại site, về `https://localhost:7127/` | |
 | 2 | `https://localhost:7127/login?ReturnUrl=//example.com` | Ở lại site, về `https://localhost:7127/` | |
-| 3 | `https://localhost:7127/login?ReturnUrl=/%5Cexample.com` | Ở lại site: tới `https://localhost:7127//example.com` (trang Not Found của chính site) | |
+| 3 | `https://localhost:7127/login?ReturnUrl=/%5Cexample.com` | Ở lại site: tới `https://localhost:7127//example.com` (trang "Không tìm thấy trang" của chính site) | |
 
 Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **Fail** và ghi "xác nhận G1".
 

@@ -3,7 +3,7 @@
 > Tài liệu dành cho **người kiểm thử độc lập** (không phải người viết code/test).
 > Người kiểm thử chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
 >
-> **Tự động hóa (09/11/2026):** cả 8 case B1 – B8 đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
+> **Tự động hóa (09/11/2026):** cả 9 case B1 – B9 đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
 > file `tests/.../Integration/Acceptance/RoleAuthorizationAcceptanceTests.cs`. Chạy riêng một case: `dotnet test --filter "Acceptance=B1"`.
 > Không còn bước nào phải chạy tay. Người kiểm thử xem kết quả test rồi ký nghiệm thu ở cuối.
 
@@ -15,12 +15,13 @@ Xác nhận:
 - Ban Quản Trị chỉ thao tác được tài khoản **trong phạm vi của mình**: mọi cư dân, và các tài khoản BQT / Kế toán do mình (hoặc cấp dưới của mình) cấp.
 - Thu hồi quyền (vô hiệu hóa) có hiệu lực **ngay ở request kế tiếp**.
 
-**Ngoài phạm vi:** các trang Tài chính, Báo cáo, Căn hộ, Nhân khẩu (chưa xây dựng, bấm vào sẽ ra trang Not Found).
+**Ngoài phạm vi:** chức năng của các trang Tài chính, Báo cáo, Căn hộ, Nhân khẩu. Trang nào chưa xây dựng thì hiện trang tạm
+"Tính năng đang phát triển". B9 chỉ kiểm tra trang tạm mở được và đúng phân quyền.
 
 Unit test tương ứng (chạy bằng `dotnet test`):
 - `tests/BlueMoonApartementManagementConsole.Tests/Services/AuthServiceRoleTests.cs` (R1 đến R6)
 - `tests/BlueMoonApartementManagementConsole.Tests/Services/AccountScopeTests.cs` (R7 đến R15)
-- `tests/BlueMoonApartementManagementConsole.Tests/Security/AuthorizationMetadataTests.cs` (R16 đến R18)
+- `tests/BlueMoonApartementManagementConsole.Tests/Security/AuthorizationMetadataTests.cs` (R16 đến R19)
 
 ## 2. Môi trường
 
@@ -119,13 +120,13 @@ cudan_01 (Cư Dân)              tự đăng ký ở B1
 
 ### B4. Chặn truy cập trang quản trị bằng URL
 
-> **Tự động** (`Acceptance=B4`). Không cần chạy tay. Test xác nhận F1: bị đưa tới `/403` và trang đó hiện "Not Found".
+> **Tự động** (`Acceptance=B4`). Không cần chạy tay. Test kiểm tra cả trang `/403` (F1 đã sửa): mã 403, tiêu đề "Không có quyền truy cập".
 
 Gõ thẳng từng địa chỉ vào thanh địa chỉ: `/quan-tri/tai-khoan`, `/quan-tri/duyet-tai-khoan`, `/quan-tri/nhat-ky`.
 
 | # | Đăng nhập bằng | Kết quả mong đợi |
 |---|---|---|
-| 1 | `ketoan_a1` | **Không** thấy nội dung trang quản trị. Ghi lại trang thực tế hiện ra (xem lỗi đã biết F1) |
+| 1 | `ketoan_a1` | **Không** thấy nội dung trang quản trị. Bị chuyển tới `/403`, trang hiện "Không có quyền truy cập" và link "Về trang chủ" |
 | 2 | `cudan_01` | Như trên |
 | 3 | Chưa đăng nhập (cửa sổ ẩn danh mới) | Bị chuyển về `/login` |
 | 4 | `bqt_a` (đối chứng) | Xem được cả 3 trang |
@@ -208,18 +209,39 @@ Thêm: kiểm tra cột **Người cấp** của `ketoan_a1` là `bqt_a`, của 
 |---|---|---|
 | | | |
 
+### B9. Mọi link trên trang chủ đều mở được, trang tạm giữ đúng phân quyền
+
+> **Tự động** (`Acceptance=B9`). Không cần chạy tay.
+
+Các link chưa có trang thật hiện trang tạm "Tính năng đang phát triển" (F3):
+- Nhóm **Căn hộ & cư dân** (chỉ Ban Quản Trị): `/can-ho/danh-sach`, `/nhan-khau/ho`, `/nhan-khau/bien-dong`.
+- Nhóm **Tài chính** và **Báo cáo** (Ban Quản Trị và Kế Toán): `/khoan-thu/danh-muc`, `/don-gia`, `/ky-thu`, `/thu-tien`, `/cong-no`, `/bao-cao/thu-cong-no`, `/bao-cao/thu-chi`.
+
+| # | Bước | Kết quả mong đợi |
+|---|---|---|
+| 1 | Đăng nhập lần lượt `bqt_a`, `ketoan_a1`, `cudan_01`. Bấm từng link ở menu bên trái, ở mục "Công việc thường dùng" và tên tài khoản góc phải | Link nào cũng mở được trang. **Không** link nào ra trang "Không tìm thấy trang" |
+| 2 | `bqt_a`: gõ thẳng 10 địa chỉ ở trên | Cả 10 trang hiện "Tính năng đang phát triển" |
+| 3 | `ketoan_a1`: gõ thẳng 10 địa chỉ ở trên | 7 trang nhóm Tài chính, Báo cáo hiện "Tính năng đang phát triển". 3 trang nhóm Căn hộ & cư dân chuyển tới `/403` |
+| 4 | `cudan_01`: gõ thẳng 10 địa chỉ ở trên | Cả 10 trang chuyển tới `/403` |
+| 5 | Chưa đăng nhập (cửa sổ ẩn danh mới): gõ thẳng 10 địa chỉ ở trên | Bị chuyển về `/login` |
+
+| Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|
+| | | |
+
 ---
 
-## 5. Lỗi đã biết (không cần báo lại)
+## 5. Vấn đề đã ghi nhận
 
-Các vấn đề dưới đây đã được ghi nhận từ việc đọc code. Gặp đúng các vấn đề này thì ghi chú, **không** đánh Fail test case vì chúng:
+Các vấn đề dưới đây được ghi nhận từ việc đọc code (cập nhật 09/11/2026).
+Vấn đề **đã sửa** mà vẫn gặp lại thì đánh **Fail**. Vấn đề **không sửa** thì chỉ ghi chú, không đánh Fail.
 
-| # | Mô tả | Ảnh hưởng tới |
-|---|---|---|
-| F1 | Không có trang `/403`. Khi bị từ chối quyền, app chuyển tới `/403` và nhiều khả năng hiện trang **"Not Found"** thay vì "Không có quyền". Tiêu chí Pass của B4 là **không xem được nội dung**, ghi lại trang thực tế hiện ra để xác nhận lỗi | B4 |
-| F2 | Chưa cấu hình `FallbackPolicy`: trang mới nào quên gắn `[Authorize]` sẽ mở công khai. Hiện đã có unit test R18 chặn lỗi này trên CI | Không thấy được khi test tay |
-| F3 | Menu **Căn hộ & cư dân**, **Tài chính**, **Báo cáo** trỏ tới các trang chưa xây dựng, bấm vào sẽ ra Not Found | B3 (chỉ kiểm tra menu hiện hay ẩn, không bấm vào) |
-| F4 | Câu hỏi nghiệp vụ đang chờ PO: cư dân tự đăng ký được duyệt ngay không qua xác minh; ai cũng có thể tự đăng ký xin vai trò Ban Quản Trị (phải chờ duyệt) | B1, B2 |
+| # | Mô tả | Trạng thái | Kiểm tra ở |
+|---|---|---|---|
+| F1 | Không có trang `/403`. Khi bị từ chối quyền, app chuyển tới `/403` nhưng hiện trang "Not Found" | **Đã sửa**: trang `/403` hiện "Không có quyền truy cập", trả mã 403 | B4 |
+| F2 | Chưa cấu hình `FallbackPolicy`: trang mới nào quên gắn `[Authorize]` sẽ mở công khai | **Không sửa** (nhóm quyết định). Unit test R18 đã chặn trên CI trường hợp trang Razor quên gắn `[Authorize]` | Không thấy được khi test tay |
+| F3 | Menu **Căn hộ & cư dân**, **Tài chính**, **Báo cáo** trỏ tới các trang chưa xây dựng, bấm vào ra "Not Found" | **Đã sửa tạm**: các link đó mở trang "Tính năng đang phát triển", giữ đúng phân quyền như menu. Ba link `/can-ho/danh-sach`, `/khoan-thu/danh-muc`, `/don-gia` có thể trùng với trang đã có, đang chờ Nam và Minh xác nhận | B9 |
+| F4 | Câu hỏi nghiệp vụ: cư dân tự đăng ký được duyệt ngay không qua xác minh; ai cũng có thể tự đăng ký xin vai trò Ban Quản Trị (phải chờ duyệt) | **Đã chốt PA1**: giữ nguyên. Cư dân được duyệt ngay, Ban Quản Trị và Kế Toán tự đăng ký phải chờ Ban Quản Trị khác duyệt | B1, B2 |
 
 ## 6. Tổng hợp và nghiệm thu
 
@@ -233,6 +255,7 @@ Các vấn đề dưới đây đã được ghi nhận từ việc đọc code.
 | B6. Phạm vi quản lý theo cây | | |
 | B7. Thu hồi quyền có hiệu lực ngay | | |
 | B8. Nhật ký ghi đúng người thực hiện | | |
+| B9. Mọi link mở được, trang tạm đúng quyền | | |
 
 | | |
 |---|---|
