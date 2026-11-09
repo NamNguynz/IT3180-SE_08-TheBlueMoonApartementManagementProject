@@ -1,0 +1,23 @@
+@page "/403"
+@layout MainLayout
+
+@* Cookie auth chuyển tới đây khi người đã đăng nhập mở trang ngoài quyền (Program.cs, OnRedirectToAccessDenied).
+   Trang công khai như NotFound và Error: không chứa dữ liệu, người đang phải đổi mật khẩu tạm cũng mở được. *@
+
+<PageTitle>Không có quyền truy cập - Bluemoon</PageTitle>
+
+<header class="auth-header">
+    <h1>Không có quyền truy cập</h1>
+    <p class="auth-subtitle">Tài khoản của bạn không được phép mở trang này. Nếu cần quyền, hãy liên hệ Ban quản trị.</p>
+</header>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (HttpContext is not null)
+            HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+    }
+}
