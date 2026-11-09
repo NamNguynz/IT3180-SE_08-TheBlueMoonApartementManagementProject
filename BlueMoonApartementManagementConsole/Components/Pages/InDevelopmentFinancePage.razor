@@ -1,0 +1,23 @@
+@page "/khoan-thu/danh-muc"
+@page "/don-gia"
+@page "/ky-thu"
+@page "/thu-tien"
+@page "/cong-no"
+@page "/bao-cao/thu-cong-no"
+@page "/bao-cao/thu-chi"
+@attribute [Authorize(Policy = "TaiChinh")]
+@layout DashboardLayout
+@using Microsoft.AspNetCore.Authorization
+
+@* Trang tạm cho các link nhóm "Tài chính" và "Báo cáo" trên menu chưa có trang thật (lỗi F3).
+   Policy giống menu: Ban quản trị và Kế toán. Tên trang hiện ở breadcrumb (PageTitles trong DashboardLayout).
+   Khi làm trang thật: XÓA dòng @page tương ứng ở trên, nếu không test R19 sẽ báo trùng route. *@
+
+<PageTitle>Đang phát triển - Bluemoon</PageTitle>
+
+<section class="page">
+    <div class="page-head">
+        <h1>Tính năng đang phát triển</h1>
+        <p class="muted">Chức năng này đang được xây dựng.</p>
+    </div>
+</section>
