@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
+using BlueMoonApartementManagementConsole.BackEnd.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
@@ -105,7 +106,8 @@ public sealed class BlueMoonAppFactory : WebApplicationFactory<Program>
                     new(ClaimTypes.NameIdentifier, admin.Id.ToString()),
                     new(ClaimTypes.Name, admin.Username),
                     new("full_name", admin.FullName),
-                    new(ClaimTypes.Role, admin.Role.ToString())
+                    new(ClaimTypes.Role, admin.Role.ToString()),
+                    new(AppClaimTypes.SecurityStamp, admin.SecurityStamp)
                 };
 
                 await ctx.SignInAsync(

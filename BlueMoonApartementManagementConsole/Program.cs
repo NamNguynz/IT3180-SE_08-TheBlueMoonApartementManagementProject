@@ -1,5 +1,6 @@
 using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
 using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Security;
+using BlueMoonApartementManagementConsole.BackEnd.Models;
 using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Repositories;
@@ -76,8 +77,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                 var userId = ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
                 var user = int.TryParse(userId, out var id) ? await users.GetByIdAsync(id, ctx.HttpContext.RequestAborted) : null;
 
-                // Bị vô hiệu hóa, bị xóa hoặc chưa được duyệt: đăng xuất ngay
-                if (user is null || !user.IsActive || user.Status != UserStatus.Approved)
+                // Bị vô hiệu hóa, bị xóa, chưa được duyệt, hoặc mật khẩu đã đổi/được cấp lại sau khi phiên này đăng nhập
+                // (SecurityStamp khác, lỗi G2): đăng xuất ngay. Cookie cũ không có claim này cũng bị đăng xuất.
+                if (user is null || !user.IsActive || user.Status != UserStatus.Approved
+                    || ctx.Principal?.FindFirstValue(AppClaimTypes.SecurityStamp) != user.SecurityStamp)
                 {
                     ctx.RejectPrincipal();
                     await ctx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

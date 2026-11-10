@@ -5,7 +5,7 @@ using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 namespace BlueMoonApartementManagementConsole.Tests.Integration.Acceptance;
 
 /// <summary>
-/// Tự động hóa docs/testing/acceptance_login_change_password.md: C1 – C4, C7 – C10.
+/// Tự động hóa docs/testing/acceptance_login_change_password.md: C1 – C4, C7 – C11.
 /// C5 (thuộc tính cookie) đã có ở SessionTimeoutTests.S7, C6 (hết phiên) ở SessionTimeoutTests.S2 – S5.
 /// </summary>
 [Collection(SequentialDatabaseCollection.Name)]
@@ -115,9 +115,8 @@ public class LoginChangePasswordAcceptanceTests(BlueMoonAppFactory factory)
         Assert.Equal(1, logouts.Total);
     }
 
-    // Đã xác nhận G2 (09/11/2026): sau khi trình duyệt 1 đổi mật khẩu, trình duyệt 2 vẫn mở được /ho-so (200).
-    // Bỏ Skip sau khi sửa (vd: lưu "phiên bản bảo mật" của tài khoản và so trong OnValidatePrincipal).
-    [SkippableFact(Skip = "Chờ fix G2: đổi mật khẩu không đăng xuất các phiên khác của cùng tài khoản")]
+    // G2 đã sửa: đổi mật khẩu thì đổi SecurityStamp, các phiên khác bị đăng xuất; phiên vừa đổi được cấp lại cookie
+    [SkippableFact]
     [Trait("Acceptance", "C8")]
     public async Task C8_ChangePassword_SignsOutOtherSessions()
     {
@@ -125,11 +124,37 @@ public class LoginChangePasswordAcceptanceTests(BlueMoonAppFactory factory)
         var resident = await Accounts.SeedAsync("cudan_lg", UserRole.CU_DAN);
         var browser1 = await LoginAsync(resident.Username, UserRole.CU_DAN);
         var browser2 = await LoginAsync(resident.Username, UserRole.CU_DAN);
+        var browser3 = await LoginAsync(resident.Username, UserRole.CU_DAN);
 
         Assert.Equal(HttpStatusCode.NoContent, (await UiFlow.ChangePasswordAsync(browser1, Pw, NewPassword)).StatusCode);
 
         Assert.StartsWith("/login", (await UiFlow.GetAsync(browser2, "/ho-so")).RedirectPath);
         Assert.Equal(HttpStatusCode.OK, (await UiFlow.GetAsync(browser1, "/ho-so")).Status);
+
+        // Phiên cũ (cookie mang mã cũ) gọi thẳng API thì bị từ chối, mật khẩu không bị đổi thêm
+        Assert.Equal(HttpStatusCode.Unauthorized, (await UiFlow.ChangePasswordAsync(browser3, NewPassword, "Other@1234")).StatusCode);
+        Assert.True((await UiFlow.LoginAsync(NewBrowser(), resident.Username, NewPassword, UserRole.CU_DAN)).IsRedirect);
+    }
+
+    [SkippableFact]
+    [Trait("Acceptance", "C11")]
+    public async Task C11_AdminResetsPassword_SignsOutTargetSessions()
+    {
+        SkipIfNoDatabase();
+        var resident = await Accounts.SeedAsync("cudan_lg", UserRole.CU_DAN);
+        var browser = await LoginAsync(resident.Username, UserRole.CU_DAN);
+        Assert.Equal(HttpStatusCode.OK, (await UiFlow.GetAsync(browser, "/ho-so")).Status);
+
+        var admin = await AdminAsync();
+        var temp = await UiFlow.ResetPasswordAsync(admin, resident.Id);
+
+        Assert.StartsWith("/login", (await UiFlow.GetAsync(browser, "/ho-so")).RedirectPath);
+        // BQT vừa cấp lại vẫn dùng tiếp bình thường
+        Assert.Equal(HttpStatusCode.OK, (await UiFlow.GetAsync(admin, "/quan-tri/tai-khoan")).Status);
+
+        // Đăng nhập lại bằng mật khẩu tạm thì được, và bị dồn về trang Hồ sơ để đổi mật khẩu (như C9)
+        await UiFlow.LoginOkAsync(browser, resident.Username, temp, UserRole.CU_DAN);
+        Assert.Equal("/ho-so", (await UiFlow.GetAsync(browser, "/")).RedirectPath);
     }
 
     [SkippableFact]
