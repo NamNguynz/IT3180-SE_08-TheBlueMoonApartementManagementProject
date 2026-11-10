@@ -3,13 +3,14 @@
 @layout BlueMoonApartementManagementConsole.Components.Layout.DashboardLayout
 
 @using Microsoft.AspNetCore.Authorization
+@using BlueMoonApartementManagementConsole.BackEnd.Models
 
 <PageTitle>Nhật ký - Bluemoon</PageTitle>
 
 <section class="page">
     <div class="page-head">
         <h1>Nhật ký thao tác</h1>
-        <p class="muted">Ghi nhận đăng nhập, đăng xuất, đăng ký và xác nhận tài khoản. Nhật ký chỉ đọc, không thể sửa hoặc xóa.</p>
+        <p class="muted">Ghi nhận các thao tác quan trọng: tài khoản, hồ sơ căn hộ và hộ khẩu, khoản thu và đơn giá. Nhật ký chỉ đọc, không thể sửa hoặc xóa.</p>
     </div>
 
     <form id="auditFilter" class="filter-bar">
@@ -23,22 +24,13 @@
         </label>
         <label>
             Hành động
+            @* Nhãn lấy từ AuditActionLabels; audit-log.js cũng đọc nhãn từ chính các option này *@
             <select name="action">
                 <option value="">Tất cả</option>
-                <option value="LoginSuccess">Đăng nhập thành công</option>
-                <option value="LoginFailed">Đăng nhập thất bại</option>
-                <option value="LoginLocked">Bị khóa tạm thời</option>
-                <option value="Logout">Đăng xuất</option>
-                <option value="Register">Đăng ký</option>
-                <option value="ApproveAccount">Xác nhận tài khoản</option>
-                <option value="CreateAccount">Tạo tài khoản mới</option>
-                <option value="DisableAccount">Vô hiệu hóa tài khoản</option>
-                <option value="EnableAccount">Kích hoạt tài khoản</option>
-                <option value="UnlockAccount">Mở khóa tài khoản</option>
-                <option value="ResetPassword">Reset mật khẩu</option>
-                <option value="ChangePassword">Thay đổi mật khẩu</option>
-                <option value="CreateFeeItem">Tạo khoản thu</option>
-                <option value="ChangeRate">Điều chỉnh giá khoản thu</option>
+                @foreach (var (action, label) in AuditActionLabels.All)
+                {
+                    <option value="@action">@label</option>
+                }
             </select>
         </label>
         <label>

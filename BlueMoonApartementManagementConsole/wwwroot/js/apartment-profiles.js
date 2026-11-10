@@ -363,15 +363,17 @@
                 return;
             }
 
-            showAlert(isUpdate ? 'Đã cập nhật hồ sơ căn hộ.' : 'Đã tạo hồ sơ căn hộ.', true);
             await loadApartments(false);
             await selectApartment(response.data.id);
+            // Hiện sau selectApartment, vì selectApartment ẩn khung thông báo
+            showAlert(isUpdate ? 'Đã cập nhật hồ sơ căn hộ.' : 'Đã tạo hồ sơ căn hộ.', true);
         } catch (error) {
             console.error('Không thể tạo/cập nhật hồ sơ căn hộ.', error);
             showAlert('Không thể kết nối máy chủ. Vui lòng thử lại.');
         } finally {
             button.disabled = false;
-            button.textContent = originalLabel;
+            // Chỉ trả tên cũ khi lưu lỗi; lưu thành công thì giữ tên nút do form vừa đặt ("Lưu thay đổi")
+            if (button.textContent === 'Đang lưu...') button.textContent = originalLabel;
         }
     };
 
@@ -409,15 +411,17 @@
                 return;
             }
 
-            showAlert(isUpdate ? 'Đã cập nhật hồ sơ hộ khẩu và nhân khẩu.' :
-                'Đã tạo hồ sơ hộ khẩu và nhân khẩu.', true);
             await loadApartments(false);
             await selectApartment(selectedApartment.id);
+            // Hiện sau selectApartment, vì selectApartment ẩn khung thông báo
+            showAlert(isUpdate ? 'Đã cập nhật hồ sơ hộ khẩu và nhân khẩu.' :
+                'Đã tạo hồ sơ hộ khẩu và nhân khẩu.', true);
         } catch {
             showAlert('Không thể kết nối máy chủ. Vui lòng thử lại.');
         } finally {
             button.disabled = false;
-            button.textContent = originalLabel;
+            // Chỉ trả tên cũ khi lưu lỗi; lưu thành công thì giữ tên nút do form vừa đặt ("Lưu hồ sơ hộ khẩu")
+            if (button.textContent === 'Đang lưu...') button.textContent = originalLabel;
         }
     };
 
