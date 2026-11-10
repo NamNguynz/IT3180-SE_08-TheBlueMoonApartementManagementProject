@@ -75,6 +75,11 @@ Không đặt biến này thì Q1 đến Q12 bị bỏ qua (Skipped). Riêng Q7 
 | Mở khóa tài khoản | |
 | Reset mật khẩu | BQT cấp lại mật khẩu |
 | Thay đổi mật khẩu | Người dùng tự đổi |
+| Tạo hồ sơ căn hộ / Cập nhật hồ sơ căn hộ | BQT tạo hoặc sửa căn hộ ở trang Hồ sơ căn hộ. Cột Đối tượng là Id căn hộ (D11) |
+| Tạo hồ sơ hộ khẩu / Cập nhật hồ sơ hộ khẩu | BQT tạo hoặc sửa hồ sơ hộ (kèm nhân khẩu). Cột Đối tượng là Id hộ (D11) |
+| Tạo khoản thu / Điều chỉnh giá khoản thu | Ở trang Khoản thu và đơn giá |
+
+Nhãn của ô lọc **Hành động** và của cột Hành động trong bảng lấy chung từ một danh sách (`AuditActionLabels.cs`).
 
 Cột **Đối tượng** là **Id** (số) của tài khoản bị tác động. Tên tài khoản bị tác động nằm ở cột **Chi tiết**.
 
@@ -256,17 +261,33 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 |---|---|---|
 | | | |
 
-### D10. Mô tả trang khớp chức năng (J3)
+### D10. Mô tả trang khớp chức năng (J3 đã sửa)
 
-> **Tự động** (`Acceptance=D10`). Không cần chạy tay. Test ghi nhận mô tả hiện tại (vẫn chỉ nhắc 4 loại thao tác).
+> **Tự động** (`Acceptance=D10`). Không cần chạy tay.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
-| 1 | Đọc dòng mô tả dưới tiêu đề "Nhật ký thao tác" | Ghi lại thực tế. Theo code hiện tại: chỉ nhắc "đăng nhập, đăng xuất, đăng ký và xác nhận tài khoản", trong khi D1 cho thấy có 12 loại (ghi nhận J3) |
+| 1 | Đọc dòng mô tả dưới tiêu đề "Nhật ký thao tác" | "Ghi nhận các thao tác quan trọng: tài khoản, hồ sơ căn hộ và hộ khẩu, khoản thu và đơn giá. Nhật ký chỉ đọc, không thể sửa hoặc xóa." |
+| 2 | Xem các nút trong trang | Chỉ có **Lọc**, **Xóa lọc**, **← Trước**, **Sau →**. Không có nút sửa hay xóa nhật ký |
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | Không đánh giá, chỉ ghi nhận (J3) | |
+| | | |
+
+### D11. Nhật ký thao tác hồ sơ căn hộ, hộ khẩu
+
+> **Tự động** phần ghi và lọc nhật ký, phần ô lọc có đủ nhãn (`Acceptance=D11`; nhãn phủ đủ mọi loại: unit test N7).
+> **Chạy tay bước 3**: chữ trong cột Hành động do JavaScript vẽ trên trình duyệt.
+
+| # | Bước | Kết quả mong đợi |
+|---|---|---|
+| 1 | Đăng nhập `admin`, vào **Hồ sơ căn hộ**: tạo căn `AT-NK-01`, sửa diện tích. Tạo hồ sơ hộ cho căn đó, rồi sửa tên chủ hộ (dữ liệu giả) | Lưu thành công |
+| 2 | Vào **Nhật ký**, mở ô **Hành động** | Có 4 lựa chọn **Tạo hồ sơ căn hộ**, **Cập nhật hồ sơ căn hộ**, **Tạo hồ sơ hộ khẩu**, **Cập nhật hồ sơ hộ khẩu** |
+| 3 | **Chạy tay.** Lần lượt chọn từng lựa chọn ở bước 2, bấm **Lọc** | Mỗi lần có ít nhất 1 dòng, cột Hành động hiện **đúng nhãn tiếng Việt** (không hiện tên tiếng Anh như `CreateApartmentProfile`), cột Đối tượng là Id căn hộ hoặc hộ vừa tạo |
+
+| Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|
+| | | |
 
 ---
 
@@ -276,7 +297,7 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 |---|---|---|---|
 | J1 | Gọi thẳng API với thời gian **không theo UTC** (vd `from=2026-01-01T07%3A00%3A00%2B07%3A00`, tức `2026-01-01T07:00:00+07:00`) thì server lỗi 500, vì Npgsql chỉ ghi được thời gian UTC. Giao diện **không** bị ảnh hưởng vì luôn gửi UTC | Không có (chỉ gọi API trực tiếp) | Test tự động Q7 (đang Skip, chờ fix) |
 | J2 | Lọc tài khoản phân biệt chữ hoa, chữ thường. API không cắt khoảng trắng (chỉ giao diện cắt). Chỉ lọc theo **người thực hiện**, không lọc được theo tài khoản bị tác động | D3 | Q2 |
-| J3 | Mô tả trang chỉ nhắc 4 loại thao tác, thực tế có 12 loại | D10 | Đọc code |
+| J3 | ~~Mô tả trang chỉ nhắc 4 loại thao tác, thực tế có 12 loại~~. **Đã sửa** (10/11/2026): mô tả nhắc đủ tài khoản, hồ sơ căn hộ và hộ khẩu, khoản thu và đơn giá | D10 | D10 |
 | J4 | Chọn "Từ ngày" sau "Đến ngày" thì chỉ ra danh sách rỗng, không báo lỗi | D4 bước 5 | Đọc code |
 | J6 | `POST /api/nhat-ky` trả 400 thay vì 405 như các method khác (request bị chạy lại tới trang `/not-found`). Request vẫn bị chặn, không ghi hay xóa gì | D7 bước 4 | Q11 |
 | J7 | *Nghi ngờ, chưa xác nhận:* giao diện ghép 3 số mili giây vào **cuối** chuỗi ngày giờ; nếu trình duyệt hiển thị giờ trước ngày (kiểu `14:05:09 08/11/2026`) thì mili giây sẽ dính sau năm (`...08/11/2026.123`) | D9 | Chờ D9 |
@@ -302,7 +323,8 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 | D7. Chỉ đọc | | |
 | D8. Hiển thị an toàn | | |
 | D9. Thời gian hiển thị | | |
-| D10. Mô tả trang | Không đánh giá | |
+| D10. Mô tả trang | | |
+| D11. Nhật ký hồ sơ căn hộ, hộ khẩu | | |
 
 | | |
 |---|---|
