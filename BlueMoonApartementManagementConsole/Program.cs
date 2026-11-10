@@ -1,4 +1,5 @@
 using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
+using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Security;
 using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Repositories;
@@ -17,6 +18,9 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<IPasswordHasher<AppUserEntity>, PasswordHasher<AppUserEntity>>();
+// PBI-030: thiếu PII_ENC_KEY thì app dừng ngay khi khởi động (lúc tạo AppDbContext để chạy migration)
+builder.Services.AddSingleton<IPersonalDataEncryptor>(sp =>
+    new PersonalDataEncryptor(sp.GetRequiredService<IConfiguration>()[PersonalDataEncryptor.ConfigKey]));
 builder.Services.AddScoped<IAppUserRepo, AppUserRepo>();
 builder.Services.AddScoped<IApartmentProfileRepository, ApartmentProfileRepository>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
@@ -165,6 +169,11 @@ using (var scope = app.Services.CreateScope())
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUserEntity>>();
 
     await db.Database.MigrateAsync();
+
+    // PBI-030: mã hóa dữ liệu nhân khẩu còn lưu bản rõ từ trước, để máy dev không phải xóa database
+    var encryptedRows = await PersonalDataBackfill.EncryptLegacyRowsAsync(db);
+    if (encryptedRows > 0)
+        app.Logger.LogInformation("Đã mã hóa dữ liệu cá nhân của {Count} nhân khẩu còn lưu bản rõ.", encryptedRows);
 
     if (!await db.Users.AnyAsync(u => u.Role == UserRole.BQT))
     {

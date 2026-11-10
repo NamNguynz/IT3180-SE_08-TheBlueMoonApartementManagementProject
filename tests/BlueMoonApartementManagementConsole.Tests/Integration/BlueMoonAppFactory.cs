@@ -27,6 +27,12 @@ public sealed class BlueMoonAppFactory : WebApplicationFactory<Program>
     public const string TestSignInPath = "/__test/sign-in";
     public const string AuthCookieName = ".AspNetCore.Cookies";
 
+    /// <summary>
+    /// Khóa mã hóa dữ liệu cá nhân dùng chung cho mọi test (base64 của 32 byte 0x00..0x1F), chỉ dùng cho DB test.
+    /// Phải là MỘT khóa cố định: EF Core dựng model một lần trong tiến trình, converter giữ khóa của lần dựng đầu.
+    /// </summary>
+    public const string PersonalDataKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+
     public static string? ConnectionString => Environment.GetEnvironmentVariable(ConnectionEnvVar);
 
     public static string SkipReason =>
@@ -43,6 +49,7 @@ public sealed class BlueMoonAppFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("IntegrationTest");
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
         builder.UseSetting("ADMIN_INIT_PWD", AdminPassword);
+        builder.UseSetting("PII_ENC_KEY", PersonalDataKey);
 
         builder.ConfigureServices(services =>
         {

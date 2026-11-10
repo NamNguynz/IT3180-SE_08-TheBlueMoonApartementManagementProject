@@ -1,9 +1,11 @@
 ﻿namespace BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Reflection.Emit;
+using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Security;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataEncryptor personalData) : DbContext(options)
 {
     public DbSet<AppUserEntity> Users => Set<AppUserEntity>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -94,6 +96,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // PBI-030 (AC-038, NFR-007): dữ liệu cá nhân được mã hóa khi ghi, giải mã khi đọc.
+        // Trường nhạy cảm thêm sau này (vd số điện thoại, số tài khoản) cũng gắn converter này.
+        // Cột mã hóa để kiểu text vì bản mã dài hơn bản rõ; độ dài bản rõ do [StringLength] ở DTO kiểm.
+        // Lưu ý: EF Core dựng model một lần cho mỗi loại DbContext rồi dùng lại, nên converter giữ encryptor
+        // của lần dựng đầu. Mọi AppDbContext trong cùng tiến trình phải dùng cùng khóa (test dùng chung một khóa).
+        var encryptor = personalData;
+        // EF không đưa null qua converter (null vẫn lưu là NULL), nên dùng ! ở đây là an toàn
+        var encrypted = new ValueConverter<string?, string?>(v => encryptor.Protect(v!), v => encryptor.Unprotect(v!));
+
         modelBuilder.Entity<ResidentEntity>(e =>
         {
             e.ToTable("residents");
@@ -103,16 +114,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(r => r.Gender).HasMaxLength(20).IsRequired();
             e.Property(r => r.PlaceOfBirth).HasMaxLength(100);
             e.Property(r => r.Hometown).HasMaxLength(100);
-            e.Property(r => r.Ethnicity).HasMaxLength(50);
-            e.Property(r => r.Religion).HasMaxLength(50);
+            e.Property(r => r.Ethnicity).HasColumnType("text").HasConversion(encrypted);
+            e.Property(r => r.Religion).HasColumnType("text").HasConversion(encrypted);
             e.Property(r => r.Occupation).HasMaxLength(100);
             e.Property(r => r.Workplace).HasMaxLength(150);
-            e.Property(r => r.IdentityNumber).HasMaxLength(30);
-            e.Property(r => r.IdentityIssuePlace).HasMaxLength(150);
-            e.Property(r => r.PreviousResidence).HasMaxLength(500);
+            e.Property(r => r.IdentityNumber).HasColumnType("text").HasConversion(encrypted);
+            e.Property(r => r.IdentityIssuePlace).HasColumnType("text").HasConversion(encrypted);
+            e.Property(r => r.PreviousResidence).HasColumnType("text").HasConversion(encrypted);
             e.Property(r => r.Notes).HasMaxLength(500);
-            e.HasIndex(r => r.IdentityNumber).IsUnique()
-                .HasFilter("\"IdentityNumber\" IS NOT NULL");
+            // Bản mã của cùng một số CCCD mỗi lần một khác, nên unique đặt trên hash (SaveChanges tự tính)
+            e.Property(r => r.IdentityNumberHash).HasMaxLength(64);
+            e.HasIndex(r => r.IdentityNumberHash).IsUnique()
+                .HasFilter("\"IdentityNumberHash\" IS NOT NULL");
             e.HasOne(r => r.Household)
                 .WithMany(h => h.Residents)
                 .HasForeignKey(r => r.HouseholdId)
@@ -160,5 +173,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .HasForeignKey(r => r.FeeItemId)
              .OnDelete(DeleteBehavior.Restrict);
         });
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        UpdateIdentityNumberHashes();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        UpdateIdentityNumberHashes();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>Mọi chỗ thêm/sửa nhân khẩu đều được tính lại hash số giấy tờ, không phải nhớ gọi riêng.</summary>
+    private void UpdateIdentityNumberHashes()
+    {
+        foreach (var entry in ChangeTracker.Entries<ResidentEntity>())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified))
+                continue;
+
+            var resident = entry.Entity;
+            resident.IdentityNumberHash = resident.IdentityNumber is null
+                ? null
+                : personalData.HashIdentity(resident.IdentityNumber);
+        }
     }
 }
