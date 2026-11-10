@@ -263,13 +263,13 @@ public class AuditLogAcceptanceTests(BlueMoonAppFactory factory)
             // Tạo rồi sửa hồ sơ căn hộ và hồ sơ hộ khẩu, như trang Hồ sơ căn hộ gọi API (dữ liệu giả)
             var apartmentRequest = new CreateApartmentRequest
             {
-                Code = code, Building = "Tòa AT", Floor = 5, Area = 70m, BedroomCount = 2, Status = "Đang ở"
+                Code = code, Building = "Tòa AT", Type = ApartmentType.CanHo, Floor = 5, Area = 70m, BedroomCount = 2, Status = "Đang ở"
             };
             var apartment = await ReadCreatedAsync<ApartmentProfileResponse>(await admin.PostAsJsonAsync("/api/can-ho", apartmentRequest, UiFlow.Json));
             await UiFlow.ReadOkJsonAsync<ApartmentProfileResponse>(await admin.PutAsJsonAsync($"/api/can-ho/{apartment.Id}",
                 new UpdateApartmentRequest
                 {
-                    Code = code, Building = "Tòa AT", Floor = 5, Area = 72m, BedroomCount = 2, Status = "Đang ở", Notes = "Sửa ở D11"
+                    Code = code, Building = "Tòa AT", Type = ApartmentType.CanHo, Floor = 5, Area = 72m, BedroomCount = 2, Status = "Đang ở", Notes = "Sửa ở D11"
                 }, UiFlow.Json));
 
             var household = await ReadCreatedAsync<HouseholdProfileResponse>(await admin.PostAsJsonAsync($"/api/ho-gia-dinh/can-ho/{apartment.Id}",
