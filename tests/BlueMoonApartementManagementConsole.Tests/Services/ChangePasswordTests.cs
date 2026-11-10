@@ -142,4 +142,52 @@ public class ChangePasswordTests
         Assert.Null(user.LockedUntil);
         Assert.Equal(PasswordVerificationResult.Success, _hasher.VerifyHashedPassword(user, user.PasswordHash, OldPassword));
     }
+
+    // ===== P6 – P8: SecurityStamp, để các phiên đang mở bị đăng xuất (G2) =====
+
+    [Fact]
+    [Trait("TestId", "P6")]
+    public async Task ChangePassword_Success_RotatesSecurityStamp()
+    {
+        var user = SeedResident();
+        var before = user.SecurityStamp;
+
+        var result = await _accounts.ChangeOwnPasswordAsync(user.Id, new ChangePasswordRequest(OldPassword, NewPassword));
+
+        Assert.Equal(ManageStatus.Success, result.Status);
+        Assert.False(string.IsNullOrEmpty(user.SecurityStamp));
+        Assert.NotEqual(before, user.SecurityStamp);
+    }
+
+    [Theory]
+    [Trait("TestId", "P7")]
+    [InlineData("SaiMatKhau@1", NewPassword)]   // sai mật khẩu hiện tại
+    [InlineData(OldPassword, "ngan")]           // mật khẩu mới quá ngắn
+    [InlineData(OldPassword, OldPassword)]      // trùng mật khẩu cũ
+    public async Task ChangePassword_Failure_KeepsSecurityStamp(string current, string next)
+    {
+        var user = SeedResident();
+        var before = user.SecurityStamp;
+
+        var result = await _accounts.ChangeOwnPasswordAsync(user.Id, new ChangePasswordRequest(current, next));
+
+        Assert.Equal(ManageStatus.Invalid, result.Status);
+        Assert.Equal(before, user.SecurityStamp);
+    }
+
+    [Fact]
+    [Trait("TestId", "P8")]
+    public async Task ResetPassword_RotatesTargetSecurityStamp_ButNotActors()
+    {
+        var admin = _repo.Seed("admin", UserRole.BQT, hasher: _hasher);
+        var user = SeedResident();
+        var userBefore = user.SecurityStamp;
+        var adminBefore = admin.SecurityStamp;
+
+        var reset = await _accounts.ResetPasswordAsync(admin.Id, user.Id);
+
+        Assert.Equal(ManageStatus.Success, reset.Status);
+        Assert.NotEqual(userBefore, user.SecurityStamp);
+        Assert.Equal(adminBefore, admin.SecurityStamp);
+    }
 }
