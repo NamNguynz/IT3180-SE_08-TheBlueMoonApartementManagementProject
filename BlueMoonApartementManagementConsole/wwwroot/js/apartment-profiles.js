@@ -422,9 +422,9 @@
     };
 
     const onResidentSubmit = (event) => {
-        if (event.target.id !== 'residentForm') return;
         event.preventDefault();
-        const form = event.currentTarget;
+        // Listener gắn ở #apartmentProfiles nên currentTarget là <section>; form vừa submit là event.target
+        const form = event.target;
         if (!form.reportValidity()) return;
 
         const resident = readResident(form);
@@ -444,15 +444,17 @@
         initializedRoot = root;
         root.addEventListener('click', onClick);
         root.addEventListener('submit', (event) => {
-            if (event.target.id === 'apartmentForm') {
+            // Không dùng event.target.id: residentForm có <input name="id"> nên form.id là ô input đó, không phải chuỗi id
+            const formId = event.target.getAttribute('id');
+            if (formId === 'apartmentForm') {
                 event.preventDefault();
-                void onApartmentSubmit(event.currentTarget);
+                void onApartmentSubmit(event.target);
             }
-            if (event.target.id === 'householdForm') {
+            if (formId === 'householdForm') {
                 event.preventDefault();
-                void onHouseholdSubmit(event.currentTarget);
+                void onHouseholdSubmit(event.target);
             }
-            if (event.target.id === 'residentForm') onResidentSubmit(event);
+            if (formId === 'residentForm') onResidentSubmit(event);
         });
         $('#apSearch').addEventListener('input', renderApartments);
         $('#apAreaSearch').addEventListener('input', renderApartments);
