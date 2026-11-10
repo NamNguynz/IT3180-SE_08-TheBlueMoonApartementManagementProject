@@ -3,9 +3,9 @@
 > Tài liệu dành cho **người kiểm thử độc lập** (không phải người viết code/test).
 > Người kiểm thử chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
 >
-> **Tự động hóa (09/11/2026):** cả 10 case C1 – C10 đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
+> **Tự động hóa:** cả 11 case C1 – C11 đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
 > chủ yếu trong `tests/.../Integration/Acceptance/LoginChangePasswordAcceptanceTests.cs`. Chạy riêng một case: `dotnet test --filter "Acceptance=C1"`.
-> Không còn bước nào phải chạy tay. Riêng test C8 đang **Skip** vì lỗi G2 đã được xác nhận.
+> Không còn bước nào phải chạy tay. Lỗi G2 đã sửa (10/11/2026), test C8 chạy lại bình thường.
 
 ## 1. Mục đích và phạm vi
 
@@ -172,8 +172,7 @@ Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **F
 
 ### C8. Phiên khác sau khi đổi mật khẩu (kiểm chứng G2)
 
-> **Tự động** (`Acceptance=C8`), hiện đang **Skip**: test đã chạy và **xác nhận G2** (trình duyệt 2 vẫn mở được `/ho-so`).
-> Khi G2 được sửa, bỏ Skip để test chạy lại. Không cần chạy tay.
+> **Tự động** (`Acceptance=C8`). Không cần chạy tay.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -181,8 +180,9 @@ Nếu **bất kỳ** dòng nào bị chuyển sang `example.com` thì đánh **F
 | 2 | **Trình duyệt 1:** vào `/ho-so`, đổi mật khẩu thành `NewPass@02` | "Đã đổi mật khẩu. Đang chuyển đến trang chủ..." |
 | 3 | **Trình duyệt 2:** bấm F5, rồi bấm sang trang **Hồ sơ** | Theo yêu cầu bảo mật: **bị đăng xuất**, về `/login` |
 | 4 | **Trình duyệt 1:** tiếp tục dùng | Vẫn dùng bình thường (phiên của người vừa đổi mật khẩu) |
+| 5 | Một phiên cũ khác (đăng nhập trước bước 2) gọi thẳng API đổi mật khẩu | Status **401**, mật khẩu không bị đổi |
 
-Nếu ở bước 3, trình duyệt 2 **vẫn dùng được** thì đánh **Fail** và ghi "xác nhận G2".
+Nếu ở bước 3, trình duyệt 2 **vẫn dùng được** thì đánh **Fail** (lỗi G2 quay lại).
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
@@ -221,6 +221,22 @@ Lưu ý: nếu đã chạy C8 thì mật khẩu của `cudan_lg` lúc này là `
 |---|---|---|
 | | | |
 
+### C11. BQT cấp lại mật khẩu thì các phiên đang mở bị đăng xuất
+
+> **Tự động** (`Acceptance=C11`). Không cần chạy tay.
+
+| # | Bước | Kết quả mong đợi |
+|---|---|---|
+| 1 | **Trình duyệt 1:** đăng nhập `cudan_lg`, vào `/ho-so` | Vào được |
+| 2 | **Trình duyệt 2:** đăng nhập `admin`, vào `/quan-tri/tai-khoan`, bấm **Cấp lại mật khẩu** ở dòng `cudan_lg`. Ghi lại mật khẩu tạm | Có mật khẩu tạm 12 ký tự |
+| 3 | **Trình duyệt 1:** bấm F5 | **Bị đăng xuất**, về `/login` |
+| 4 | **Trình duyệt 2:** tải lại trang Tài khoản | `admin` vẫn dùng bình thường |
+| 5 | **Trình duyệt 1:** đăng nhập `cudan_lg` bằng mật khẩu tạm | Vào được, bị đưa tới `/ho-so` để đổi mật khẩu (như C9) |
+
+| Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|
+| | | |
+
 ---
 
 ## 5. Lỗi đã biết
@@ -230,7 +246,7 @@ Lưu ý: nếu đã chạy C8 thì mật khẩu của `cudan_lg` lúc này là `
 | # | Mô tả | Test case |
 |---|---|---|
 | G1 | ~~`ReturnUrl` dạng `/\example.com` có thể đưa người dùng ra trang ngoài~~. **Không xảy ra** (test C2, 09/11/2026): server chuyển tới `https://localhost//example.com`, vẫn ở chính site | C2 |
-| G2 | Đổi mật khẩu **không** đăng xuất các phiên đăng nhập khác của cùng tài khoản. **Đã xác nhận** (test C8, 09/11/2026) | C8 |
+| G2 | ~~Đổi mật khẩu **không** đăng xuất các phiên đăng nhập khác của cùng tài khoản~~. **Đã sửa** (10/11/2026, issue #33): mỗi tài khoản có mã `SecurityStamp` ghi trong cookie, đổi hoặc được cấp lại mật khẩu thì đổi mã, phiên mang mã cũ bị đăng xuất. Sau khi cập nhật bản sửa, mọi người phải đăng nhập lại một lần | C8, C11 |
 
 ### 5.2. Đã ghi nhận, không đánh Fail
 
@@ -254,6 +270,7 @@ Lưu ý: nếu đã chạy C8 thì mật khẩu của `cudan_lg` lúc này là `
 | C8. Phiên khác sau khi đổi mật khẩu | | |
 | C9. Chặn khi chưa đổi mật khẩu tạm | | |
 | C10. Tên đăng nhập | | |
+| C11. Cấp lại mật khẩu đăng xuất các phiên | | |
 
 | | |
 |---|---|
