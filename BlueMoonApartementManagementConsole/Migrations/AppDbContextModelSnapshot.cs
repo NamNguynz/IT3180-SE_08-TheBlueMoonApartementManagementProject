@@ -121,6 +121,13 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValueSql("gen_random_uuid()::text");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)

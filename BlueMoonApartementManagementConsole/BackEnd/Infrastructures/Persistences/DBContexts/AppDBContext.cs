@@ -51,6 +51,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.HasIndex(u => u.GrantedById);
 
             e.Property(u => u.MustChangePassword).HasDefaultValue(false);
+
+            // Tài khoản đã có trước migration được DB tự cấp mã ngẫu nhiên (PostgreSQL 13+)
+            e.Property(u => u.SecurityStamp).HasMaxLength(64).IsRequired()
+             .HasDefaultValueSql("gen_random_uuid()::text");
         });
 
         modelBuilder.Entity<AuditLog>(e =>

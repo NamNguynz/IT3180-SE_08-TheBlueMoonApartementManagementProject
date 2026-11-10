@@ -115,6 +115,8 @@ public class AccountManagementService(
         var tempPassword = GenerateTempPassword();
         target!.PasswordHash = hasher.HashPassword(target, tempPassword);
         target.MustChangePassword = true;
+        // Mọi phiên đang mở của tài khoản này bị đăng xuất (G2)
+        target.SecurityStamp = AppUserEntity.NewSecurityStamp();
         target.FailedAttempts = 0;
         target.LockedUntil = null;
         await users.SaveChangesAsync(ct);
@@ -141,6 +143,8 @@ public class AccountManagementService(
         user.PasswordHash = hasher.HashPassword(user, req.NewPassword);
         user.MustChangePassword = false;
         user.PasswordChangedAt = DateTimeOffset.UtcNow;
+        // Các phiên khác bị đăng xuất (G2). Phiên đang đổi được ProfileController cấp lại cookie với mã mới
+        user.SecurityStamp = AppUserEntity.NewSecurityStamp();
         await users.SaveChangesAsync(ct);
 
         await audit.LogAsync(AuditAction.ChangePassword, user.Username, user.Id, user.Id.ToString(), null, ct);
