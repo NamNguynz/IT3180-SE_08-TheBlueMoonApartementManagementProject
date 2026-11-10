@@ -1,24 +1,15 @@
 ﻿(() => {
     const PAGE_SIZE = 20;
     const VN_OFFSET = '+07:00';
-    const ACTION_LABEL = {
-        LoginSuccess: 'Đăng nhập thành công',
-        LoginFailed: 'Đăng nhập thất bại',
-        LoginLocked: 'Bị khóa tạm thời',
-        Logout: 'Đăng xuất',
-        Register: 'Đăng ký',
-        ApproveAccount: 'Xác nhận tài khoản',
-        CreateAccount: 'Tạo tài khoản mới',
-        DisableAccount: 'Vô hiệu hóa tài khoản',
-        EnableAccount: 'Kích hoạt tài khoản',
-        UnlockAccount: 'Mở khóa tài khoản',
-        ResetPassword: 'Reset mật khẩu',
-        ChangePassword: 'Thay đổi mật khẩu',
-        CreateFeeItem: 'Tạo khoản thu',
-        ChangeRate: 'Điều chỉnh giá khoản thu'
-    };
 
     const el = (id) => document.getElementById(id);
+
+    // Nhãn tiếng Việt lấy từ các option của ô lọc Hành động (trang sinh ra từ AuditActionLabels.cs),
+    // để chỉ phải khai báo nhãn ở một chỗ. Dùng elements.namedItem: select name="action" che mất form.action.
+    const actionLabels = () => Object.fromEntries(
+        [...el('auditFilter').elements.namedItem('action').options]
+            .filter((o) => o.value)
+            .map((o) => [o.value, o.textContent.trim()]));
 
     const showAlert = (message) => {
         const box = el('auditAlert');
@@ -81,13 +72,13 @@
         return `${text}.${String(d.getMilliseconds()).padStart(3, '0')}`;
     };
 
-    const renderRow = (log) => {
+    const renderRow = (labels) => (log) => {
         const tr = document.createElement('tr');
 
         const cells = [
             { text: formatTime(log.occurredAt), mono: true },
             { text: log.username || 'Unnamed' },
-            { text: ACTION_LABEL[log.action] ?? log.action, badge: true },
+            { text: labels[log.action] ?? log.action, badge: true },
             { text: log.target ?? '—', mono: true },
             { text: log.detail ?? '—', wrap: true }
         ];
@@ -118,7 +109,7 @@
         const page = result.page;
         const totalPages = Math.max(1, Math.ceil(total / result.pageSize));
 
-        el('auditBody').replaceChildren(...result.items.map(renderRow));
+        el('auditBody').replaceChildren(...result.items.map(renderRow(actionLabels())));
         el('auditEmpty').hidden = total > 0;
         el('auditTable').hidden = total === 0;
         el('auditPager').hidden = total === 0;
