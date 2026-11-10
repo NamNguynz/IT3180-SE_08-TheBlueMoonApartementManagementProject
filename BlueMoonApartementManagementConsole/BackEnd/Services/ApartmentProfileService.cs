@@ -45,6 +45,7 @@ public sealed class ApartmentProfileService(
         {
             Code = code,
             Building = NormalizeRequired(request.Building),
+            Type = request.Type,
             Floor = request.Floor,
             Area = request.Area,
             BedroomCount = request.BedroomCount,
@@ -75,6 +76,7 @@ public sealed class ApartmentProfileService(
 
         apartment.Code = code;
         apartment.Building = NormalizeRequired(request.Building);
+        apartment.Type = request.Type;
         apartment.Floor = request.Floor;
         apartment.Area = request.Area;
         apartment.BedroomCount = request.BedroomCount;
@@ -252,7 +254,7 @@ public sealed class ApartmentProfileService(
         new(ProfileStatus.Conflict, Message: message);
 
     private static ApartmentProfileResponse Map(ApartmentEntity apartment) =>
-        new(apartment.Id, apartment.Code, apartment.Building, apartment.Floor, apartment.Area,
+        new(apartment.Id, apartment.Code, apartment.Building, apartment.Type, apartment.Floor, apartment.Area,
             apartment.BedroomCount, apartment.Status, apartment.Notes,
             apartment.Household is null ? null : Map(apartment.Household));
 
