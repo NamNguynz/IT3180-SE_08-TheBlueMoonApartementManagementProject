@@ -66,17 +66,26 @@
     const dateInputValue = (value) => value ? value.slice(0, 10) : '';
     const dateTimeValue = (value) => value ? `${value}T00:00:00+07:00` : null;
 
+    // Nhãn loại hình lấy từ các option của ô lọc (trang sinh ra từ ApartmentTypeLabels.cs)
+    const typeLabels = () => Object.fromEntries(
+        [...$('#apTypeFilter').options]
+            .filter((o) => o.value)
+            .map((o) => [o.value, o.textContent.trim()]));
+
     const renderApartments = () => {
         const query = $('#apSearch').value.trim().toLocaleLowerCase('vi');
         const areaValue = $('#apAreaSearch').value.trim();
         const areaInCents = areaValue === '' ? null : Math.round(Number(areaValue) * 100);
+        const type = $('#apTypeFilter').value;
+        const labels = typeLabels();
         const matching = apartments.filter((apartment) =>
             (!query ||
                 apartment.code.toLocaleLowerCase('vi').includes(query) ||
                 apartment.building.toLocaleLowerCase('vi').includes(query)) &&
-            (areaInCents === null || Math.round(Number(apartment.area) * 100) === areaInCents));
+            (areaInCents === null || Math.round(Number(apartment.area) * 100) === areaInCents) &&
+            (!type || apartment.type === type));
 
-        $('#apCount').textContent = query || areaInCents !== null
+        $('#apCount').textContent = query || areaInCents !== null || type
             ? `${matching.length} / ${apartments.length} căn hộ`
             : `${apartments.length} căn hộ`;
         $('#apListLoading').hidden = true;
@@ -96,7 +105,7 @@
             title.textContent = apartment.code;
             const subtitle = document.createElement('span');
             subtitle.className = 'apartment-list-meta';
-            subtitle.textContent = `${apartment.building} · Tầng ${apartment.floor}`;
+            subtitle.textContent = `${apartment.building} · Tầng ${apartment.floor} · ${labels[apartment.type] ?? apartment.type}`;
             const badge = document.createElement('span');
             badge.className = apartment.household ? 'badge badge-ok' : 'badge badge-muted';
             badge.textContent = apartment.household ? 'Đã có hộ khẩu' : 'Chưa có hộ khẩu';
@@ -163,6 +172,7 @@
         setFormValue(form, 'area', apartment.area);
         setFormValue(form, 'bedroomCount', apartment.bedroomCount);
         setFormValue(form, 'status', apartment.status);
+        setFormValue(form, 'type', apartment.type);
         setFormValue(form, 'notes', apartment.notes);
         form.querySelector('[data-role="save-apartment"]').textContent = 'Lưu thay đổi';
     };
@@ -345,6 +355,7 @@
             area: Number(formValue(form, 'area')),
             bedroomCount: Number(formValue(form, 'bedroomCount')),
             status: formValue(form, 'status').trim(),
+            type: formValue(form, 'type'),
             notes: formValue(form, 'notes').trim() || null
         };
         const isUpdate = Boolean(selectedApartment);
@@ -462,6 +473,7 @@
         });
         $('#apSearch').addEventListener('input', renderApartments);
         $('#apAreaSearch').addEventListener('input', renderApartments);
+        $('#apTypeFilter').addEventListener('change', renderApartments);
         void loadApartments(false);
     };
 

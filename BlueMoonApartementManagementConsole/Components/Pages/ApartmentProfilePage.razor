@@ -3,6 +3,7 @@
 @layout BlueMoonApartementManagementConsole.Components.Layout.DashboardLayout
 
 @using Microsoft.AspNetCore.Authorization
+@using BlueMoonApartementManagementConsole.BackEnd.Models
 
 <PageTitle>Hồ sơ căn hộ - Bluemoon</PageTitle>
 
@@ -38,6 +39,17 @@
                 <span>Diện tích chính xác (m²)</span>
                 <input id="apAreaSearch" type="number" min="0.01" max="100000" step="0.01"
                        placeholder="Ví dụ: 68.5" inputmode="decimal" />
+            </label>
+            @* Nhãn loại hình lấy từ ApartmentTypeLabels; apartment-profiles.js đọc nhãn từ chính các option này *@
+            <label class="ap-area-search">
+                <span>Loại hình</span>
+                <select id="apTypeFilter">
+                    <option value="">Tất cả loại hình</option>
+                    @foreach (var (type, label) in ApartmentTypeLabels.All)
+                    {
+                        <option value="@type">@label</option>
+                    }
+                </select>
             </label>
             <div id="apListLoading" class="ap-list-message">Đang tải danh sách căn hộ...</div>
             <div id="apListEmpty" class="ap-list-message" hidden>Chưa có căn hộ phù hợp.</div>
@@ -78,6 +90,15 @@
                             </label>
                             <label>Trạng thái <span class="required-mark">*</span>
                                 <input name="status" maxlength="30" required placeholder="Đang sử dụng" />
+                            </label>
+                            <label>Loại hình <span class="required-mark">*</span>
+                                <select name="type" required>
+                                    <option value="">Chọn loại hình</option>
+                                    @foreach (var (type, label) in ApartmentTypeLabels.All)
+                                    {
+                                        <option value="@type">@label</option>
+                                    }
+                                </select>
                             </label>
                             <label class="ap-span-2">Ghi chú
                                 <textarea name="notes" rows="2" maxlength="500" placeholder="Thông tin bổ sung về căn hộ"></textarea>

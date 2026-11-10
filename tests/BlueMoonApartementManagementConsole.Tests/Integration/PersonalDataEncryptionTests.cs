@@ -24,7 +24,11 @@ namespace BlueMoonApartementManagementConsole.Tests.Integration;
 public class PersonalDataEncryptionTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoonAppFactory>, IAsyncLifetime
 {
     private const string DuplicateIdentity = "Số CMND/CCCD đã được sử dụng.";
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    // Cùng cấu hình với app: enum (vd ApartmentType) đọc/ghi dạng chuỗi
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
 
     /// <summary>Tiền tố mã căn hộ và số hộ khẩu (service viết hoa mã căn hộ).</summary>
     private readonly string _prefix = "PII" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() + "-";
@@ -89,6 +93,7 @@ public class PersonalDataEncryptionTests(BlueMoonAppFactory factory) : IClassFix
         {
             Code = _prefix + suffix,
             Building = "Tòa test PII",
+            Type = ApartmentType.CanHo,
             Floor = 5,
             Area = 70m,
             BedroomCount = 2,

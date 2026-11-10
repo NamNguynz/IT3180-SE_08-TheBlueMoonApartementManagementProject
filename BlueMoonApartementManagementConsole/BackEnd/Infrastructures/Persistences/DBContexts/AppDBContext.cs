@@ -75,10 +75,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
 
         modelBuilder.Entity<ApartmentEntity>(e =>
         {
-            e.ToTable("apartments");
+            e.ToTable("apartments", t =>
+                t.HasCheckConstraint("ck_apartments_type", "\"Type\" IN ('CanHo','Kiot','Penthouse')"));
             e.HasKey(a => a.Id);
             e.Property(a => a.Code).HasMaxLength(30).IsRequired();
             e.Property(a => a.Building).HasMaxLength(100).IsRequired();
+            // Căn hộ có trước khi thêm loại hình nhận mặc định CanHo (căn hộ ở)
+            e.Property(a => a.Type).HasConversion<string>().HasMaxLength(20)
+             .HasDefaultValue(ApartmentType.CanHo);
             e.Property(a => a.Area).HasPrecision(10, 2);
             e.Property(a => a.Status).HasMaxLength(30).IsRequired();
             e.Property(a => a.Notes).HasMaxLength(500);

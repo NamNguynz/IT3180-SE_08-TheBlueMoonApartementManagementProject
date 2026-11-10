@@ -1,10 +1,22 @@
 namespace BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 
+/// <summary>
+/// Loại hình căn hộ (PBI-002, LOG-008: căn hộ cơ bản / penthouse / kiot, dùng cho tra cứu và đơn giá riêng).
+/// Lưu trong DB dạng chuỗi; thêm giá trị mới thì sửa cả check constraint ck_apartments_type và ApartmentTypeLabels.
+/// </summary>
+public enum ApartmentType
+{
+    CanHo,
+    Kiot,
+    Penthouse
+}
+
 public class ApartmentEntity
 {
     public int Id { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Building { get; set; } = string.Empty;
+    public ApartmentType Type { get; set; } = ApartmentType.CanHo;
     public int Floor { get; set; }
     public decimal Area { get; set; }
     public int BedroomCount { get; set; }

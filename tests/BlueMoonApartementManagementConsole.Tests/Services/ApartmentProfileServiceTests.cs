@@ -102,10 +102,42 @@ public sealed class ApartmentProfileServiceTests
         Assert.Empty(_audit.Entries);
     }
 
-    private static CreateApartmentRequest ApartmentRequest(string code) => new()
+    [Fact]
+    [Trait("TestId", "K2")]
+    public async Task CreateApartment_SavesType_AndReturnsIt()
+    {
+        var result = await _service.CreateApartmentAsync(1, "admin", ApartmentRequest("K-101", ApartmentType.Kiot));
+
+        Assert.Equal(ProfileStatus.Success, result.Status);
+        Assert.Equal(ApartmentType.Kiot, result.Data!.Type);
+    }
+
+    [Fact]
+    [Trait("TestId", "K2")]
+    public async Task UpdateApartment_ChangesType()
+    {
+        var created = await _service.CreateApartmentAsync(1, "admin", ApartmentRequest("P-3001", ApartmentType.CanHo));
+
+        var result = await _service.UpdateApartmentAsync(1, "admin", created.Data!.Id, new UpdateApartmentRequest
+        {
+            Code = "P-3001",
+            Building = "A",
+            Type = ApartmentType.Penthouse,
+            Floor = 30,
+            Area = 250m,
+            BedroomCount = 4,
+            Status = "Đang sử dụng"
+        });
+
+        Assert.Equal(ProfileStatus.Success, result.Status);
+        Assert.Equal(ApartmentType.Penthouse, result.Data!.Type);
+    }
+
+    private static CreateApartmentRequest ApartmentRequest(string code, ApartmentType type = ApartmentType.CanHo) => new()
     {
         Code = code,
         Building = "A",
+        Type = type,
         Floor = 1,
         Area = 68.5m,
         BedroomCount = 2,

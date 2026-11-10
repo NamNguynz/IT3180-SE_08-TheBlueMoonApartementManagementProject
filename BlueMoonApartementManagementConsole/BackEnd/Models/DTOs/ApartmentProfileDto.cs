@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 
 namespace BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 
@@ -10,6 +11,10 @@ public sealed record CreateApartmentRequest
 
     [Required, StringLength(100)]
     public required string Building { get; init; }
+
+    /// <summary>Loại hình (PBI-002): CanHo, Kiot, Penthouse. Thiếu hoặc sai giá trị thì API trả 400.</summary>
+    [EnumDataType(typeof(ApartmentType))]
+    public required ApartmentType Type { get; init; }
 
     [Range(0, 200)]
     public int Floor { get; init; }
@@ -35,6 +40,10 @@ public sealed record UpdateApartmentRequest
 
     [Required, StringLength(100)]
     public required string Building { get; init; }
+
+    /// <summary>Loại hình (PBI-002): CanHo, Kiot, Penthouse. Thiếu hoặc sai giá trị thì API trả 400.</summary>
+    [EnumDataType(typeof(ApartmentType))]
+    public required ApartmentType Type { get; init; }
 
     [Range(0, 200)]
     public int Floor { get; init; }
@@ -145,6 +154,7 @@ public sealed record ApartmentProfileResponse(
     int Id,
     string Code,
     string Building,
+    ApartmentType Type,
     int Floor,
     decimal Area,
     int BedroomCount,
