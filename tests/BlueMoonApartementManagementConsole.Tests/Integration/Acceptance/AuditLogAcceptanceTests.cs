@@ -1,13 +1,19 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
+using BlueMoonApartementManagementConsole.BackEnd.Models;
 using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BlueMoonApartementManagementConsole.Tests.Integration.Acceptance;
 
 /// <summary>
-/// Tự động hóa docs/testing/acceptance_audit_log.md: D1, D2, D4, D10 và phần API của D3, D5, D6.
+/// Tự động hóa docs/testing/acceptance_audit_log.md: D1, D2, D4, D10, D11 và phần API của D3, D5, D6.
 /// Bộ lọc của trang Nhật ký chỉ là JavaScript ghép tham số rồi gọi /api/nhat-ky, nên test gọi đúng API đó
 /// với cùng tham số. D7 đã có ở AuditLogQueryTests (Q11, Q12).
 /// Còn chạy tay: D3 bước 5, D5 bước 2, nút Trước/Sau của D6, D8, D9 (phần hiển thị trên trình duyệt).
@@ -238,7 +244,80 @@ public class AuditLogAcceptanceTests(BlueMoonAppFactory factory)
         // Chỉ có nút lọc và phân trang: không có nút sửa hay xóa nhật ký
         Assert.Equal(["Lọc", "Xóa lọc", "← Trước", "Sau →"], buttons);
 
-        // Ghi nhận J3: mô tả vẫn chỉ nhắc 4 loại thao tác
-        Assert.Contains("Ghi nhận đăng nhập, đăng xuất, đăng ký và xác nhận tài khoản.", page.Html);
+        // J3 đã sửa: mô tả nhắc đủ các nhóm thao tác được ghi nhật ký
+        Assert.Contains("Ghi nhận các thao tác quan trọng: tài khoản, hồ sơ căn hộ và hộ khẩu, khoản thu và đơn giá.", page.Html);
+        Assert.DoesNotContain("Ghi nhận đăng nhập, đăng xuất, đăng ký và xác nhận tài khoản.", page.Html);
+    }
+
+    [SkippableFact]
+    [Trait("Acceptance", "D11")]
+    public async Task D11_ProfileActions_AreLogged_Filterable_AndLabelledInVietnamese()
+    {
+        SkipIfNoDatabase();
+        var startedAt = DateTimeOffset.UtcNow;
+        var admin = await AdminAsync();
+        var code = "AT" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+
+        try
+        {
+            // Tạo rồi sửa hồ sơ căn hộ và hồ sơ hộ khẩu, như trang Hồ sơ căn hộ gọi API (dữ liệu giả)
+            var apartmentRequest = new CreateApartmentRequest
+            {
+                Code = code, Building = "Tòa AT", Floor = 5, Area = 70m, BedroomCount = 2, Status = "Đang ở"
+            };
+            var apartment = await ReadCreatedAsync<ApartmentProfileResponse>(await admin.PostAsJsonAsync("/api/can-ho", apartmentRequest, UiFlow.Json));
+            await UiFlow.ReadOkJsonAsync<ApartmentProfileResponse>(await admin.PutAsJsonAsync($"/api/can-ho/{apartment.Id}",
+                new UpdateApartmentRequest
+                {
+                    Code = code, Building = "Tòa AT", Floor = 5, Area = 72m, BedroomCount = 2, Status = "Đang ở", Notes = "Sửa ở D11"
+                }, UiFlow.Json));
+
+            var household = await ReadCreatedAsync<HouseholdProfileResponse>(await admin.PostAsJsonAsync($"/api/ho-gia-dinh/can-ho/{apartment.Id}",
+                new CreateHouseholdRequest
+                {
+                    HouseholdNumber = code, HeadName = "Nguyễn Văn Thử", HouseNumber = "P501",
+                    RegisteredAt = new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), Residents = []
+                }, UiFlow.Json));
+            await UiFlow.ReadOkJsonAsync<HouseholdProfileResponse>(await admin.PutAsJsonAsync($"/api/ho-gia-dinh/{household.Id}",
+                new UpdateHouseholdRequest
+                {
+                    HouseholdNumber = code, HeadName = "Nguyễn Văn Thử Sửa", HouseNumber = "P501",
+                    RegisteredAt = household.RegisteredAt, Residents = []
+                }, UiFlow.Json));
+
+            // Lọc theo từng loại thao tác (như chọn ở ô Hành động) thì thấy đúng đối tượng vừa tạo/sửa
+            (AuditAction Action, int Target)[] expected =
+            [
+                (AuditAction.CreateApartmentProfile, apartment.Id),
+                (AuditAction.UpdateApartmentProfile, apartment.Id),
+                (AuditAction.CreateHouseholdProfile, household.Id),
+                (AuditAction.UpdateHouseholdProfile, household.Id)
+            ];
+            foreach (var (action, target) in expected)
+            {
+                var result = await QueryAsync(admin, $"action={action}&username={TestAccounts.AdminUsername}&from={Iso(startedAt)}&pageSize=100");
+                Assert.All(result.Items, i => Assert.Equal(action.ToString(), i.Action));
+                Assert.Contains(result.Items, i => i.Target == target.ToString(CultureInfo.InvariantCulture));
+            }
+
+            // Ô lọc Hành động có đủ mọi loại thao tác với nhãn tiếng Việt (bảng trên trang dùng chính các nhãn này)
+            var page = await UiFlow.GetAsync(admin, "/quan-tri/nhat-ky");
+            foreach (var (action, label) in AuditActionLabels.All)
+                Assert.Contains($"<option value=\"{action}\">{label}</option>", page.Html);
+        }
+        finally
+        {
+            await using var scope = Factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Apartments.Where(a => a.Code == code).ExecuteDeleteAsync();
+        }
+    }
+
+    private static async Task<T> ReadCreatedAsync<T>(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.Created,
+            $"{response.RequestMessage?.Method} {response.RequestMessage?.RequestUri} trả {(int)response.StatusCode}: {body}");
+        return JsonSerializer.Deserialize<T>(body, UiFlow.Json)!;
     }
 }
