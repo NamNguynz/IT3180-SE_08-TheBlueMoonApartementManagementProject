@@ -12,7 +12,7 @@
 Xác nhận hệ thống **không lưu mật khẩu dạng chữ rõ** ở bất kỳ đâu, và các luồng liên quan đến mật khẩu hoạt động đúng:
 đăng ký, đăng nhập, khóa tài khoản, BQT cấp lại mật khẩu, tự đổi mật khẩu, nhật ký hệ thống.
 
-**Ngoài phạm vi:** mã hóa dữ liệu cá nhân (chưa có tính năng, kiểm thử ở giai đoạn sau).
+**Ngoài phạm vi:** mã hóa dữ liệu cá nhân (xem `acceptance_personal_data_encryption.md`).
 
 Unit test tương ứng: `tests/BlueMoonApartementManagementConsole.Tests/Services/` (chạy bằng `dotnet test`).
 
