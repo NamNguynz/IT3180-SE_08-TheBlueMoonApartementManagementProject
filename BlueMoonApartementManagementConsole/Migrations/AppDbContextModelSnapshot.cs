@@ -346,8 +346,7 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Ethnicity")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<string>("FullName")
                         .IsRequired()
@@ -367,15 +366,17 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("IdentityIssuePlace")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("IdentityIssuedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("IdentityNumber")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
+                        .HasColumnType("text");
+
+                    b.Property<string>("IdentityNumberHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
@@ -390,12 +391,10 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("PreviousResidence")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Religion")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Workplace")
                         .HasMaxLength(150)
@@ -405,9 +404,9 @@ namespace BlueMoonApartementManagementConsole.Migrations
 
                     b.HasIndex("HouseholdId");
 
-                    b.HasIndex("IdentityNumber")
+                    b.HasIndex("IdentityNumberHash")
                         .IsUnique()
-                        .HasFilter("\"IdentityNumber\" IS NOT NULL");
+                        .HasFilter("\"IdentityNumberHash\" IS NOT NULL");
 
                     b.ToTable("residents", (string)null);
                 });

@@ -48,17 +48,31 @@ BlueMoonApartementManagementConsole/
   "DefaultConnection": "Host=localhost;Port=____;Database=BlueMoon;Username=____;Password=______;"
 }
 ```
-3. Cập nhật Cơ sở dữ liệu (Database Migration):
+3. Cài đặt mật khẩu tài khoản admin và khóa mã hóa dữ liệu cá nhân (làm trước bước 4, vì migration cũng cần khóa)
+```
+dotnet user-secrets init
+dotnet user-secrets set "ADMIN_INIT_PWD" "<mật-khẩu-vừa-sinh>"
+```
+- Khóa mã hóa dữ liệu cá nhân `PII_ENC_KEY` (PBI-030): chuỗi base64 của 32 byte ngẫu nhiên. Tạo và lưu bằng một trong hai cách:
+```
+# macOS / Linux
+dotnet user-secrets set "PII_ENC_KEY" "$(openssl rand -base64 32)"
+
+# Windows (PowerShell 7)
+dotnet user-secrets set "PII_ENC_KEY" ([Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)))
+```
+- Thiếu khóa thì app dừng ngay khi khởi động và báo "Thiếu cấu hình PII_ENC_KEY".
+- **Mất khóa là mất dữ liệu đã mã hóa** (CCCD, nơi cấp, dân tộc, tôn giáo, nơi ở trước): không có cách giải mã lại.
+  Sao lưu khóa ở chỗ khác với bản sao lưu database (một bản sao lưu bị lộ không được chứa cả khóa).
+- Mỗi máy có khóa riêng, nên không dùng chung bản dump database giữa các máy.
+  Database tạo trước khi có mã hóa thì không phải xóa: app tự mã hóa dữ liệu cũ khi khởi động.
+4. Cập nhật Cơ sở dữ liệu (Database Migration):
 - Cách 1 : Mở Package Manager Console trong Visual Studio
 - Cách 2 : Chạy terminal. cd đến thư mục BlueMoonApartementManagementConsole
 ```
 dotnet ef database update
 ```
-4. Cài đặt mật khẩu tài khoản admin
-```
-dotnet user-secrets init
-dotnet user-secrets set "ADMIN_INIT_PWD" "<mật-khẩu-vừa-sinh>"
-```
+- Bỏ qua cũng được: app tự chạy migration khi khởi động.
 5. Chạy ứng dụng
 - Cách 1 : Chạy nút tam giác màu xanh lá (Start Without Debugging) hoặc dùng tổ hợp phím Ctrl + F5
 - Cách 2 : dotnet run

@@ -40,6 +40,12 @@ public class ResidentEntity
     public string? Occupation { get; set; }
     public string? Workplace { get; set; }
     public string? IdentityNumber { get; set; }
+
+    /// <summary>
+    /// HMAC của số giấy tờ, do AppDbContext tự tính khi lưu. Dùng để kiểm trùng,
+    /// vì cột IdentityNumber lưu bản mã, mỗi lần mã hóa một khác (PBI-030).
+    /// </summary>
+    public string? IdentityNumberHash { get; set; }
     public DateTimeOffset? IdentityIssuedAt { get; set; }
     public string? IdentityIssuePlace { get; set; }
     public string? PreviousResidence { get; set; }

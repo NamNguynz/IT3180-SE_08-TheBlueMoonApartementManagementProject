@@ -1,4 +1,5 @@
 using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
+using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Security;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +19,7 @@ public interface IApartmentProfileRepository
     Task SaveChangesAsync(CancellationToken ct = default);
 }
 
-public sealed class ApartmentProfileRepository(AppDbContext db) : IApartmentProfileRepository
+public sealed class ApartmentProfileRepository(AppDbContext db, IPersonalDataEncryptor personalData) : IApartmentProfileRepository
 {
     public Task<List<ApartmentEntity>> GetApartmentsAsync(CancellationToken ct = default) =>
         ApartmentProfiles().AsNoTracking()
@@ -47,8 +48,12 @@ public sealed class ApartmentProfileRepository(AppDbContext db) : IApartmentProf
     public Task<bool> HouseholdNumberExistsAsync(string number, int? exceptId = null, CancellationToken ct = default) =>
         db.Households.AnyAsync(h => h.HouseholdNumber == number && (!exceptId.HasValue || h.Id != exceptId.Value), ct);
 
-    public Task<bool> ResidentIdentityExistsAsync(string identityNumber, int? exceptId = null, CancellationToken ct = default) =>
-        db.Residents.AnyAsync(r => r.IdentityNumber == identityNumber && (!exceptId.HasValue || r.Id != exceptId.Value), ct);
+    public Task<bool> ResidentIdentityExistsAsync(string identityNumber, int? exceptId = null, CancellationToken ct = default)
+    {
+        // Cột IdentityNumber lưu bản mã (mỗi lần một khác), nên so sánh theo hash (PBI-030)
+        var hash = personalData.HashIdentity(identityNumber);
+        return db.Residents.AnyAsync(r => r.IdentityNumberHash == hash && (!exceptId.HasValue || r.Id != exceptId.Value), ct);
+    }
 
     public async Task AddApartmentAsync(ApartmentEntity apartment, CancellationToken ct = default) =>
         await db.Apartments.AddAsync(apartment, ct);
