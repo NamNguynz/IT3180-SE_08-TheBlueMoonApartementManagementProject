@@ -303,9 +303,13 @@ public sealed class BillingPeriodServiceTests
             Task.FromResult(Billed.Where(b => feeItemIds.Contains(b.FeeItemId)).ToList());
 
         public Task<List<HouseholdBillingBasis>> GetHouseholdBasesAsync(CancellationToken ct = default) =>
-            Task.FromResult(_households
-                .Select(h => new HouseholdBillingBasis(h.Id, h.Apartment.Area, _residentCounts[h.Id]))
-                .ToList());
+            Task.FromResult(_households.Select(ToBasis).ToList());
+
+        public Task<HouseholdBillingBasis?> GetHouseholdBasisAsync(int householdId, CancellationToken ct = default) =>
+            Task.FromResult(_households.Where(h => h.Id == householdId).Select(ToBasis).FirstOrDefault());
+
+        private HouseholdBillingBasis ToBasis(HouseholdEntity h) =>
+            new(h.Id, h.HouseholdNumber, h.Apartment.Code, h.Apartment.Area, _residentCounts[h.Id]);
 
         public Task AddAsync(BillingPeriodEntity period, CancellationToken ct = default)
         {

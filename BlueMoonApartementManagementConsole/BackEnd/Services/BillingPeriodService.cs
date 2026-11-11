@@ -10,6 +10,14 @@ public interface IBillingPeriodService
     Task<BillingPeriodResponse?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<FeeItemOperationResult<BillingPeriodResponse>> CreateAsync(
         int actorId, string actorName, CreateBillingPeriodRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Tính thử số phải thu của một hộ cho một khoản thu vào một ngày (mặc định hôm nay), không lưu gì (PBI-015).
+    /// Cùng các bước kiểm, công thức và cơ sở tính với bảng kê: khoản bảng kê từ chối (tự nguyện, chỉ định hộ,
+    /// chưa có đơn giá) thì tính thử cũng từ chối với cùng thông báo; còn lại ra đúng số bảng kê sẽ lập.
+    /// </summary>
+    Task<FeeItemOperationResult<FeeCalculationResponse>> CalculateAsync(
+        int feeItemId, int householdId, DateOnly? date, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -21,8 +29,9 @@ public interface IBillingPeriodService
 ///   2. Kiểm tra từng khoản thu: phải là khoản bắt buộc, áp dụng toàn chung cư, có đơn giá hiệu lực vào ngày tính phí.
 ///      Đóng góp tự nguyện thu theo đợt riêng (PBI-012) nên không đưa vào kỳ thu.
 ///   3. Chặn thu trùng theo chu kỳ: khoản hàng tháng chỉ một lần mỗi tháng, hàng năm một lần mỗi năm, một lần thì chỉ một lần.
-///   4. Với mỗi khoản thu và mỗi hộ: số phải thu = đơn giá × cơ sở tính (diện tích, số nhân khẩu, hoặc 1 với
-///      khoản theo hộ, cố định), làm tròn đến đồng. Cơ sở tính bằng 0 (ví dụ hộ không còn nhân khẩu) thì không có dòng.
+///   4. Với mỗi khoản thu và mỗi hộ: số phải thu = đơn giá × cơ sở tính, làm tròn đến đồng, theo FeeCalculator (PBI-015).
+///      Căn hộ thiếu diện tích cho khoản theo diện tích thì từ chối cả kỳ (cơ sở tính chưa cấu hình);
+///      cơ sở tính bằng 0 hợp lệ (ví dụ hộ không còn nhân khẩu) thì không có dòng.
 ///   5. Lưu kỳ thu cùng đơn giá đã áp dụng và các dòng phải thu trong một lần lưu, rồi ghi nhật ký.
 /// Các khoản bắt buộc của một hộ cộng lại thành một số phải nộp cho cả kỳ (gom thành một lần thu).
 /// </summary>
@@ -60,13 +69,9 @@ public sealed class BillingPeriodService(
         var rates = new Dictionary<int, FeeRateEntity>();
         foreach (var feeItem in feeItems)
         {
-            error = ValidateFeeItem(feeItem);
-            if (error is not null)
-                return Invalid(error);
-
-            var rate = RateOn(feeItem, request.ChargeDate);
+            var (rate, rateError) = BillableRate(feeItem, request.ChargeDate);
             if (rate is null)
-                return Invalid($"Khoản thu {feeItem.Code} chưa có đơn giá hiệu lực vào ngày {request.ChargeDate:dd/MM/yyyy}.");
+                return Invalid(rateError!);
             rates[feeItem.Id] = rate;
         }
 
@@ -84,7 +89,13 @@ public sealed class BillingPeriodService(
         if (households.Count == 0)
             return Invalid("Chưa có hộ gia đình nào để lập bảng kê.");
 
-        // Bước 4: tính số phải thu của từng hộ cho từng khoản
+        // Bước 4: cơ sở tính của mọi hộ phải hợp lệ, rồi mới tính (không lập bảng kê thiếu hộ một cách lặng lẽ)
+        foreach (var feeItem in feeItems)
+        {
+            error = households.Select(h => FeeCalculator.BasisError(feeItem, h)).FirstOrDefault(e => e is not null);
+            if (error is not null)
+                return Invalid(error);
+        }
         var period = new BillingPeriodEntity
         {
             Year = request.Year,
@@ -101,14 +112,14 @@ public sealed class BillingPeriodService(
             var item = new BillingPeriodItemEntity { FeeItemId = feeItem.Id, FeeRateId = rate.Id, Rate = rate.Rate };
             foreach (var household in households)
             {
-                var quantity = QuantityFor(feeItem.CalculationBasis, household);
+                var quantity = FeeCalculator.QuantityFor(feeItem.CalculationBasis, household);
                 if (quantity <= 0)
                     continue;
                 item.Receivables.Add(new ReceivableEntity
                 {
                     HouseholdId = household.HouseholdId,
                     Quantity = quantity,
-                    Amount = AmountFor(rate.Rate, quantity)
+                    Amount = FeeCalculator.AmountFor(rate.Rate, quantity)
                 });
             }
             period.Items.Add(item);
@@ -125,6 +136,34 @@ public sealed class BillingPeriodService(
             $"{householdCount} hộ, tổng phải thu {receivables.Sum(r => r.Amount):N0} đ", ct);
 
         return new(FeeItemStatus.Success, await GetByIdAsync(period.Id, ct));
+    }
+
+    public async Task<FeeItemOperationResult<FeeCalculationResponse>> CalculateAsync(
+        int feeItemId, int householdId, DateOnly? date, CancellationToken ct = default)
+    {
+        var feeItem = (await repo.GetFeeItemsAsync([feeItemId], ct)).SingleOrDefault();
+        if (feeItem is null)
+            return new(FeeItemStatus.NotFound, Message: "Không tìm thấy khoản thu.");
+
+        var household = await repo.GetHouseholdBasisAsync(householdId, ct);
+        if (household is null)
+            return new(FeeItemStatus.NotFound, Message: "Không tìm thấy hộ gia đình.");
+
+        // Cùng các bước kiểm như khi lập bảng kê: loại khoản thu, đơn giá theo ngày, cơ sở tính của hộ
+        var day = date ?? Today();
+        var (rate, error) = BillableRate(feeItem, day);
+        if (rate is null)
+            return new(FeeItemStatus.Invalid, Message: error);
+
+        error = FeeCalculator.BasisError(feeItem, household);
+        if (error is not null)
+            return new(FeeItemStatus.Invalid, Message: error);
+
+        var quantity = FeeCalculator.QuantityFor(feeItem.CalculationBasis, household);
+        return new(FeeItemStatus.Success, new FeeCalculationResponse(
+            feeItem.Id, feeItem.Code, feeItem.Name, feeItem.CalculationBasis, feeItem.Unit,
+            household.HouseholdId, household.HouseholdNumber, household.ApartmentCode,
+            day, quantity, rate.Rate, rate.EffectiveFrom, FeeCalculator.AmountFor(rate.Rate, quantity)));
     }
 
     // ---- Quy tắc ----
@@ -158,6 +197,22 @@ public sealed class BillingPeriodService(
         return null;
     }
 
+    /// <summary>
+    /// Đơn giá dùng để thu khoản này vào ngày đã cho, hoặc lý do không thu được (khoản không đưa vào kỳ thu,
+    /// chưa có đơn giá). Dùng chung cho lập bảng kê và tính thử, để hai nơi luôn cho cùng kết quả.
+    /// </summary>
+    private static (FeeRateEntity? Rate, string? Error) BillableRate(FeeItemEntity feeItem, DateOnly day)
+    {
+        var error = ValidateFeeItem(feeItem);
+        if (error is not null)
+            return (null, error);
+
+        var rate = FeeCalculator.RateOn(feeItem.Rates, day);
+        return rate is null
+            ? (null, $"Khoản thu {feeItem.Code} chưa có đơn giá hiệu lực vào ngày {day:dd/MM/yyyy}.")
+            : (rate, null);
+    }
+
     private static string? ValidateFeeItem(FeeItemEntity feeItem) => feeItem switch
     {
         { FeeType: FeeType.TuNguyen } =>
@@ -176,21 +231,6 @@ public sealed class BillingPeriodService(
         FeeCycle.Nam => billed.Year == request.Year,
         _ => true // MotLan
     };
-
-    /// <summary>Đơn giá có hiệu lực vào một ngày: cùng quy tắc với FeeItemService.GetRateOnDateAsync.</summary>
-    private static FeeRateEntity? RateOn(FeeItemEntity feeItem, DateOnly day) =>
-        feeItem.Rates.FirstOrDefault(r => r.EffectiveFrom <= day && (r.EffectiveTo is null || r.EffectiveTo > day));
-
-    private static decimal QuantityFor(CalculationBasis basis, HouseholdBillingBasis household) => basis switch
-    {
-        CalculationBasis.DienTich => household.Area,
-        CalculationBasis.NhanKhau => household.ResidentCount,
-        _ => 1 // Ho, CoDinh: mỗi hộ một suất
-    };
-
-    /// <summary>Tiền Việt không có đơn vị lẻ: làm tròn đến đồng, .5 làm tròn lên.</summary>
-    private static decimal AmountFor(decimal rate, decimal quantity) =>
-        Math.Round(rate * quantity, 0, MidpointRounding.AwayFromZero);
 
     private DateOnly Today() => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
 

@@ -81,3 +81,22 @@ public sealed record ReceivableLineResponse(
     decimal Quantity,
     decimal Rate,
     decimal Amount);
+
+/// <summary>
+/// Kết quả tính thử phí của một hộ cho một khoản thu vào một ngày (PBI-015): đủ dữ liệu để giải thích số tiền,
+/// Amount = Rate × Quantity làm tròn đến đồng, Rate là đơn giá có hiệu lực từ RateEffectiveFrom.
+/// </summary>
+public sealed record FeeCalculationResponse(
+    int FeeItemId,
+    string Code,
+    string Name,
+    CalculationBasis CalculationBasis,
+    string Unit,
+    int HouseholdId,
+    string HouseholdNumber,
+    string ApartmentCode,
+    DateOnly Date,
+    decimal Quantity,
+    decimal Rate,
+    DateOnly RateEffectiveFrom,
+    decimal Amount);
