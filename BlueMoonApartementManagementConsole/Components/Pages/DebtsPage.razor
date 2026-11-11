@@ -1,0 +1,149 @@
+@page "/cong-no"
+@attribute [Authorize(Policy = "TaiChinh")]
+@layout DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+@using BlueMoonApartementManagementConsole.BackEnd.Models
+@using BlueMoonApartementManagementConsole.BackEnd.Models.Enities
+
+<PageTitle>Công nợ - Bluemoon</PageTitle>
+
+<HeadContent>
+    <link rel="stylesheet" href="css/debts.css" />
+</HeadContent>
+
+@* PBI-019: xử lý ở wwwroot/js/debts.js, gọi api/cong-no và api/ky-thu. Danh sách và quy tắc nhắc nằm ở DebtService;
+   trang chỉ lọc, chọn hộ, soạn giấy báo để in và ghi nhận đã nhắc. *@
+<section id="debts" class="page debts">
+    <div class="page-head">
+        <h1>Công nợ và nhắc nộp</h1>
+        <p class="muted">Các hộ còn thiếu tiền theo từng kỳ thu (chưa nộp hoặc nộp một phần). Chọn hộ để in giấy báo nhắc nộp và ghi nhận đã nhắc.</p>
+    </div>
+
+    <div id="dbAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <div class="filter-bar">
+        <label>Kỳ thu
+            <select id="dbPeriod" aria-label="Kỳ thu">
+                <option value="">Tất cả kỳ</option>
+            </select>
+        </label>
+        <label>Trạng thái
+            <select id="dbStatus" aria-label="Lọc theo trạng thái">
+                <option value="">Tất cả</option>
+                @foreach (var (status, label) in PaymentLabels.Statuses.Where(s => s.Status != PaymentStatus.DaNopDu))
+                {
+                    <option value="@status">@label</option>
+                }
+            </select>
+        </label>
+        <label class="db-check">
+            <input id="dbOverdue" type="checkbox" /> Chỉ hộ quá hạn
+        </label>
+        <label class="db-search">Tìm hộ
+            <input id="dbSearch" type="search" placeholder="Mã căn, tòa nhà, số hộ khẩu..." autocomplete="off" />
+        </label>
+    </div>
+
+    <div class="db-summary">
+        <div class="card-box"><span class="muted small">Số hộ còn nợ</span><strong id="dbHouseholds">–</strong></div>
+        <div class="card-box"><span class="muted small">Tổng còn thiếu</span><strong id="dbTotal">–</strong></div>
+        <div class="card-box"><span class="muted small">Quá hạn</span><strong id="dbOverdueSummary">–</strong></div>
+    </div>
+
+    <div class="db-toolbar">
+        <span id="dbSelectedCount" class="muted">Chưa chọn hộ nào</span>
+        <button type="button" class="btn-approve" data-action="open-remind" disabled>Nhắc nộp các hộ đã chọn</button>
+    </div>
+
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th><input id="dbSelectAll" type="checkbox" aria-label="Chọn tất cả hộ đang hiện" /></th>
+                    <th>Kỳ thu</th>
+                    <th>Hạn nộp</th>
+                    <th>Căn hộ</th>
+                    <th>Số hộ khẩu</th>
+                    <th class="num">Phải thu (đ)</th>
+                    <th class="num">Đã thu (đ)</th>
+                    <th class="num">Còn thiếu (đ)</th>
+                    <th>Trạng thái</th>
+                    <th>Nhắc gần nhất</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="dbRows"></tbody>
+        </table>
+        <p id="dbEmpty" class="empty-state" hidden>Không có hộ nào còn nợ.</p>
+    </div>
+
+    @* Hộp thoại nhắc nộp: xem giấy báo của các hộ đã chọn, in, rồi ghi nhận đã nhắc *@
+    <div id="dbRemindDialog" class="db-dialog-backdrop" hidden>
+        <section class="db-dialog" role="dialog" aria-modal="true" aria-labelledby="dbRemindTitle">
+            <div class="db-dialog-heading">
+                <h2 id="dbRemindTitle">Nhắc nộp</h2>
+                <button type="button" class="db-dialog-close" data-action="close" aria-label="Đóng">×</button>
+            </div>
+            <div id="dbRemindAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+            <form id="dbRemindForm" class="filter-bar">
+                <label>Cách nhắc
+                    <select name="channel" required>
+                        @foreach (var (channel, label) in DebtLabels.Channels)
+                        {
+                            <option value="@channel">@label</option>
+                        }
+                    </select>
+                </label>
+                <label class="db-note">Ghi chú
+                    <input name="note" maxlength="500" placeholder="VD: đã gửi giấy báo vào hộp thư" />
+                </label>
+                <div class="filter-actions">
+                    <button type="button" class="btn-secondary" data-action="print">In giấy báo</button>
+                    <button type="submit" class="btn-approve">Ghi nhận đã nhắc</button>
+                </div>
+            </form>
+            <p class="muted small">Giấy báo của từng hộ (in mỗi hộ một trang):</p>
+            <div id="dbNotices" class="db-notices"></div>
+        </section>
+    </div>
+
+    @* Hộp thoại lịch sử nhắc của một hộ trong một kỳ *@
+    <div id="dbHistoryDialog" class="db-dialog-backdrop" hidden>
+        <section class="db-dialog" role="dialog" aria-modal="true" aria-labelledby="dbHistoryTitle">
+            <div class="db-dialog-heading">
+                <h2 id="dbHistoryTitle">Lịch sử nhắc nộp</h2>
+                <button type="button" class="db-dialog-close" data-action="close" aria-label="Đóng">×</button>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Thời điểm</th>
+                            <th>Cách nhắc</th>
+                            <th class="num">Còn thiếu lúc nhắc (đ)</th>
+                            <th>Ghi chú</th>
+                            <th>Người nhắc</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dbHistoryRows"></tbody>
+                </table>
+                <p id="dbHistoryEmpty" class="empty-state" hidden>Chưa nhắc lần nào.</p>
+            </div>
+        </section>
+    </div>
+
+    @* Nhãn lấy từ PaymentLabels, DebtLabels; debts.js đọc nhãn từ các option này, không tự viết lại *@
+    <datalist id="dbStatusLabels">
+        @foreach (var (status, label) in PaymentLabels.Statuses)
+        {
+            <option value="@status">@label</option>
+        }
+    </datalist>
+    <datalist id="dbChannelLabels">
+        @foreach (var (channel, label) in DebtLabels.Channels)
+        {
+            <option value="@channel">@label</option>
+        }
+    </datalist>
+</section>

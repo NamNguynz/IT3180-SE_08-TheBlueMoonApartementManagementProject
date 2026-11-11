@@ -161,8 +161,8 @@ public sealed class PaymentService(
 
     public static string ReceiptNumber(int paymentId) => $"BN-{paymentId:D6}";
 
-    /// <summary>Số tiền kiểu Việt Nam: 1.234.567 (không phụ thuộc culture của máy chủ).</summary>
-    private static string Money(decimal value) =>
+    /// <summary>Số tiền kiểu Việt Nam: 1.234.567 (không phụ thuộc culture của máy chủ). Dùng chung với DebtService.</summary>
+    internal static string Money(decimal value) =>
         value.ToString("#,0", CultureInfo.InvariantCulture).Replace(',', '.');
 
     private static string? NormalizeOptional(string? value) =>

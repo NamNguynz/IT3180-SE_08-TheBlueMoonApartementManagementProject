@@ -35,10 +35,14 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
     // Link menu trước là trang tạm, nay đã có trang thật (PBI-007: ResidentChangesPage), vẫn phải giữ phân quyền như menu
     private static readonly (string Path, string Title)[] ResidentPages = [("/nhan-khau/bien-dong", "<h1>Biến động nhân khẩu</h1>")];
     private static readonly string[] FinancePlaceholders =
-        ["/khoan-thu/danh-muc", "/don-gia", "/cong-no", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
-    // Tương tự với nhóm Tài chính (PBI-014: BillingPeriodsPage, PBI-016: PaymentsPage): Kế toán mở được, Cư dân bị chặn
+        ["/khoan-thu/danh-muc", "/don-gia", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
+    // Tương tự với nhóm Tài chính (PBI-014: BillingPeriodsPage, PBI-016: PaymentsPage, PBI-019: DebtsPage): Kế toán mở được, Cư dân bị chặn
     private static readonly (string Path, string Title)[] FinancePages =
-        [("/ky-thu", "<h1>Kỳ thu và bảng kê phải thu</h1>"), ("/thu-tien", "<h1>Ghi nhận thu tiền</h1>")];
+        [
+            ("/ky-thu", "<h1>Kỳ thu và bảng kê phải thu</h1>"),
+            ("/thu-tien", "<h1>Ghi nhận thu tiền</h1>"),
+            ("/cong-no", "<h1>Công nợ và nhắc nộp</h1>")
+        ];
 
     private static string RoleLine(string label) => $"Bạn đang đăng nhập với vai trò <strong>{label}</strong>.";
 

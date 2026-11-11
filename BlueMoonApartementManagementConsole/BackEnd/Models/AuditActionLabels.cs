@@ -33,5 +33,6 @@ public static class AuditActionLabels
         (AuditAction.ChangeRate, "Điều chỉnh giá khoản thu"),
         (AuditAction.CreateBillingPeriod, "Lập kỳ thu"),
         (AuditAction.RecordPayment, "Ghi nhận thu tiền"),
+        (AuditAction.RecordDebtReminder, "Ghi nhận nhắc nộp"),
     ];
 }
