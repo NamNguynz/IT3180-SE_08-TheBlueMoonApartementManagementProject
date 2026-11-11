@@ -1,0 +1,123 @@
+@page "/ky-thu"
+@attribute [Authorize(Policy = "TaiChinh")]
+@layout DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Kỳ thu - Bluemoon</PageTitle>
+
+<HeadContent>
+    <link rel="stylesheet" href="css/billing-periods.css" />
+</HeadContent>
+
+@* PBI-014: xử lý ở wwwroot/js/billing-periods.js, gọi api/ky-thu. Quy tắc lập bảng kê nằm ở BillingPeriodService,
+   trang chỉ chọn sẵn các khoản thu hợp lệ và hiển thị kết quả. *@
+<section id="billingPeriods" class="page billing-periods">
+    <div class="page-head page-head-row">
+        <div>
+            <h1>Kỳ thu và bảng kê phải thu</h1>
+            <p class="muted">Lập kỳ thu theo tháng: hệ thống tính số tiền phải thu của từng hộ theo đơn giá và cơ sở tính.</p>
+        </div>
+        <button type="button" class="btn-approve" data-action="toggle-create">+ Lập kỳ thu</button>
+    </div>
+
+    <div id="bpAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <section id="bpCreate" class="card-box" hidden>
+        <h2 class="card-title">Lập kỳ thu mới</h2>
+        <p class="muted small">
+            Chỉ chọn được khoản thu bắt buộc, áp dụng toàn chung cư; các khoản bắt buộc của mỗi hộ gộp thành một lần thu.
+            Đóng góp tự nguyện thu theo đợt riêng. Bảng kê chỉ lập được khi đã đến ngày tính phí.
+        </p>
+        <form id="bpCreateForm">
+            <div class="filter-bar">
+                <label>Kỳ thu (tháng)
+                    <input name="period" type="month" required />
+                </label>
+                <label>Ngày tính phí
+                    <input name="chargeDate" type="date" required />
+                </label>
+                <label>Hạn nộp
+                    <input name="dueDate" type="date" required />
+                </label>
+                <label class="bp-note">Ghi chú
+                    <input name="note" maxlength="500" />
+                </label>
+            </div>
+            <fieldset class="bp-fee-items">
+                <legend>Khoản thu đưa vào kỳ (đơn giá lấy theo ngày tính phí)</legend>
+                <div id="bpFeeItemOptions" class="bp-fee-item-options"></div>
+                <p id="bpFeeItemEmpty" class="muted small" hidden>
+                    Chưa có khoản thu bắt buộc nào áp dụng toàn chung cư. Ban quản trị tạo ở trang Khoản thu và đơn giá.
+                </p>
+            </fieldset>
+            <div class="filter-actions">
+                <button type="submit" class="btn-approve">Lập bảng kê</button>
+                <button type="button" class="btn-link" data-action="toggle-create">Hủy</button>
+            </div>
+        </form>
+    </section>
+
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Kỳ thu</th>
+                    <th>Ngày tính phí</th>
+                    <th>Hạn nộp</th>
+                    <th class="num">Khoản thu</th>
+                    <th class="num">Số hộ</th>
+                    <th class="num">Tổng phải thu (đ)</th>
+                    <th>Người lập</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="bpPeriods"></tbody>
+        </table>
+        <p id="bpPeriodsEmpty" class="empty-state" hidden>Chưa có kỳ thu nào.</p>
+    </div>
+
+    <section id="bpDetail" class="card-box bp-detail" hidden>
+        <div class="bp-detail-head">
+            <div>
+                <h2 id="bpDetailTitle" class="card-title"></h2>
+                <p id="bpDetailMeta" class="muted small"></p>
+            </div>
+            <div class="bp-detail-total">
+                <span class="muted small">Tổng phải thu</span>
+                <strong id="bpDetailTotal"></strong>
+            </div>
+        </div>
+
+        <h3>Khoản thu và đơn giá đã áp dụng</h3>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Khoản thu</th>
+                        <th>Chu kỳ</th>
+                        <th>Cơ sở tính</th>
+                        <th class="num">Đơn giá (đ)</th>
+                        <th>Áp dụng từ</th>
+                        <th class="num">Tổng (đ)</th>
+                    </tr>
+                </thead>
+                <tbody id="bpItems"></tbody>
+            </table>
+        </div>
+
+        <div class="bp-bill-head">
+            <h3>Bảng kê phải thu theo hộ</h3>
+            <input id="bpSearch" type="search" placeholder="Tìm mã căn, tòa nhà, số hộ khẩu..." aria-label="Tìm hộ" autocomplete="off" />
+        </div>
+        <div class="table-wrap">
+            <table class="data-table bp-bill-table">
+                <thead id="bpBillHead"></thead>
+                <tbody id="bpBills"></tbody>
+                <tfoot id="bpBillFoot"></tfoot>
+            </table>
+        </div>
+        <p id="bpBillsEmpty" class="empty-state" hidden>Không có hộ phù hợp.</p>
+    </section>
+</section>
