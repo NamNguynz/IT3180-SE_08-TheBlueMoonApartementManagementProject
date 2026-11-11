@@ -347,6 +347,60 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.ToTable("households", (string)null);
                 });
 
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.ResidentChangeEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("FromDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Place")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RecordedById")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ResidentId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("ToDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedById");
+
+                    b.HasIndex("ResidentId");
+
+                    b.HasIndex("HouseholdId", "FromDate");
+
+                    b.ToTable("resident_changes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_resident_changes_period", "\"ToDate\" IS NULL OR \"ToDate\" > \"FromDate\"");
+
+                            t.HasCheckConstraint("ck_resident_changes_type", "\"Type\" IN ('ChuyenDen','TamTru','TamVang','TroVe','ChuyenDi')");
+                        });
+                });
+
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.ResidentEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -413,6 +467,13 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.Property<string>("Religion")
                         .HasColumnType("text");
 
+                    b.Property<string>("ResidenceStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("ThuongTru");
+
                     b.Property<string>("Workplace")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
@@ -425,7 +486,10 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .IsUnique()
                         .HasFilter("\"IdentityNumberHash\" IS NOT NULL");
 
-                    b.ToTable("residents", (string)null);
+                    b.ToTable("residents", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_residents_residence_status", "\"ResidenceStatus\" IN ('ThuongTru','TamTru','TamVang','DaChuyenDi')");
+                        });
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", b =>
@@ -470,6 +534,31 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .IsRequired();
 
                     b.Navigation("Apartment");
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.ResidentChangeEntity", b =>
+                {
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.HouseholdEntity", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", "RecordedBy")
+                        .WithMany()
+                        .HasForeignKey("RecordedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.ResidentEntity", "Resident")
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecordedBy");
+
+                    b.Navigation("Resident");
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.ResidentEntity", b =>

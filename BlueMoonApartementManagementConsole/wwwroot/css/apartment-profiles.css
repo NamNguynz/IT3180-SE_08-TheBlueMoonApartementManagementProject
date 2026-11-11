@@ -291,6 +291,20 @@
     display: none;
 }
 
+/* PBI-007 (trang Biến động nhân khẩu): ẩn được nhóm ô và từng ô theo loại biến động.
+   Cần rule riêng vì display: grid/flex ở trên đè lên [hidden] mặc định của trình duyệt. */
+.ap-form-grid[hidden],
+.ap-form-grid label[hidden] {
+    display: none;
+}
+
+.resident-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px 14px;
+}
+
 .ap-dialog-backdrop {
     position: fixed;
     inset: 0;

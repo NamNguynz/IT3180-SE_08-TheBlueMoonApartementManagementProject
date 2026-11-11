@@ -30,6 +30,7 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(AuditLogController))]
     [InlineData(typeof(ApartmentProfileController))]
     [InlineData(typeof(HouseholdProfileController))]
+    [InlineData(typeof(ResidentChangeController))]
     public void AdminControllers_RequireAdminPolicy(Type controller)
     {
         var attrs = AuthorizeOf(controller);
@@ -51,6 +52,7 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(AuditLogController))]
     [InlineData(typeof(ApartmentProfileController))]
     [InlineData(typeof(HouseholdProfileController))]
+    [InlineData(typeof(ResidentChangeController))]
     [InlineData(typeof(ProfileController))]
     public void ControllerActions_DoNotBypassAuthorization(Type controller)
     {
@@ -71,6 +73,7 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(AccountApprovalPage))]
     [InlineData(typeof(AuditLogPage))]
     [InlineData(typeof(InDevelopmentResidentPage))]
+    [InlineData(typeof(ResidentChangesPage))]
     public void AdminPages_RequireAdminPolicy(Type page)
     {
         var attrs = AuthorizeOf(page);

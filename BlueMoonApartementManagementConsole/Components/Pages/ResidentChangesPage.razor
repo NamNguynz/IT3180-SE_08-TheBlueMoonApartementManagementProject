@@ -1,0 +1,206 @@
+@page "/nhan-khau/bien-dong"
+@attribute [Authorize(Policy = "QuanTriHeThong")]
+@layout BlueMoonApartementManagementConsole.Components.Layout.DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+@using BlueMoonApartementManagementConsole.BackEnd.Models
+
+<PageTitle>Biến động nhân khẩu - Bluemoon</PageTitle>
+
+<HeadContent>
+    @* ?v=2: file CSS có thêm rule cho trang này (PBI-007). Tăng số khi sửa CSS để trình duyệt không dùng bản đã cache *@
+    <link rel="stylesheet" href="css/apartment-profiles.css?v=2" />
+</HeadContent>
+
+@* PBI-007: dùng lại bố cục và class của trang Hồ sơ căn hộ. Xử lý ở wwwroot/js/resident-changes.js,
+   quy tắc thật nằm ở ResidentChangeService (trang chỉ ẩn/hiện đúng ô nhập và nút). *@
+<section id="residentChanges" class="page apartment-profiles">
+    <div class="page-head page-head-row">
+        <div>
+            <h1>Biến động nhân khẩu</h1>
+            <p class="muted">Ghi nhận chuyển đến, chuyển đi, tạm trú, tạm vắng của nhân khẩu trong từng hộ.</p>
+        </div>
+    </div>
+
+    <div id="rcAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <div class="ap-workspace">
+        <aside class="card-box ap-list-panel" aria-label="Danh sách hộ gia đình">
+            <div class="ap-panel-heading">
+                <div>
+                    <h2 class="card-title">Hộ gia đình</h2>
+                    <span id="rcCount" class="muted small">Đang tải...</span>
+                </div>
+                <button type="button" class="btn-refresh" data-action="refresh" aria-label="Tải lại danh sách">↻</button>
+            </div>
+            <label class="ap-search">
+                <span class="sr-only">Tìm hộ gia đình</span>
+                <input id="rcSearch" type="search" placeholder="Tìm mã căn, tòa nhà, số hộ khẩu..." autocomplete="off" />
+            </label>
+            <div id="rcListLoading" class="ap-list-message">Đang tải danh sách hộ gia đình...</div>
+            <div id="rcListEmpty" class="ap-list-message" hidden>Chưa có hộ gia đình phù hợp.</div>
+            <div id="householdList" class="apartment-list"></div>
+        </aside>
+
+        <div class="ap-detail-column">
+            <div id="rcSelectionEmpty" class="empty-state ap-selection-empty">
+                Chọn một hộ trong danh sách để xem và ghi nhận biến động nhân khẩu.
+            </div>
+
+            <div id="rcSelection" hidden>
+                <section class="card-box ap-section">
+                    <div class="ap-section-heading">
+                        <div>
+                            <span class="ap-eyebrow">NHÂN KHẨU TRONG HỘ</span>
+                            <h2 id="rcHouseholdTitle" class="card-title">Hộ khẩu</h2>
+                        </div>
+                        <span id="rcHouseholdBadge" class="badge badge-ok"></span>
+                    </div>
+
+                    <div class="ap-resident-heading">
+                        <p class="muted small">
+                            Tạm vắng, trở về, chuyển đi: bấm nút ở từng nhân khẩu. Chuyển đến, tạm trú: khai báo nhân khẩu mới.
+                        </p>
+                        <div>
+                            <button type="button" class="btn-secondary" data-action="open-change" data-type="ChuyenDen">+ Chuyển đến</button>
+                            <button type="button" class="btn-secondary" data-action="open-change" data-type="TamTru">+ Đăng ký tạm trú</button>
+                        </div>
+                    </div>
+                    <div id="rcResidentList" class="resident-list"></div>
+                    <div id="rcResidentEmpty" class="ap-resident-empty" hidden>Hộ chưa có nhân khẩu.</div>
+                </section>
+
+                <section class="card-box ap-section">
+                    <div class="ap-section-heading">
+                        <div>
+                            <span class="ap-eyebrow">LỊCH SỬ BIẾN ĐỘNG</span>
+                            <h2 class="card-title">Các lần đã ghi nhận</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th>
+                                    <th>Biến động</th>
+                                    <th>Nhân khẩu</th>
+                                    <th>Nơi đi/đến</th>
+                                    <th>Lý do</th>
+                                    <th>Người ghi nhận</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rcHistory"></tbody>
+                        </table>
+                    </div>
+                    <div id="rcHistoryEmpty" class="ap-resident-empty">Chưa ghi nhận biến động nào.</div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="changeDialog" class="ap-dialog-backdrop" hidden>
+        <section class="ap-dialog" role="dialog" aria-modal="true" aria-labelledby="changeDialogTitle">
+            <div class="ap-dialog-heading">
+                <div>
+                    <span class="ap-eyebrow">GHI NHẬN BIẾN ĐỘNG</span>
+                    <h2 id="changeDialogTitle">Biến động nhân khẩu</h2>
+                </div>
+                <button type="button" class="ap-dialog-close" data-action="close-change" aria-label="Đóng">×</button>
+            </div>
+
+            <div id="rcDialogAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+            <form id="changeForm" class="ap-form">
+                <input name="type" type="hidden" />
+                <input name="residentId" type="hidden" />
+                <p id="changeResidentName" class="ap-hint" hidden></p>
+
+                @* Chỉ hiện với chuyển đến, tạm trú. Ô bị ẩn sẽ bị tắt (disabled) để form không kiểm *@
+                <div id="rcNewResident" class="ap-form-grid">
+                    <label class="ap-span-2"><span>Họ tên <span class="required-mark">*</span></span>
+                        <input name="fullName" maxlength="100" required />
+                    </label>
+                    <label><span>Ngày sinh <span class="required-mark">*</span></span>
+                        <input name="dateOfBirth" type="date" required />
+                    </label>
+                    <label><span>Giới tính <span class="required-mark">*</span></span>
+                        <select name="gender" required>
+                            <option value="">Chọn giới tính</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </label>
+                    <label>Bí danh
+                        <input name="alias" maxlength="100" />
+                    </label>
+                    <label>Số CMND/CCCD
+                        <input name="identityNumber" maxlength="30" inputmode="numeric" />
+                    </label>
+                    <label>Ngày cấp
+                        <input name="identityIssuedAt" type="date" />
+                    </label>
+                    <label>Nơi cấp
+                        <input name="identityIssuePlace" maxlength="150" />
+                    </label>
+                    <label>Nơi sinh
+                        <input name="placeOfBirth" maxlength="100" />
+                    </label>
+                    <label>Nguyên quán
+                        <input name="hometown" maxlength="100" />
+                    </label>
+                    <label>Dân tộc
+                        <input name="ethnicity" maxlength="50" />
+                    </label>
+                    <label>Tôn giáo
+                        <input name="religion" maxlength="50" />
+                    </label>
+                    <label>Nghề nghiệp
+                        <input name="occupation" maxlength="100" />
+                    </label>
+                    <label>Nơi làm việc
+                        <input name="workplace" maxlength="150" />
+                    </label>
+                </div>
+
+                <div class="ap-form-grid">
+                    @* Tiêu đề và dấu * gói trong một span: label là flex dọc nên tách ra thì dấu * rớt xuống dòng *@
+                    <label>
+                        <span><span data-role="from-label">Ngày biến động</span> <span class="required-mark">*</span></span>
+                        <input name="fromDate" type="date" required />
+                    </label>
+                    <label data-role="to-field">
+                        <span>Đến ngày (dự kiến) <span class="required-mark">*</span></span>
+                        <input name="toDate" type="date" />
+                    </label>
+                    <label class="ap-span-2" data-role="place-field">
+                        <span><span data-role="place-label">Nơi đi/đến</span> <span class="required-mark" data-role="place-required">*</span></span>
+                        <textarea name="place" rows="2" maxlength="300"></textarea>
+                    </label>
+                    <label class="ap-span-2">Lý do / ghi chú
+                        <textarea name="reason" rows="2" maxlength="500"></textarea>
+                    </label>
+                </div>
+
+                <div class="ap-form-actions">
+                    <button type="button" class="btn-secondary" data-action="close-change">Hủy</button>
+                    <button type="submit" class="btn-approve">Ghi nhận</button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    @* Nhãn lấy từ ResidentChangeLabels; resident-changes.js đọc nhãn từ các option này, không tự viết lại *@
+    <datalist id="rcTypeLabels">
+        @foreach (var (type, label) in ResidentChangeLabels.Types)
+        {
+            <option value="@type">@label</option>
+        }
+    </datalist>
+    <datalist id="rcStatusLabels">
+        @foreach (var (status, label) in ResidentChangeLabels.Statuses)
+        {
+            <option value="@status">@label</option>
+        }
+    </datalist>
+</section>

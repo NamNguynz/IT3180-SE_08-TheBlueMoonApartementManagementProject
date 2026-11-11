@@ -28,6 +28,7 @@ public static class AuditActionLabels
         (AuditAction.UpdateApartmentProfile, "Cập nhật hồ sơ căn hộ"),
         (AuditAction.CreateHouseholdProfile, "Tạo hồ sơ hộ khẩu"),
         (AuditAction.UpdateHouseholdProfile, "Cập nhật hồ sơ hộ khẩu"),
+        (AuditAction.RecordResidentChange, "Ghi nhận biến động nhân khẩu"),
         (AuditAction.CreateFeeItem, "Tạo khoản thu"),
         (AuditAction.ChangeRate, "Điều chỉnh giá khoản thu"),
     ];

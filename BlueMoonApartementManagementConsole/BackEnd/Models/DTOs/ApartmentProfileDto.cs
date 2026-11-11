@@ -172,7 +172,10 @@ public sealed record HouseholdProfileResponse(
     DateTimeOffset RegisteredAt,
     IReadOnlyList<ResidentProfileResponse> Residents);
 
-/// <summary>Resident information returned by the API.</summary>
+/// <summary>
+/// Resident information returned by the API. ResidenceStatus chỉ để hiển thị: muốn đổi thì ghi nhận biến động
+/// (api/ho-gia-dinh/{id}/bien-dong), form hồ sơ hộ không gửi trường này.
+/// </summary>
 public sealed record ResidentProfileResponse(
     int Id,
     string FullName,
@@ -189,7 +192,8 @@ public sealed record ResidentProfileResponse(
     DateTimeOffset? IdentityIssuedAt,
     string? IdentityIssuePlace,
     string? PreviousResidence,
-    string? Notes);
+    string? Notes,
+    ResidenceStatus ResidenceStatus);
 
 public enum ProfileStatus
 {

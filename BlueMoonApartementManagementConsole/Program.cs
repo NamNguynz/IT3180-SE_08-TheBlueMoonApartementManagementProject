@@ -29,6 +29,8 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAccountManagementService, AccountManagementService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IApartmentProfileService, ApartmentProfileService>();
+builder.Services.AddScoped<IResidentChangeRepository, ResidentChangeRepository>();
+builder.Services.AddScoped<IResidentChangeService, ResidentChangeService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IFeeItemRepository, FeeItemRepository>();
 builder.Services.AddScoped<IFeeItemService, FeeItemService>();

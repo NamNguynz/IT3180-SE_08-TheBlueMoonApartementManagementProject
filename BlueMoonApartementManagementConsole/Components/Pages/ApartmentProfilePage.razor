@@ -229,4 +229,13 @@
             </form>
         </section>
     </div>
+
+    @* PBI-007: nhãn tình trạng cư trú cho thẻ nhân khẩu (apartment-profiles.js đọc từ đây).
+       Tình trạng chỉ xem ở trang này, muốn đổi thì ghi nhận ở trang Biến động nhân khẩu. *@
+    <datalist id="apResidenceStatusLabels">
+        @foreach (var (status, label) in ResidentChangeLabels.Statuses)
+        {
+            <option value="@status">@label</option>
+        }
+    </datalist>
 </section>

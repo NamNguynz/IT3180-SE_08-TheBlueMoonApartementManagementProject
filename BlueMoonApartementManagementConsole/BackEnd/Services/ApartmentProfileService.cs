@@ -266,9 +266,10 @@ public sealed class ApartmentProfileService(
         new(resident.Id, resident.FullName, resident.Alias, resident.DateOfBirth, resident.Gender,
             resident.PlaceOfBirth, resident.Hometown, resident.Ethnicity, resident.Religion,
             resident.Occupation, resident.Workplace, resident.IdentityNumber, resident.IdentityIssuedAt,
-            resident.IdentityIssuePlace, resident.PreviousResidence, resident.Notes);
+            resident.IdentityIssuePlace, resident.PreviousResidence, resident.Notes, resident.ResidenceStatus);
 
-    private static ResidentEntity CreateResident(ResidentProfileRequest request)
+    /// <summary>Dùng chung với ResidentChangeService (chuyển đến, tạm trú) để hai nơi chuẩn hóa nhân khẩu giống nhau.</summary>
+    internal static ResidentEntity CreateResident(ResidentProfileRequest request)
     {
         var resident = new ResidentEntity();
         UpdateResident(resident, request);
@@ -298,7 +299,7 @@ public sealed class ApartmentProfileService(
 
     private static string NormalizeRequired(string value) => value.Trim();
     private static string NormalizeCode(string value) => value.Trim().ToUpperInvariant();
-    private static string? NormalizeOptional(string? value) =>
+    internal static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static DateTimeOffset NormalizeDate(DateTimeOffset value) =>
