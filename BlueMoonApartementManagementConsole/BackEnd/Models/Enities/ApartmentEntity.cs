@@ -11,6 +11,20 @@ public enum ApartmentType
     Penthouse
 }
 
+/// <summary>
+/// Tình trạng cư trú hiện tại của nhân khẩu (PBI-007, LAW-004). Chỉ đổi qua ghi nhận biến động
+/// (ResidentChangeService), để mỗi lần đổi đều có một dòng lịch sử trong resident_changes.
+/// Lưu trong DB dạng chuỗi; thêm giá trị mới thì sửa cả check constraint ck_residents_residence_status
+/// và ResidentChangeLabels.
+/// </summary>
+public enum ResidenceStatus
+{
+    ThuongTru,
+    TamTru,
+    TamVang,
+    DaChuyenDi
+}
+
 public class ApartmentEntity
 {
     public int Id { get; set; }
@@ -62,5 +76,8 @@ public class ResidentEntity
     public string? IdentityIssuePlace { get; set; }
     public string? PreviousResidence { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>Nhân khẩu có trước PBI-007 nhận mặc định ThuongTru.</summary>
+    public ResidenceStatus ResidenceStatus { get; set; } = ResidenceStatus.ThuongTru;
     public HouseholdEntity Household { get; set; } = null!;
 }

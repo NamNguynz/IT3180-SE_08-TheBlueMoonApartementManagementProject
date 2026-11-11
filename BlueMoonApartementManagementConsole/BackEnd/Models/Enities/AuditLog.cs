@@ -18,6 +18,7 @@
         UpdateApartmentProfile,
         CreateHouseholdProfile,
         UpdateHouseholdProfile,
+        RecordResidentChange,
         CreateFeeItem,
         ChangeRate,
     }

@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
     public DbSet<ApartmentEntity> Apartments => Set<ApartmentEntity>();
     public DbSet<HouseholdEntity> Households => Set<HouseholdEntity>();
     public DbSet<ResidentEntity> Residents => Set<ResidentEntity>();
+    public DbSet<ResidentChangeEntity> ResidentChanges => Set<ResidentChangeEntity>();
     public DbSet<FeeItemEntity> FeeItems => Set<FeeItemEntity>();
     public DbSet<FeeRateEntity> FeeRates => Set<FeeRateEntity>();
 
@@ -115,7 +116,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
 
         modelBuilder.Entity<ResidentEntity>(e =>
         {
-            e.ToTable("residents");
+            e.ToTable("residents", t =>
+                t.HasCheckConstraint("ck_residents_residence_status",
+                    "\"ResidenceStatus\" IN ('ThuongTru','TamTru','TamVang','DaChuyenDi')"));
             e.HasKey(r => r.Id);
             e.Property(r => r.FullName).HasMaxLength(100).IsRequired();
             e.Property(r => r.Alias).HasMaxLength(100);
@@ -130,6 +133,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.Property(r => r.IdentityIssuePlace).HasColumnType("text").HasConversion(encrypted);
             e.Property(r => r.PreviousResidence).HasColumnType("text").HasConversion(encrypted);
             e.Property(r => r.Notes).HasMaxLength(500);
+            // PBI-007: nhân khẩu có trước khi thêm tình trạng cư trú nhận mặc định ThuongTru
+            e.Property(r => r.ResidenceStatus).HasConversion<string>().HasMaxLength(20)
+             .HasDefaultValue(ResidenceStatus.ThuongTru);
             // Bản mã của cùng một số CCCD mỗi lần một khác, nên unique đặt trên hash (SaveChanges tự tính)
             e.Property(r => r.IdentityNumberHash).HasMaxLength(64);
             e.HasIndex(r => r.IdentityNumberHash).IsUnique()
@@ -138,6 +144,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
                 .WithMany(h => h.Residents)
                 .HasForeignKey(r => r.HouseholdId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // PBI-007: lịch sử biến động nhân khẩu, chỉ thêm dòng mới, không sửa/xóa
+        modelBuilder.Entity<ResidentChangeEntity>(e =>
+        {
+            e.ToTable("resident_changes", t =>
+            {
+                t.HasCheckConstraint("ck_resident_changes_type",
+                    "\"Type\" IN ('ChuyenDen','TamTru','TamVang','TroVe','ChuyenDi')");
+                t.HasCheckConstraint("ck_resident_changes_period", "\"ToDate\" IS NULL OR \"ToDate\" > \"FromDate\"");
+            });
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(c => c.FromDate).HasColumnType("date").IsRequired();
+            e.Property(c => c.ToDate).HasColumnType("date");
+            // Nơi đi/đến là dữ liệu cá nhân, mã hóa như PreviousResidence (PBI-030)
+            e.Property(c => c.Place).HasColumnType("text").HasConversion(encrypted);
+            e.Property(c => c.Reason).HasMaxLength(500);
+            e.Property(c => c.RecordedAt).IsRequired();
+            e.HasIndex(c => new { c.HouseholdId, c.FromDate });
+            e.HasIndex(c => c.ResidentId);
+            e.HasOne<HouseholdEntity>().WithMany()
+             .HasForeignKey(c => c.HouseholdId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Resident).WithMany()
+             .HasForeignKey(c => c.ResidentId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.RecordedBy).WithMany()
+             .HasForeignKey(c => c.RecordedById)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<FeeItemEntity>(e =>
