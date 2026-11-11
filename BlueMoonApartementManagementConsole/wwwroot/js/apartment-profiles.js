@@ -72,6 +72,13 @@
             .filter((o) => o.value)
             .map((o) => [o.value, o.textContent.trim()]));
 
+    // PBI-007: nhãn tình trạng cư trú lấy từ datalist (trang sinh ra từ ResidentChangeLabels.cs).
+    // Nhân khẩu mới thêm ở form này chưa có tình trạng, coi như đang cư trú.
+    const statusLabels = () => Object.fromEntries(
+        [...$('#apResidenceStatusLabels').options].map((o) => [o.value, o.textContent.trim()]));
+    const currentResidentCount = () =>
+        residents.filter((resident) => resident.residenceStatus !== 'DaChuyenDi').length;
+
     const renderApartments = () => {
         const query = $('#apSearch').value.trim().toLocaleLowerCase('vi');
         const areaValue = $('#apAreaSearch').value.trim();
@@ -182,7 +189,7 @@
         householdId = household?.id ?? null;
         residents = (household?.residents ?? []).map((resident) => ({ ...resident }));
         $('#householdTitle').textContent = household ? `Hộ khẩu ${household.householdNumber}` : 'Tạo hồ sơ hộ gia đình';
-        $('#householdBadge').textContent = household ? `${residents.length} nhân khẩu` : 'Chưa lập hộ khẩu';
+        $('#householdBadge').textContent = household ? `${currentResidentCount()} nhân khẩu` : 'Chưa lập hộ khẩu';
         $('#householdBadge').className = household ? 'badge badge-ok' : 'badge badge-muted';
         $('#householdHint').hidden = Boolean(household);
 
@@ -198,6 +205,7 @@
 
     const renderResidents = () => {
         const list = $('#residentList');
+        const residenceLabels = statusLabels();
         list.replaceChildren(...residents.map((resident, index) => {
             const card = document.createElement('article');
             card.className = 'resident-card';
@@ -210,7 +218,11 @@
             const detailParts = [
                 resident.gender,
                 resident.dateOfBirth ? `Sinh ${dateInputValue(resident.dateOfBirth)}` : '',
-                resident.identityNumber ? `CCCD ${resident.identityNumber}` : ''
+                resident.identityNumber ? `CCCD ${resident.identityNumber}` : '',
+                // Chỉ ghi khi khác thường trú, để thẻ của đa số nhân khẩu không dài thêm
+                resident.residenceStatus && resident.residenceStatus !== 'ThuongTru'
+                    ? residenceLabels[resident.residenceStatus] ?? resident.residenceStatus
+                    : ''
             ].filter(Boolean);
             details.textContent = detailParts.join(' · ');
             info.append(name, details);
@@ -226,7 +238,7 @@
         }));
         $('#residentEmpty').hidden = residents.length > 0;
         $('#householdBadge').textContent = householdId
-            ? `${residents.length} nhân khẩu`
+            ? `${currentResidentCount()} nhân khẩu`
             : 'Chưa lập hộ khẩu';
     };
 
@@ -446,7 +458,8 @@
         const existingIndex = resident.id
             ? residents.findIndex((item) => item.id === resident.id)
             : -1;
-        if (existingIndex >= 0) residents[existingIndex] = resident;
+        // Form không có tình trạng cư trú (PBI-007), giữ lại tình trạng cũ để thẻ và số nhân khẩu không sai
+        if (existingIndex >= 0) residents[existingIndex] = { ...resident, residenceStatus: residents[existingIndex].residenceStatus };
         else residents.push(resident);
 
         renderResidents();
