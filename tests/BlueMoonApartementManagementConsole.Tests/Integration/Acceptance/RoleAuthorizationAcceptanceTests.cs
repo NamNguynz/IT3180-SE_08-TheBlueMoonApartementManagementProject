@@ -35,7 +35,9 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
     // Link menu trước là trang tạm, nay đã có trang thật (PBI-007: ResidentChangesPage), vẫn phải giữ phân quyền như menu
     private static readonly (string Path, string Title)[] ResidentPages = [("/nhan-khau/bien-dong", "<h1>Biến động nhân khẩu</h1>")];
     private static readonly string[] FinancePlaceholders =
-        ["/khoan-thu/danh-muc", "/don-gia", "/ky-thu", "/thu-tien", "/cong-no", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
+        ["/khoan-thu/danh-muc", "/don-gia", "/thu-tien", "/cong-no", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
+    // Tương tự với nhóm Tài chính (PBI-014: BillingPeriodsPage): Kế toán mở được, Cư dân bị chặn
+    private static readonly (string Path, string Title)[] FinancePages = [("/ky-thu", "<h1>Kỳ thu và bảng kê phải thu</h1>")];
 
     private static string RoleLine(string label) => $"Bạn đang đăng nhập với vai trò <strong>{label}</strong>.";
 
@@ -337,7 +339,8 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
                 Assert.DoesNotContain(NotFoundTitle, page.Html);
             }
         }
-        Assert.Superset(ResidentPlaceholders.Concat(FinancePlaceholders).Concat(ResidentPages.Select(p => p.Path)).ToHashSet(),
+        Assert.Superset(ResidentPlaceholders.Concat(FinancePlaceholders)
+                .Concat(ResidentPages.Select(p => p.Path)).Concat(FinancePages.Select(p => p.Path)).ToHashSet(),
             (await LinksOnHomeAsync(bqt)).ToHashSet());
 
         // Phần 2: trang tạm giữ đúng phân quyền như menu
@@ -356,11 +359,18 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
             Assert.Equal("/login?ReturnUrl=" + Uri.EscapeDataString(path), (await UiFlow.GetAsync(anonymous, path)).RedirectPath);
         }
 
-        // Phần 3: trang thật thay cho trang tạm: BQT mở được, Kế toán và Cư dân bị chặn, khách phải đăng nhập
-        foreach (var (path, title) in ResidentPages)
+        // Phần 3: trang thật thay cho trang tạm giữ phân quyền như menu: BQT mở được, Kế toán chỉ mở được trang
+        // nhóm Tài chính, Cư dân bị chặn, khách phải đăng nhập
+        foreach (var (path, title) in ResidentPages.Concat(FinancePages))
         {
             Assert.Contains(title, (await UiFlow.GetAsync(bqt, path)).Html);
-            Assert.Equal("/403", (await UiFlow.GetAsync(accountant, path)).RedirectPath);
+
+            var byAccountant = await UiFlow.GetAsync(accountant, path);
+            if (FinancePages.Any(p => p.Path == path))
+                Assert.Contains(title, byAccountant.Html);
+            else
+                Assert.Equal("/403", byAccountant.RedirectPath);
+
             Assert.Equal("/403", (await UiFlow.GetAsync(resident, path)).RedirectPath);
             Assert.Equal("/login?ReturnUrl=" + Uri.EscapeDataString(path), (await UiFlow.GetAsync(anonymous, path)).RedirectPath);
         }

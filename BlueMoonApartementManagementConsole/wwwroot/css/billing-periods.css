@@ -1,0 +1,104 @@
+/* Trang Kỳ thu (PBI-014). Bố cục và bảng dùng class chung trong dashboard.css; ở đây chỉ thêm phần riêng. */
+
+/* .card-box, .empty-state có display riêng nên phải ẩn rõ khi gắn [hidden] */
+.billing-periods [hidden] {
+    display: none !important;
+}
+
+.billing-periods .data-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.billing-periods .data-table tr.is-selected td {
+    background: #f3f7fd;
+}
+
+.billing-periods .bp-note {
+    flex: 1 1 240px;
+}
+
+.billing-periods .bp-note input {
+    width: 100%;
+}
+
+.bp-fee-items {
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.bp-fee-items legend {
+    padding: 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.bp-fee-item-options {
+    display: grid;
+    gap: 8px;
+}
+
+.bp-fee-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.bp-fee-item input {
+    margin-top: 3px;
+}
+
+.bp-detail {
+    margin-top: 18px;
+}
+
+.bp-detail h3 {
+    margin: 18px 0 10px;
+    color: var(--navy);
+    font-size: 15px;
+}
+
+.bp-detail-head,
+.bp-bill-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.bp-detail-head .card-title {
+    margin: 0;
+}
+
+.bp-detail-total {
+    display: grid;
+    justify-items: end;
+}
+
+.bp-detail-total strong {
+    color: var(--navy);
+    font-size: 20px;
+}
+
+.bp-bill-head input {
+    min-width: 240px;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+}
+
+.bp-bill-table tfoot td {
+    font-weight: 700;
+    background: #f9fafb;
+    border-top: 2px solid var(--border);
+}
+
+.bp-bill-table .bp-total {
+    font-weight: 700;
+}

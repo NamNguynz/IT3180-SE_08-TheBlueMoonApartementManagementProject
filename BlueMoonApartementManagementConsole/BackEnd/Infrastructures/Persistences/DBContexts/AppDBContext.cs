@@ -15,6 +15,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
     public DbSet<ResidentChangeEntity> ResidentChanges => Set<ResidentChangeEntity>();
     public DbSet<FeeItemEntity> FeeItems => Set<FeeItemEntity>();
     public DbSet<FeeRateEntity> FeeRates => Set<FeeRateEntity>();
+    public DbSet<BillingPeriodEntity> BillingPeriods => Set<BillingPeriodEntity>();
+    public DbSet<BillingPeriodItemEntity> BillingPeriodItems => Set<BillingPeriodItemEntity>();
+    public DbSet<ReceivableEntity> Receivables => Set<ReceivableEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -215,6 +218,65 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.HasIndex(r => new { r.FeeItemId, r.EffectiveFrom }).IsUnique();
             e.HasOne(r => r.FeeItem).WithMany(f => f.Rates)
              .HasForeignKey(r => r.FeeItemId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // PBI-014: kỳ thu và bảng kê phải thu. Đã lập thì không sửa, không xóa (căn cứ thu tiền, công nợ),
+        // nên khóa ngoại tới khoản thu, đơn giá, hộ, người lập đều Restrict.
+        modelBuilder.Entity<BillingPeriodEntity>(e =>
+        {
+            e.ToTable("billing_periods", t =>
+            {
+                t.HasCheckConstraint("ck_billing_periods_month", "\"Month\" BETWEEN 1 AND 12");
+                t.HasCheckConstraint("ck_billing_periods_due_date", "\"DueDate\" >= \"ChargeDate\"");
+            });
+            e.HasKey(p => p.Id);
+            e.Property(p => p.ChargeDate).HasColumnType("date").IsRequired();
+            e.Property(p => p.DueDate).HasColumnType("date").IsRequired();
+            e.Property(p => p.Note).HasMaxLength(500);
+            e.HasIndex(p => new { p.Year, p.Month });
+            e.HasOne(p => p.CreatedBy).WithMany()
+             .HasForeignKey(p => p.CreatedById)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<BillingPeriodItemEntity>(e =>
+        {
+            e.ToTable("billing_period_items", t =>
+                t.HasCheckConstraint("ck_billing_period_items_rate", "\"Rate\" >= 0"));
+            e.HasKey(i => i.Id);
+            e.Property(i => i.Rate).HasPrecision(18, 2);
+            // Một khoản thu chỉ xuất hiện một lần trong một kỳ
+            e.HasIndex(i => new { i.BillingPeriodId, i.FeeItemId }).IsUnique();
+            e.HasOne(i => i.BillingPeriod).WithMany(p => p.Items)
+             .HasForeignKey(i => i.BillingPeriodId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(i => i.FeeItem).WithMany()
+             .HasForeignKey(i => i.FeeItemId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(i => i.FeeRate).WithMany()
+             .HasForeignKey(i => i.FeeRateId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReceivableEntity>(e =>
+        {
+            e.ToTable("receivables", t =>
+            {
+                t.HasCheckConstraint("ck_receivables_quantity", "\"Quantity\" > 0");
+                t.HasCheckConstraint("ck_receivables_amount", "\"Amount\" >= 0");
+            });
+            e.HasKey(r => r.Id);
+            e.Property(r => r.Quantity).HasPrecision(10, 2);
+            e.Property(r => r.Amount).HasPrecision(18, 2);
+            // Một hộ chỉ có một dòng phải thu cho mỗi khoản trong kỳ
+            e.HasIndex(r => new { r.BillingPeriodItemId, r.HouseholdId }).IsUnique();
+            e.HasIndex(r => r.HouseholdId);
+            e.HasOne(r => r.BillingPeriodItem).WithMany(i => i.Receivables)
+             .HasForeignKey(r => r.BillingPeriodItemId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.Household).WithMany()
+             .HasForeignKey(r => r.HouseholdId)
              .OnDelete(DeleteBehavior.Restrict);
         });
     }
