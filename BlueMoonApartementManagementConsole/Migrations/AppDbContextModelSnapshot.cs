@@ -281,6 +281,55 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.DebtReminderEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BillingPeriodId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("Remaining")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("RemindedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RemindedById")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.HasIndex("RemindedById");
+
+                    b.HasIndex("BillingPeriodId", "HouseholdId");
+
+                    b.ToTable("debt_reminders", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_debt_reminders_channel", "\"Channel\" IN ('GiayBao','DienThoai','TrucTiep','TinNhan')");
+
+                            t.HasCheckConstraint("ck_debt_reminders_remaining", "\"Remaining\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeItemEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -720,6 +769,33 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.Navigation("FeeItem");
 
                     b.Navigation("FeeRate");
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.DebtReminderEntity", b =>
+                {
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BillingPeriodEntity", "BillingPeriod")
+                        .WithMany()
+                        .HasForeignKey("BillingPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.HouseholdEntity", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", "RemindedBy")
+                        .WithMany()
+                        .HasForeignKey("RemindedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BillingPeriod");
+
+                    b.Navigation("Household");
+
+                    b.Navigation("RemindedBy");
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeItemEntity", b =>

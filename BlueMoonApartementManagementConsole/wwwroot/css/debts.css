@@ -1,0 +1,201 @@
+/* Trang Công nợ và nhắc nộp (PBI-019). Bảng, form dùng class chung trong dashboard.css; ở đây chỉ thêm phần riêng. */
+
+/* .card-box, .empty-state... có display riêng nên phải ẩn rõ khi gắn [hidden] */
+.debts [hidden] {
+    display: none !important;
+}
+
+.debts .data-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.debts .db-remaining {
+    font-weight: 700;
+}
+
+.debts tr.is-overdue td {
+    background: #fff7ed;
+}
+
+.debts .db-overdue {
+    display: block;
+    margin-top: 4px;
+    color: #b45309;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.debts .db-check {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 6px !important;
+    padding-bottom: 9px;
+}
+
+/* dashboard.css đặt min-width 160px cho mọi input trong .filter-bar, ô tích thì không cần */
+.debts .db-check input,
+.debts .data-table input[type="checkbox"] {
+    min-width: 0;
+    width: auto;
+}
+
+.debts .db-search,
+.debts .db-note {
+    flex: 1 1 240px;
+}
+
+.debts .db-search input,
+.debts .db-note input {
+    width: 100%;
+}
+
+.db-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.db-summary .card-box {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+}
+
+.db-summary strong {
+    color: var(--navy);
+    font-size: 20px;
+}
+
+.db-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.debts .btn-approve:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.debts .btn-secondary {
+    padding: 8px 13px;
+    color: var(--navy);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.db-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.db-dialog {
+    width: min(860px, 100%);
+    max-height: min(92vh, 960px);
+    overflow-y: auto;
+    padding: 22px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.db-dialog-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.db-dialog-heading h2 {
+    margin: 0;
+    color: var(--navy);
+    font-size: 20px;
+}
+
+.db-dialog-close {
+    width: 34px;
+    height: 34px;
+    color: var(--muted);
+    font-size: 25px;
+    line-height: 1;
+    background: #f3f4f6;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.db-notices {
+    display: grid;
+    gap: 12px;
+}
+
+.db-notice {
+    padding: 16px 18px;
+    font-size: 14px;
+    line-height: 1.55;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.db-notice p {
+    margin: 0 0 8px;
+}
+
+.db-notice-title {
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.04em;
+}
+
+.db-notice-date {
+    text-align: right;
+    font-style: italic;
+}
+
+/* Vùng in được debts.js gắn vào <body> lúc bấm "In giấy báo"; trên màn hình không hiện */
+#dbPrintRoot {
+    display: none;
+}
+
+@media print {
+    body.printing-notices > *:not(#dbPrintRoot) {
+        display: none !important;
+    }
+
+    body.printing-notices #dbPrintRoot {
+        display: block;
+    }
+
+    #dbPrintRoot .db-notice {
+        border: 0;
+        padding: 0;
+        font-size: 15px;
+        break-after: page;
+    }
+
+    #dbPrintRoot .db-notice:last-child {
+        break-after: auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .db-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

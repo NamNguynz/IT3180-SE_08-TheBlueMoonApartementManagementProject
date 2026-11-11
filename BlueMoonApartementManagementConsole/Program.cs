@@ -38,6 +38,8 @@ builder.Services.AddScoped<IBillingPeriodRepository, BillingPeriodRepository>();
 builder.Services.AddScoped<IBillingPeriodService, BillingPeriodService>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IDebtRepository, DebtRepository>();
+builder.Services.AddScoped<IDebtService, DebtService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

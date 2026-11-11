@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
     public DbSet<BillingPeriodItemEntity> BillingPeriodItems => Set<BillingPeriodItemEntity>();
     public DbSet<ReceivableEntity> Receivables => Set<ReceivableEntity>();
     public DbSet<PaymentEntity> Payments => Set<PaymentEntity>();
+    public DbSet<DebtReminderEntity> DebtReminders => Set<DebtReminderEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -308,6 +309,31 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
              .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(p => p.RecordedBy).WithMany()
              .HasForeignKey(p => p.RecordedById)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // PBI-019: các lần nhắc nộp, chỉ thêm, không sửa, không xóa (lưu vết đôn đốc thu)
+        modelBuilder.Entity<DebtReminderEntity>(e =>
+        {
+            e.ToTable("debt_reminders", t =>
+            {
+                t.HasCheckConstraint("ck_debt_reminders_remaining", "\"Remaining\" > 0");
+                t.HasCheckConstraint("ck_debt_reminders_channel",
+                    "\"Channel\" IN ('GiayBao','DienThoai','TrucTiep','TinNhan')");
+            });
+            e.HasKey(r => r.Id);
+            e.Property(r => r.Remaining).HasPrecision(18, 2);
+            e.Property(r => r.Channel).HasConversion<string>().HasMaxLength(20);
+            e.Property(r => r.Note).HasMaxLength(500);
+            e.HasIndex(r => new { r.BillingPeriodId, r.HouseholdId });
+            e.HasOne(r => r.BillingPeriod).WithMany()
+             .HasForeignKey(r => r.BillingPeriodId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(r => r.Household).WithMany()
+             .HasForeignKey(r => r.HouseholdId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(r => r.RemindedBy).WithMany()
+             .HasForeignKey(r => r.RemindedById)
              .OnDelete(DeleteBehavior.Restrict);
         });
     }

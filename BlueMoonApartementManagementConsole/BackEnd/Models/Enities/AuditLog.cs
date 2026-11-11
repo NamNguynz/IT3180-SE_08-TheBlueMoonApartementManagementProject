@@ -23,6 +23,7 @@
         ChangeRate,
         CreateBillingPeriod,
         RecordPayment,
+        RecordDebtReminder,
     }
 
     public class AuditLog
