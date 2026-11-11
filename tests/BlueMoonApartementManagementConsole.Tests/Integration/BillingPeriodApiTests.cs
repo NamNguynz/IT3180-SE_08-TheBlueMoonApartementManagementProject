@@ -75,6 +75,14 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
         Assert.Equal(created.TotalAmount, reloaded.TotalAmount);
         Assert.Equal(7_000m, Assert.Single(reloaded.Items, i => i.FeeItemId == serviceFee.Id).Rate);
 
+        // API tra đơn giá theo ngày (dùng chung FeeCalculator.RateOn, PBI-015): hôm nay vẫn giá cũ, ngày mai giá mới
+        foreach (var (day, expected) in new[] { (Today, 7_000m), (Today.AddDays(1), 9_000m) })
+        {
+            var lookup = await ReadAsync<FeeRateLookupResponse>(
+                await admin.GetAsync($"/api/khoan-thu/{serviceFee.Id}/don-gia?ngay={day:yyyy-MM-dd}"), HttpStatusCode.OK);
+            Assert.Equal(expected, lookup.Rate);
+        }
+
         var list = await ReadAsync<List<BillingPeriodSummaryResponse>>(await admin.GetAsync("/api/ky-thu"), HttpStatusCode.OK);
         var summary = Assert.Single(list, p => p.Id == created.Id);
         Assert.Equal(2, summary.ItemCount);
@@ -111,6 +119,38 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
             FeeItemIds = [fee.Id]
         }, Json), HttpStatusCode.BadRequest);
         Assert.StartsWith($"Chưa đến kỳ thu tháng {nextMonth.Month:00}/{nextMonth.Year}", future.Message);
+    }
+
+    [SkippableFact]
+    [Trait("PBI", "PBI-015")]
+    public async Task CalculateApi_MatchesTheBillingPeriodLine_AndSavesNothing()
+    {
+        SkipIfNoDatabase();
+        var admin = await AdminClientAsync();
+        var fee = await CreateFeeItemAsync(admin, "_TP", CalculationBasis.DienTich, "m²", 2_505m);
+        var householdId = await CreateHouseholdAsync(admin, area: 72.5m, residents: 1);
+        var url = $"/api/ky-thu/tinh-phi?khoanThu={fee.Id}&hoGiaDinh={householdId}&ngay={Today:yyyy-MM-dd}";
+
+        // Tính thử trước khi lập kỳ: 72,5 m² × 2.505 = 181.612,5 → 181.613 đ, chưa có kỳ thu nào được lưu
+        var calculated = await ReadAsync<FeeCalculationResponse>(await admin.GetAsync(url), HttpStatusCode.OK);
+        Assert.Equal((72.5m, 2_505m, 181_613m), (calculated.Quantity, calculated.Rate, calculated.Amount));
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.False(await db.BillingPeriodItems.AnyAsync(i => i.FeeItemId == fee.Id));
+        }
+
+        // Lập kỳ thật: dòng của hộ đúng bằng số đã tính thử
+        var period = await ReadAsync<BillingPeriodResponse>(await PostPeriodAsync(admin, fee.Id), HttpStatusCode.Created);
+        _periodIds.Add(period.Id);
+        var line = Assert.Single(Assert.Single(period.Households, h => h.HouseholdId == householdId).Lines);
+        Assert.Equal(calculated.Amount, line.Amount);
+
+        var missingHousehold = await ReadAsync<ApiError>(
+            await admin.GetAsync($"/api/ky-thu/tinh-phi?khoanThu={fee.Id}"), HttpStatusCode.BadRequest);
+        Assert.Equal("Hãy chọn khoản thu (khoanThu) và hộ gia đình (hoGiaDinh) cần tính phí.", missingHousehold.Message);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await admin.GetAsync($"/api/ky-thu/tinh-phi?khoanThu={fee.Id}&hoGiaDinh=999999999")).StatusCode);
     }
 
     [SkippableFact]
