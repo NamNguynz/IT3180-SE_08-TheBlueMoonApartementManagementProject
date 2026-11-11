@@ -31,7 +31,9 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
     private const string InDevelopmentTitle = "<h1>Tính năng đang phát triển</h1>";
 
     // Link menu đang dùng trang tạm (F3), chia theo policy như menu
-    private static readonly string[] ResidentPlaceholders = ["/can-ho/danh-sach", "/nhan-khau/ho", "/nhan-khau/bien-dong"];
+    private static readonly string[] ResidentPlaceholders = ["/can-ho/danh-sach", "/nhan-khau/ho"];
+    // Link menu trước là trang tạm, nay đã có trang thật (PBI-007: ResidentChangesPage), vẫn phải giữ phân quyền như menu
+    private static readonly (string Path, string Title)[] ResidentPages = [("/nhan-khau/bien-dong", "<h1>Biến động nhân khẩu</h1>")];
     private static readonly string[] FinancePlaceholders =
         ["/khoan-thu/danh-muc", "/don-gia", "/ky-thu", "/thu-tien", "/cong-no", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
 
@@ -335,7 +337,8 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
                 Assert.DoesNotContain(NotFoundTitle, page.Html);
             }
         }
-        Assert.Superset(ResidentPlaceholders.Concat(FinancePlaceholders).ToHashSet(), (await LinksOnHomeAsync(bqt)).ToHashSet());
+        Assert.Superset(ResidentPlaceholders.Concat(FinancePlaceholders).Concat(ResidentPages.Select(p => p.Path)).ToHashSet(),
+            (await LinksOnHomeAsync(bqt)).ToHashSet());
 
         // Phần 2: trang tạm giữ đúng phân quyền như menu
         var anonymous = NewBrowser();
@@ -349,6 +352,15 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
             else
                 Assert.Equal("/403", byAccountant.RedirectPath);
 
+            Assert.Equal("/403", (await UiFlow.GetAsync(resident, path)).RedirectPath);
+            Assert.Equal("/login?ReturnUrl=" + Uri.EscapeDataString(path), (await UiFlow.GetAsync(anonymous, path)).RedirectPath);
+        }
+
+        // Phần 3: trang thật thay cho trang tạm: BQT mở được, Kế toán và Cư dân bị chặn, khách phải đăng nhập
+        foreach (var (path, title) in ResidentPages)
+        {
+            Assert.Contains(title, (await UiFlow.GetAsync(bqt, path)).Html);
+            Assert.Equal("/403", (await UiFlow.GetAsync(accountant, path)).RedirectPath);
             Assert.Equal("/403", (await UiFlow.GetAsync(resident, path)).RedirectPath);
             Assert.Equal("/login?ReturnUrl=" + Uri.EscapeDataString(path), (await UiFlow.GetAsync(anonymous, path)).RedirectPath);
         }
