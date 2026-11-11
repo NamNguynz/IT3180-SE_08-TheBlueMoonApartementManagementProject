@@ -427,6 +427,68 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.ToTable("households", (string)null);
                 });
 
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.PaymentEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("BillingPeriodId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PayerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RecordedById")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.HasIndex("RecordedById");
+
+                    b.HasIndex("BillingPeriodId", "HouseholdId");
+
+                    b.ToTable("payments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payments_amount", "\"Amount\" > 0");
+
+                            t.HasCheckConstraint("ck_payments_method", "\"Method\" IN ('TienMat','ChuyenKhoan')");
+
+                            t.HasCheckConstraint("ck_payments_transfer_reference", "\"Method\" <> 'ChuyenKhoan' OR \"Reference\" IS NOT NULL");
+                        });
+                });
+
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.ReceivableEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -689,6 +751,33 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .IsRequired();
 
                     b.Navigation("Apartment");
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.PaymentEntity", b =>
+                {
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BillingPeriodEntity", "BillingPeriod")
+                        .WithMany()
+                        .HasForeignKey("BillingPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.HouseholdEntity", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", "RecordedBy")
+                        .WithMany()
+                        .HasForeignKey("RecordedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BillingPeriod");
+
+                    b.Navigation("Household");
+
+                    b.Navigation("RecordedBy");
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.ReceivableEntity", b =>

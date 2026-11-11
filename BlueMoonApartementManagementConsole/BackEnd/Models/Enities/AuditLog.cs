@@ -22,6 +22,7 @@
         CreateFeeItem,
         ChangeRate,
         CreateBillingPeriod,
+        RecordPayment,
     }
 
     public class AuditLog
