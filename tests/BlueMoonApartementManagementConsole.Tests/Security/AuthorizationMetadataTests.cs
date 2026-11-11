@@ -38,6 +38,16 @@ public class AuthorizationMetadataTests
         Assert.Contains(attrs, a => a.Policy == AdminPolicy);
     }
 
+    [Theory]
+    [Trait("TestId", "R16")]
+    [InlineData(typeof(BillingPeriodController))]
+    public void FinanceControllers_RequireFinancePolicy(Type controller)
+    {
+        var attrs = AuthorizeOf(controller);
+
+        Assert.Contains(attrs, a => a.Policy == FinancePolicy);
+    }
+
     [Fact]
     [Trait("TestId", "R16")]
     public void ProfileController_RequiresAuthenticatedUser()
@@ -53,6 +63,7 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(ApartmentProfileController))]
     [InlineData(typeof(HouseholdProfileController))]
     [InlineData(typeof(ResidentChangeController))]
+    [InlineData(typeof(BillingPeriodController))]
     [InlineData(typeof(ProfileController))]
     public void ControllerActions_DoNotBypassAuthorization(Type controller)
     {
@@ -85,6 +96,7 @@ public class AuthorizationMetadataTests
     [Trait("TestId", "R17")]
     [InlineData(typeof(FeeItems))]
     [InlineData(typeof(InDevelopmentFinancePage))]
+    [InlineData(typeof(BillingPeriodsPage))]
     public void FinancePages_RequireFinancePolicy(Type page)
     {
         var attrs = AuthorizeOf(page);
