@@ -34,6 +34,8 @@ builder.Services.AddScoped<IResidentChangeService, ResidentChangeService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IFeeItemRepository, FeeItemRepository>();
 builder.Services.AddScoped<IFeeItemService, FeeItemService>();
+builder.Services.AddScoped<IBillingPeriodRepository, BillingPeriodRepository>();
+builder.Services.AddScoped<IBillingPeriodService, BillingPeriodService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
