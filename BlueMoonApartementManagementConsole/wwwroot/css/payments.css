@@ -1,0 +1,125 @@
+/* Trang Ghi nhận thu tiền (PBI-016). Bảng, form dùng class chung trong dashboard.css; ở đây chỉ thêm phần riêng. */
+
+/* .card-box, .filter-bar... có display riêng nên phải ẩn rõ khi gắn [hidden] */
+.payments [hidden] {
+    display: none !important;
+}
+
+.payments .data-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.payments .pm-search {
+    flex: 1 1 240px;
+}
+
+.payments .pm-search input {
+    width: 100%;
+}
+
+.pm-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.pm-summary .card-box {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+}
+
+.pm-summary strong {
+    color: var(--navy);
+    font-size: 20px;
+}
+
+.pm-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.pm-dialog {
+    width: min(860px, 100%);
+    max-height: min(92vh, 960px);
+    overflow-y: auto;
+    padding: 22px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.pm-dialog h3 {
+    margin: 18px 0 10px;
+    color: var(--navy);
+    font-size: 15px;
+}
+
+.pm-dialog-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.pm-dialog-heading h2 {
+    margin: 4px 0 0;
+    color: var(--navy);
+    font-size: 20px;
+}
+
+.pm-dialog-close {
+    width: 34px;
+    height: 34px;
+    color: var(--muted);
+    font-size: 25px;
+    line-height: 1;
+    background: #f3f4f6;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.pm-bill tfoot td {
+    font-weight: 700;
+    background: #f9fafb;
+}
+
+.pm-form .pm-wide {
+    flex: 1 1 260px;
+}
+
+.pm-form .pm-wide input {
+    width: 100%;
+}
+
+.pm-confirm {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    color: #1e3a8a;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+}
+
+.pm-confirm p {
+    margin: 0 0 10px;
+}
+
+.pm-receipt {
+    margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+    .pm-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

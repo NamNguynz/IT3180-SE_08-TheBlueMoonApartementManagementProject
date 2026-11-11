@@ -18,6 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
     public DbSet<BillingPeriodEntity> BillingPeriods => Set<BillingPeriodEntity>();
     public DbSet<BillingPeriodItemEntity> BillingPeriodItems => Set<BillingPeriodItemEntity>();
     public DbSet<ReceivableEntity> Receivables => Set<ReceivableEntity>();
+    public DbSet<PaymentEntity> Payments => Set<PaymentEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -277,6 +278,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
              .OnDelete(DeleteBehavior.Cascade);
             e.HasOne(r => r.Household).WithMany()
              .HasForeignKey(r => r.HouseholdId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // PBI-016: các lần nộp tiền. Không sửa, không xóa; chặn ở DB cả số tiền, phương thức
+        // và quy tắc chuyển khoản phải có căn cứ đối chiếu (OBS-002, OBS-003).
+        modelBuilder.Entity<PaymentEntity>(e =>
+        {
+            e.ToTable("payments", t =>
+            {
+                t.HasCheckConstraint("ck_payments_amount", "\"Amount\" > 0");
+                t.HasCheckConstraint("ck_payments_method", "\"Method\" IN ('TienMat','ChuyenKhoan')");
+                t.HasCheckConstraint("ck_payments_transfer_reference",
+                    "\"Method\" <> 'ChuyenKhoan' OR \"Reference\" IS NOT NULL");
+            });
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Amount).HasPrecision(18, 2);
+            e.Property(p => p.Method).HasConversion<string>().HasMaxLength(20);
+            e.Property(p => p.Reference).HasMaxLength(200);
+            e.Property(p => p.PayerName).HasMaxLength(100);
+            e.Property(p => p.Note).HasMaxLength(500);
+            // Tổng đã nộp của một hộ trong kỳ được đọc mỗi lần ghi (transaction Serializable dựa vào index này)
+            e.HasIndex(p => new { p.BillingPeriodId, p.HouseholdId });
+            e.HasOne(p => p.BillingPeriod).WithMany()
+             .HasForeignKey(p => p.BillingPeriodId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(p => p.Household).WithMany()
+             .HasForeignKey(p => p.HouseholdId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(p => p.RecordedBy).WithMany()
+             .HasForeignKey(p => p.RecordedById)
              .OnDelete(DeleteBehavior.Restrict);
         });
     }

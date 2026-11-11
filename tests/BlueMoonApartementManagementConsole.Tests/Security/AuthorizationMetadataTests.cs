@@ -41,6 +41,7 @@ public class AuthorizationMetadataTests
     [Theory]
     [Trait("TestId", "R16")]
     [InlineData(typeof(BillingPeriodController))]
+    [InlineData(typeof(PaymentController))]
     public void FinanceControllers_RequireFinancePolicy(Type controller)
     {
         var attrs = AuthorizeOf(controller);
@@ -64,6 +65,7 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(HouseholdProfileController))]
     [InlineData(typeof(ResidentChangeController))]
     [InlineData(typeof(BillingPeriodController))]
+    [InlineData(typeof(PaymentController))]
     [InlineData(typeof(ProfileController))]
     public void ControllerActions_DoNotBypassAuthorization(Type controller)
     {
@@ -97,6 +99,7 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(FeeItems))]
     [InlineData(typeof(InDevelopmentFinancePage))]
     [InlineData(typeof(BillingPeriodsPage))]
+    [InlineData(typeof(PaymentsPage))]
     public void FinancePages_RequireFinancePolicy(Type page)
     {
         var attrs = AuthorizeOf(page);
