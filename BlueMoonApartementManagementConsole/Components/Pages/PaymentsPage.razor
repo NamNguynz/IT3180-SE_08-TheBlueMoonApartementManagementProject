@@ -1,0 +1,175 @@
+@page "/thu-tien"
+@attribute [Authorize(Policy = "TaiChinh")]
+@layout DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+@using BlueMoonApartementManagementConsole.BackEnd.Models
+
+<PageTitle>Ghi nhận thu tiền - Bluemoon</PageTitle>
+
+<HeadContent>
+    <link rel="stylesheet" href="css/payments.css" />
+</HeadContent>
+
+@* PBI-016: xử lý ở wwwroot/js/payments.js, gọi api/thu-tien và api/ky-thu. Quy tắc ghi nhận nằm ở PaymentService;
+   trang chỉ chọn sẵn giá trị hợp lý, bắt Kế toán xem lại và xác nhận trước khi lưu (AC-018). *@
+<section id="payments" class="page payments">
+    <div class="page-head">
+        <h1>Ghi nhận thu tiền</h1>
+        <p class="muted">Ghi nhận tiền hộ đã nộp cho từng kỳ thu, kể cả nộp một phần; hệ thống tự cộng dồn và tính số còn thiếu.</p>
+    </div>
+
+    <div id="pmAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <div class="filter-bar">
+        <label>Kỳ thu
+            <select id="pmPeriod" aria-label="Kỳ thu"></select>
+        </label>
+        <label>Trạng thái
+            <select id="pmStatus" aria-label="Lọc theo trạng thái">
+                <option value="">Tất cả</option>
+                @foreach (var (status, label) in PaymentLabels.Statuses)
+                {
+                    <option value="@status">@label</option>
+                }
+            </select>
+        </label>
+        <label class="pm-search">Tìm hộ
+            <input id="pmSearch" type="search" placeholder="Mã căn, tòa nhà, số hộ khẩu..." autocomplete="off" />
+        </label>
+    </div>
+
+    <p id="pmNoPeriod" class="empty-state" hidden>Chưa có kỳ thu nào. Lập kỳ thu ở trang Kỳ thu trước khi ghi nhận thu tiền.</p>
+
+    <div id="pmPeriodView" hidden>
+        <div class="pm-summary">
+            <div class="card-box"><span class="muted small">Phải thu</span><strong id="pmDue"></strong></div>
+            <div class="card-box"><span class="muted small">Đã thu</span><strong id="pmPaid"></strong></div>
+            <div class="card-box"><span class="muted small">Còn thiếu</span><strong id="pmRemaining"></strong></div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Căn hộ</th>
+                        <th>Tòa</th>
+                        <th>Số hộ khẩu</th>
+                        <th class="num">Phải thu (đ)</th>
+                        <th class="num">Đã thu (đ)</th>
+                        <th class="num">Còn thiếu (đ)</th>
+                        <th>Trạng thái</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="pmHouseholds"></tbody>
+            </table>
+            <p id="pmHouseholdsEmpty" class="empty-state" hidden>Không có hộ phù hợp.</p>
+        </div>
+    </div>
+
+    <div id="pmDialog" class="pm-dialog-backdrop" hidden>
+        <section class="pm-dialog" role="dialog" aria-modal="true" aria-labelledby="pmDialogTitle">
+            <div class="pm-dialog-heading">
+                <div>
+                    <span class="muted small" id="pmDialogPeriod"></span>
+                    <h2 id="pmDialogTitle"></h2>
+                </div>
+                <button type="button" class="pm-dialog-close" data-action="close" aria-label="Đóng">×</button>
+            </div>
+
+            <div id="pmDialogAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+            <div class="pm-bill">
+                <table class="data-table">
+                    <tbody id="pmLines"></tbody>
+                    <tfoot>
+                        <tr><td>Phải thu</td><td class="num" id="pmBillDue"></td></tr>
+                        <tr><td>Đã thu</td><td class="num" id="pmBillPaid"></td></tr>
+                        <tr><td>Còn thiếu</td><td class="num" id="pmBillRemaining"></td></tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div id="pmReceipt" class="alert alert-success pm-receipt" hidden></div>
+
+            @* novalidate: trình duyệt kiểm form trước cả sự kiện submit; tắt để payments.js cập nhật giới hạn
+               "thời điểm nhận không sau hiện tại" rồi mới tự gọi reportValidity() (vẫn hiện thông báo lỗi như thường) *@
+            <form id="pmForm" class="pm-form" novalidate>
+                <h3>Ghi nhận lần nộp</h3>
+                <div class="filter-bar">
+                    <label>Số tiền (đ)
+                        <input name="amount" type="number" min="1" step="1" required />
+                    </label>
+                    <label>Thời điểm nhận tiền
+                        <input name="paidAt" type="datetime-local" required />
+                    </label>
+                    <label>Phương thức
+                        <select name="method" required>
+                            @foreach (var (method, label) in PaymentLabels.Methods)
+                            {
+                                <option value="@method">@label</option>
+                            }
+                        </select>
+                    </label>
+                    <label data-role="reference-field">Mã giao dịch / nội dung chuyển khoản
+                        <input name="reference" maxlength="200" />
+                    </label>
+                    <label>Người nộp
+                        <input name="payerName" maxlength="100" />
+                    </label>
+                    <label class="pm-wide">Ghi chú
+                        <input name="note" maxlength="500" />
+                    </label>
+                </div>
+
+                @* Bước xác nhận: Kế toán xem lại nội dung trước khi lưu, vì lần nộp đã ghi không sửa, không xóa *@
+                <div id="pmConfirm" class="pm-confirm" hidden>
+                    <p id="pmConfirmText"></p>
+                    <div class="filter-actions">
+                        <button type="button" class="btn-approve" data-action="confirm">Xác nhận ghi nhận</button>
+                        <button type="button" class="btn-link" data-action="edit">Sửa lại</button>
+                    </div>
+                </div>
+                <div id="pmFormActions" class="filter-actions">
+                    <button type="submit" class="btn-approve">Tiếp tục</button>
+                    <button type="button" class="btn-link" data-action="close">Đóng</button>
+                </div>
+            </form>
+            <p id="pmPaidInFull" class="muted" hidden>Hộ đã nộp đủ kỳ thu này.</p>
+
+            <h3>Các lần nộp (biên nhận)</h3>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Số biên nhận</th>
+                            <th>Thời điểm nhận</th>
+                            <th class="num">Số tiền (đ)</th>
+                            <th>Phương thức</th>
+                            <th>Mã GD / nội dung</th>
+                            <th>Người nộp</th>
+                            <th>Người ghi nhận</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pmPayments"></tbody>
+                </table>
+                <p id="pmPaymentsEmpty" class="empty-state" hidden>Chưa có lần nộp nào.</p>
+            </div>
+        </section>
+    </div>
+
+    @* Nhãn lấy từ PaymentLabels; payments.js đọc nhãn từ các option này, không tự viết lại *@
+    <datalist id="pmMethodLabels">
+        @foreach (var (method, label) in PaymentLabels.Methods)
+        {
+            <option value="@method">@label</option>
+        }
+    </datalist>
+    <datalist id="pmStatusLabels">
+        @foreach (var (status, label) in PaymentLabels.Statuses)
+        {
+            <option value="@status">@label</option>
+        }
+    </datalist>
+</section>
