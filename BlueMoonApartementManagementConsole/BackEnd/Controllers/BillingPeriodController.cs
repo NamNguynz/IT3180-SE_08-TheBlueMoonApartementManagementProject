@@ -28,6 +28,27 @@ public sealed class BillingPeriodController(IBillingPeriodService billingPeriods
             : Ok(period);
     }
 
+    /// <summary>
+    /// Tính thử (PBI-015): GET api/ky-thu/tinh-phi?khoanThu=1&amp;hoGiaDinh=2&amp;ngay=2026-11-12, không lưu gì.
+    /// Bỏ trống ngày thì tính theo hôm nay.
+    /// </summary>
+    [HttpGet("tinh-phi")]
+    public async Task<IActionResult> Calculate(
+        [FromQuery(Name = "khoanThu")] int? feeItemId,
+        [FromQuery(Name = "hoGiaDinh")] int? householdId,
+        [FromQuery(Name = "ngay")] DateOnly? date,
+        CancellationToken ct)
+    {
+        // Tự kiểm thay vì [BindRequired], để thông báo tiếng Việt và cùng dạng ApiError với các lỗi khác (AC-002)
+        if (feeItemId is null || householdId is null)
+            return BadRequest(new ApiError("INVALID", "Hãy chọn khoản thu (khoanThu) và hộ gia đình (hoGiaDinh) cần tính phí."));
+
+        var result = await billingPeriods.CalculateAsync(feeItemId.Value, householdId.Value, date, ct);
+        return result.Status == FeeItemStatus.Success
+            ? Ok(result.Data)
+            : ToError(result.Status, result.Message);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateBillingPeriodRequest request, CancellationToken ct)
     {

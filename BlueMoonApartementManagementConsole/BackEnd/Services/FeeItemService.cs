@@ -138,8 +138,8 @@ public sealed class FeeItemService(
             return null;
 
         var day = date ?? Today();
-        var rate = entity.Rates.FirstOrDefault(r =>
-            r.EffectiveFrom <= day && (r.EffectiveTo is null || r.EffectiveTo > day));
+        // Cùng quy tắc chọn đơn giá với bảng kê (PBI-015)
+        var rate = FeeCalculator.RateOn(entity.Rates, day);
         if (rate is null)
             return null;
 

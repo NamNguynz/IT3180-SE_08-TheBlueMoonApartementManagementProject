@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using Microsoft.EntityFrameworkCore;
@@ -12,8 +13,12 @@ public sealed record BillingPeriodSummaryRow(
 /// <summary>Khoản thu đã nằm trong một kỳ nào đó, dùng để chặn thu trùng theo chu kỳ.</summary>
 public sealed record BilledFeeItemRow(int FeeItemId, int BillingPeriodId, int Year, int Month);
 
-/// <summary>Cơ sở tính của một hộ lúc lập kỳ: diện tích căn hộ và số nhân khẩu chưa chuyển đi.</summary>
-public sealed record HouseholdBillingBasis(int HouseholdId, decimal Area, int ResidentCount);
+/// <summary>
+/// Cơ sở tính của một hộ tại thời điểm tính phí: diện tích căn hộ và số nhân khẩu chưa chuyển đi.
+/// Số hộ khẩu, mã căn chỉ để hiển thị và báo lỗi.
+/// </summary>
+public sealed record HouseholdBillingBasis(
+    int HouseholdId, string HouseholdNumber, string ApartmentCode, decimal Area, int ResidentCount);
 
 public interface IBillingPeriodRepository
 {
@@ -25,6 +30,7 @@ public interface IBillingPeriodRepository
     Task<List<FeeItemEntity>> GetFeeItemsAsync(IReadOnlyCollection<int> ids, CancellationToken ct = default);
     Task<List<BilledFeeItemRow>> GetBilledItemsAsync(IReadOnlyCollection<int> feeItemIds, CancellationToken ct = default);
     Task<List<HouseholdBillingBasis>> GetHouseholdBasesAsync(CancellationToken ct = default);
+    Task<HouseholdBillingBasis?> GetHouseholdBasisAsync(int householdId, CancellationToken ct = default);
     Task AddAsync(BillingPeriodEntity period, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
 }
@@ -66,14 +72,26 @@ public sealed class BillingPeriodRepository(AppDbContext db) : IBillingPeriodRep
             .Select(i => new BilledFeeItemRow(i.FeeItemId, i.BillingPeriodId, i.BillingPeriod.Year, i.BillingPeriod.Month))
             .ToListAsync(ct);
 
+    // Một định nghĩa cơ sở tính cho cả bảng kê và API tính thử (PBI-015), để hai nơi không lệch nhau
+    private static readonly Expression<Func<HouseholdEntity, HouseholdBillingBasis>> ToBillingBasis = h =>
+        new HouseholdBillingBasis(
+            h.Id,
+            h.HouseholdNumber,
+            h.Apartment.Code,
+            h.Apartment.Area,
+            h.Residents.Count(r => r.ResidenceStatus != ResidenceStatus.DaChuyenDi));
+
     public Task<List<HouseholdBillingBasis>> GetHouseholdBasesAsync(CancellationToken ct = default) =>
         db.Households.AsNoTracking()
             .OrderBy(h => h.Id)
-            .Select(h => new HouseholdBillingBasis(
-                h.Id,
-                h.Apartment.Area,
-                h.Residents.Count(r => r.ResidenceStatus != ResidenceStatus.DaChuyenDi)))
+            .Select(ToBillingBasis)
             .ToListAsync(ct);
+
+    public Task<HouseholdBillingBasis?> GetHouseholdBasisAsync(int householdId, CancellationToken ct = default) =>
+        db.Households.AsNoTracking()
+            .Where(h => h.Id == householdId)
+            .Select(ToBillingBasis)
+            .FirstOrDefaultAsync(ct);
 
     public async Task AddAsync(BillingPeriodEntity period, CancellationToken ct = default) =>
         await db.BillingPeriods.AddAsync(period, ct);

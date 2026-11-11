@@ -202,6 +202,88 @@ public sealed class BillingPeriodServiceTests
         Assert.Null(await _service.GetByIdAsync(404));
     }
 
+    // ===== PBI-015: cơ sở tính đã cấu hình, tính nhất quán =====
+
+    [Fact]
+    [Trait("PBI", "PBI-015")]
+    public async Task ApartmentWithoutArea_RejectsAreaBasedPeriod_InsteadOfSkippingTheHousehold()
+    {
+        var fee = _repo.SeedFeeItem("PHI_DV", CalculationBasis.DienTich, "m²", 7_000m);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
+        _repo.SeedHousehold("HK-2", "A-102", area: 0m, residents: 1);
+
+        AssertInvalid(await CreateAsync(fee.Id),
+            "Căn hộ A-102 chưa có diện tích hợp lệ, chưa tính được khoản thu PHI_DV theo diện tích.");
+        Assert.Empty(_repo.Periods);
+    }
+
+    [Fact]
+    [Trait("PBI", "PBI-015")]
+    public async Task Calculate_GivesTheSameAmountAsTheBillingPeriod()
+    {
+        var service = _repo.SeedFeeItem("PHI_DV", CalculationBasis.DienTich, "m²", 2_505m);
+        var hygiene = _repo.SeedFeeItem("PHI_VS", CalculationBasis.NhanKhau, "người", 6_000m);
+        _repo.SeedHousehold("HK-0501", "A-501", area: 72.5m, residents: 3);
+        var household = Assert.Single(await _repo.GetHouseholdBasesAsync()).HouseholdId;
+
+        var period = (await CreateAsync(service.Id, hygiene.Id)).Data!;
+        var bill = Assert.Single(period.Households);
+
+        foreach (var fee in new[] { service, hygiene })
+        {
+            var calculated = await _service.CalculateAsync(fee.Id, household, Today);
+            Assert.Equal(FeeItemStatus.Success, calculated.Status);
+            Assert.Equal(bill.Lines.Single(l => l.FeeItemId == fee.Id).Amount, calculated.Data!.Amount);
+        }
+
+        // 72,5 m² × 2.505 = 181.612,5 → 181.613; giải thích được số tiền (AC-007)
+        var detail = (await _service.CalculateAsync(service.Id, household, Today)).Data!;
+        Assert.Equal((72.5m, 2_505m, MonthStart, 181_613m), (detail.Quantity, detail.Rate, detail.RateEffectiveFrom, detail.Amount));
+        Assert.Equal(("HK-0501", "A-501", Today), (detail.HouseholdNumber, detail.ApartmentCode, detail.Date));
+    }
+
+    [Fact]
+    [Trait("PBI", "PBI-015")]
+    public async Task Calculate_DefaultsToToday_AndReportsWhatIsMissing()
+    {
+        var fee = _repo.SeedFeeItem("PHI_DV", CalculationBasis.DienTich, "m²", 7_000m);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
+        _repo.SeedHousehold("HK-2", "A-102", area: 0m, residents: 1);
+
+        var today = await _service.CalculateAsync(fee.Id, 1, null);
+        Assert.Equal((Today, 350_000m), (today.Data!.Date, today.Data.Amount));
+
+        Assert.Equal(FeeItemStatus.NotFound, (await _service.CalculateAsync(404, 1, null)).Status);
+        Assert.Equal(FeeItemStatus.NotFound, (await _service.CalculateAsync(fee.Id, 404, null)).Status);
+
+        var beforeRate = await _service.CalculateAsync(fee.Id, 1, new DateOnly(2026, 10, 31));
+        Assert.Equal(FeeItemStatus.Invalid, beforeRate.Status);
+        Assert.Equal("Khoản thu PHI_DV chưa có đơn giá hiệu lực vào ngày 31/10/2026.", beforeRate.Message);
+
+        var noArea = await _service.CalculateAsync(fee.Id, 2, null);
+        Assert.Equal(FeeItemStatus.Invalid, noArea.Status);
+        Assert.StartsWith("Căn hộ A-102 chưa có diện tích hợp lệ", noArea.Message);
+        Assert.Empty(_repo.Periods); // tính thử không lưu gì
+    }
+
+    [Fact]
+    [Trait("PBI", "PBI-015")]
+    public async Task Calculate_RejectsTheSameFeeItemsAsTheBillingPeriod_WithTheSameMessage()
+    {
+        var donation = _repo.SeedFeeItem("QUY_TU_THIEN", CalculationBasis.CoDinh, "hộ", 0m, type: FeeType.TuNguyen);
+        var assigned = _repo.SeedFeeItem("PHI_RIENG", CalculationBasis.Ho, "hộ", 10_000m, scope: FeeScope.ChiDinh);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
+
+        foreach (var fee in new[] { donation, assigned })
+        {
+            var calculated = await _service.CalculateAsync(fee.Id, 1, Today);
+            var billed = await CreateAsync(fee.Id);
+
+            Assert.Equal(FeeItemStatus.Invalid, calculated.Status);
+            Assert.Equal(billed.Message, calculated.Message);
+        }
+    }
+
     // ===== Hàm hỗ trợ =====
 
     private Task<FeeItemOperationResult<BillingPeriodResponse>> CreateAsync(params int[] feeItemIds) =>
@@ -303,9 +385,13 @@ public sealed class BillingPeriodServiceTests
             Task.FromResult(Billed.Where(b => feeItemIds.Contains(b.FeeItemId)).ToList());
 
         public Task<List<HouseholdBillingBasis>> GetHouseholdBasesAsync(CancellationToken ct = default) =>
-            Task.FromResult(_households
-                .Select(h => new HouseholdBillingBasis(h.Id, h.Apartment.Area, _residentCounts[h.Id]))
-                .ToList());
+            Task.FromResult(_households.Select(ToBasis).ToList());
+
+        public Task<HouseholdBillingBasis?> GetHouseholdBasisAsync(int householdId, CancellationToken ct = default) =>
+            Task.FromResult(_households.Where(h => h.Id == householdId).Select(ToBasis).FirstOrDefault());
+
+        private HouseholdBillingBasis ToBasis(HouseholdEntity h) =>
+            new(h.Id, h.HouseholdNumber, h.Apartment.Code, h.Apartment.Area, _residentCounts[h.Id]);
 
         public Task AddAsync(BillingPeriodEntity period, CancellationToken ct = default)
         {
