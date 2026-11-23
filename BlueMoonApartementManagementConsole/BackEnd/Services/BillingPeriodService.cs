@@ -11,9 +11,12 @@ public interface IBillingPeriodService
     Task<FeeItemOperationResult<BillingPeriodResponse>> CreateAsync(
         int actorId, string actorName, CreateBillingPeriodRequest request, CancellationToken ct = default);
 
+    /// <summary>Các hộ để chọn trong pop-up của khoản thu chỉ định hộ, xếp theo mã căn.</summary>
+    Task<IReadOnlyList<HouseholdOptionResponse>> GetHouseholdOptionsAsync(CancellationToken ct = default);
+
     /// <summary>
     /// Tính thử số phải thu của một hộ cho một khoản thu vào một ngày (mặc định hôm nay), không lưu gì (PBI-015).
-    /// Cùng các bước kiểm, công thức và cơ sở tính với bảng kê: khoản bảng kê từ chối (tự nguyện, chỉ định hộ,
+    /// Cùng các bước kiểm, công thức và cơ sở tính với bảng kê: khoản bảng kê từ chối (tự nguyện, bảo trì riêng,
     /// chưa có đơn giá) thì tính thử cũng từ chối với cùng thông báo; còn lại ra đúng số bảng kê sẽ lập.
     /// </summary>
     Task<FeeItemOperationResult<FeeCalculationResponse>> CalculateAsync(
@@ -24,15 +27,20 @@ public interface IBillingPeriodService
 /// Lập kỳ thu và bảng kê số tiền phải thu theo hộ (PBI-014, US-014, LOG-033).
 ///
 /// Cách lập bảng kê (CreateAsync):
-///   1. Kiểm tra tháng, ngày tính phí, hạn nộp. Ngày tính phí phải nằm trong tháng của kỳ và không sau hôm nay:
-///      chỉ lập được khi "đã đến ngày đã đặt để tính phí", và phí tháng nào lấy đơn giá của tháng đó.
-///   2. Kiểm tra từng khoản thu: phải là khoản bắt buộc, áp dụng toàn chung cư, có đơn giá hiệu lực vào ngày tính phí.
+///   1. Kiểm tra tháng, ngày tính phí, hạn nộp. Lập được kỳ của các tháng đã qua, tháng này và tháng sau
+///      (lập trước để kịp báo phí cho cư dân), không lập xa hơn. Ngày tính phí phải nằm trong tháng của kỳ,
+///      để phí tháng nào lấy đơn giá của tháng đó.
+///   2. Kiểm tra từng khoản thu: phải là khoản bắt buộc, có đơn giá hiệu lực vào ngày tính phí.
 ///      Đóng góp tự nguyện thu theo đợt riêng (PBI-012) nên không đưa vào kỳ thu.
-///   3. Chặn thu trùng theo chu kỳ: khoản hàng tháng chỉ một lần mỗi tháng, hàng năm một lần mỗi năm, một lần thì chỉ một lần.
-///   4. Với mỗi khoản thu và mỗi hộ: số phải thu = đơn giá × cơ sở tính, làm tròn đến đồng, theo FeeCalculator (PBI-015).
-///      Căn hộ thiếu diện tích cho khoản theo diện tích thì từ chối cả kỳ (cơ sở tính chưa cấu hình);
-///      cơ sở tính bằng 0 hợp lệ (ví dụ hộ không còn nhân khẩu) thì không có dòng.
-///   5. Lưu kỳ thu cùng đơn giá đã áp dụng và các dòng phải thu trong một lần lưu, rồi ghi nhật ký.
+///   3. Chặn thu trùng khoản toàn chung cư theo chu kỳ: hàng tháng chỉ một lần mỗi tháng, hàng năm một lần mỗi năm,
+///      một lần thì chỉ một lần. Khoản chỉ định hộ thu theo từng lần phát sinh nên lập được nhiều kỳ trong một tháng.
+///   4. Xác định hộ phải nộp từng khoản: khoản toàn chung cư là mọi hộ, khoản chỉ định hộ là các hộ được chọn
+///      (ít nhất một hộ).
+///   5. Với mỗi khoản thu và mỗi hộ phải nộp: số phải thu = đơn giá × cơ sở tính, làm tròn đến đồng, theo FeeCalculator
+///      (PBI-015). Căn hộ thiếu diện tích cho khoản theo diện tích thì từ chối cả kỳ (cơ sở tính chưa cấu hình).
+///      Hộ không phải nộp đồng nào (cơ sở tính bằng 0, hoặc số tiền làm tròn về 0) thì không có dòng, nên không hiện
+///      ở trang thu tiền. Bảng kê không có dòng nào thì không lập kỳ.
+///   6. Lưu kỳ thu cùng đơn giá đã áp dụng và các dòng phải thu trong một lần lưu, rồi ghi nhật ký.
 /// Các khoản bắt buộc của một hộ cộng lại thành một số phải nộp cho cả kỳ (gom thành một lần thu).
 /// </summary>
 public sealed class BillingPeriodService(
@@ -75,9 +83,10 @@ public sealed class BillingPeriodService(
             rates[feeItem.Id] = rate;
         }
 
-        // Bước 3: không thu trùng một khoản trong cùng chu kỳ
+        // Bước 3: không thu trùng một khoản toàn chung cư trong cùng chu kỳ.
+        // Khoản chỉ định hộ (ví dụ phí sửa chữa của vài căn) phát sinh nhiều lần nên không chặn theo chu kỳ.
         var billed = await repo.GetBilledItemsAsync(request.FeeItemIds, ct);
-        foreach (var feeItem in feeItems)
+        foreach (var feeItem in feeItems.Where(f => f.FeeScope == FeeScope.Chung))
         {
             var duplicate = billed.FirstOrDefault(b => b.FeeItemId == feeItem.Id && SameCycle(feeItem.FeeCycle, b, request));
             if (duplicate is not null)
@@ -89,10 +98,17 @@ public sealed class BillingPeriodService(
         if (households.Count == 0)
             return Invalid("Chưa có hộ gia đình nào để lập bảng kê.");
 
-        // Bước 4: cơ sở tính của mọi hộ phải hợp lệ, rồi mới tính (không lập bảng kê thiếu hộ một cách lặng lẽ)
+        // Bước 4: hộ phải nộp của từng khoản (khoản chỉ định hộ thì danh sách hộ được chọn phải hợp lệ)
+        var targets = request.TargetedFeeItems ?? [];
+        error = ValidateTargets(feeItems, targets, households);
+        if (error is not null)
+            return Invalid(error);
+        var payersByFeeItem = feeItems.ToDictionary(f => f.Id, f => PayersOf(f, targets, households));
+
+        // Bước 5: cơ sở tính của mọi hộ phải nộp phải hợp lệ, rồi mới tính (không lập bảng kê thiếu hộ một cách lặng lẽ)
         foreach (var feeItem in feeItems)
         {
-            error = households.Select(h => FeeCalculator.BasisError(feeItem, h)).FirstOrDefault(e => e is not null);
+            error = payersByFeeItem[feeItem.Id].Select(h => FeeCalculator.BasisError(feeItem, h)).FirstOrDefault(e => e is not null);
             if (error is not null)
                 return Invalid(error);
         }
@@ -110,22 +126,30 @@ public sealed class BillingPeriodService(
         {
             var rate = rates[feeItem.Id];
             var item = new BillingPeriodItemEntity { FeeItemId = feeItem.Id, FeeRateId = rate.Id, Rate = rate.Rate };
-            foreach (var household in households)
+            foreach (var household in payersByFeeItem[feeItem.Id])
             {
                 var quantity = FeeCalculator.QuantityFor(feeItem.CalculationBasis, household);
                 if (quantity <= 0)
                     continue;
+
+                // Không phải nộp đồng nào thì không đưa vào bảng kê, để trang thu tiền không coi hộ đó là "Đã nộp đủ"
+                var amount = FeeCalculator.AmountFor(rate.Rate, quantity);
+                if (amount <= 0)
+                    continue;
+
                 item.Receivables.Add(new ReceivableEntity
                 {
                     HouseholdId = household.HouseholdId,
                     Quantity = quantity,
-                    Amount = FeeCalculator.AmountFor(rate.Rate, quantity)
+                    Amount = amount
                 });
             }
             period.Items.Add(item);
         }
+        if (period.Items.All(i => i.Receivables.Count == 0))
+            return Invalid("Bảng kê trống: không hộ nào phải nộp số tiền lớn hơn 0 đ, chưa lập kỳ thu.");
 
-        // Bước 5: lưu một lần (kỳ, khoản, các dòng phải thu), rồi ghi nhật ký
+        // Bước 6: lưu một lần (kỳ, khoản, các dòng phải thu), rồi ghi nhật ký
         await repo.AddAsync(period, ct);
         await repo.SaveChangesAsync(ct);
 
@@ -137,6 +161,13 @@ public sealed class BillingPeriodService(
 
         return new(FeeItemStatus.Success, await GetByIdAsync(period.Id, ct));
     }
+
+    public async Task<IReadOnlyList<HouseholdOptionResponse>> GetHouseholdOptionsAsync(CancellationToken ct = default) =>
+        (await repo.GetHouseholdBasesAsync(ct))
+            .OrderBy(h => h.ApartmentCode, StringComparer.Ordinal)
+            .ThenBy(h => h.HouseholdNumber, StringComparer.Ordinal)
+            .Select(h => new HouseholdOptionResponse(h.HouseholdId, h.HouseholdNumber, h.ApartmentCode))
+            .ToList();
 
     public async Task<FeeItemOperationResult<FeeCalculationResponse>> CalculateAsync(
         int feeItemId, int householdId, DateOnly? date, CancellationToken ct = default)
@@ -175,16 +206,17 @@ public sealed class BillingPeriodService(
 
         var periodStart = new DateOnly(request.Year, request.Month, 1);
         var periodEnd = periodStart.AddMonths(1).AddDays(-1);
+        // Lập trước được kỳ của tháng sau (ví dụ cuối tháng 11 lập kỳ tháng 12), không lập xa hơn
         var today = Today();
-        if (periodStart > today)
-            return $"Chưa đến kỳ thu tháng {request.Month:00}/{request.Year}: chỉ lập được từ ngày {periodStart:dd/MM/yyyy}.";
+        var nextMonthStart = new DateOnly(today.Year, today.Month, 1).AddMonths(1);
+        if (periodStart > nextMonthStart)
+            return $"Chỉ lập trước được kỳ thu của tháng sau ({nextMonthStart.Month:00}/{nextMonthStart.Year}), " +
+                   $"chưa lập được kỳ tháng {request.Month:00}/{request.Year}.";
         if (request.ChargeDate == default)
             return "Ngày tính phí là bắt buộc.";
-        // Phí của tháng nào tính theo đơn giá hiệu lực trong tháng đó, kể cả khi lập bù kỳ cũ
+        // Phí của tháng nào tính theo đơn giá hiệu lực trong tháng đó, kể cả khi lập bù kỳ cũ hay lập trước kỳ tháng sau
         if (request.ChargeDate < periodStart || request.ChargeDate > periodEnd)
             return $"Ngày tính phí phải nằm trong tháng của kỳ thu ({periodStart:dd/MM/yyyy} – {periodEnd:dd/MM/yyyy}).";
-        if (request.ChargeDate > today)
-            return $"Chưa đến ngày tính phí {request.ChargeDate:dd/MM/yyyy}, chưa lập được bảng kê.";
         if (request.DueDate == default)
             return "Hạn nộp là bắt buộc.";
         if (request.DueDate < request.ChargeDate)
@@ -219,10 +251,56 @@ public sealed class BillingPeriodService(
             $"Khoản thu {feeItem.Code} là đóng góp tự nguyện, thu theo đợt riêng, không đưa vào kỳ thu.",
         { FeeType: FeeType.BaoTriRieng } =>
             $"Khoản thu {feeItem.Code} (bảo trì riêng) chưa khả dụng.",
-        { FeeScope: FeeScope.ChiDinh } =>
-            $"Khoản thu {feeItem.Code} áp dụng cho hộ chỉ định, chưa có danh sách hộ nên chưa đưa vào kỳ thu được.",
         _ => null
     };
+
+    /// <summary>
+    /// Danh sách hộ của khoản chỉ định hộ: mỗi khoản chỉ định được chọn có đúng một danh sách, ít nhất một hộ,
+    /// không trùng hộ, hộ phải tồn tại. Khoản toàn chung cư thu của mọi hộ nên không nhận danh sách hộ.
+    /// </summary>
+    private static string? ValidateTargets(
+        List<FeeItemEntity> feeItems, IReadOnlyList<TargetedFeeItemRequest> targets, List<HouseholdBillingBasis> households)
+    {
+        // JSON gửi [null] hoặc householdIds chứa null thì không đọc tiếp được, báo lỗi thay vì để lỗi 500
+        if (targets.Any(t => t is null || t.HouseholdIds is null))
+            return "Danh sách hộ của khoản thu chỉ định không hợp lệ.";
+
+        foreach (var target in targets)
+        {
+            var feeItem = feeItems.FirstOrDefault(f => f.Id == target.FeeItemId);
+            if (feeItem is null)
+                return $"Có danh sách hộ cho khoản thu #{target.FeeItemId} nhưng khoản này không được chọn vào kỳ.";
+            if (feeItem.FeeScope != FeeScope.ChiDinh)
+                return $"Khoản thu {feeItem.Code} áp dụng toàn chung cư, không chọn hộ riêng.";
+            if (targets.Count(t => t.FeeItemId == target.FeeItemId) > 1)
+                return $"Khoản thu {feeItem.Code} có nhiều hơn một danh sách hộ.";
+        }
+
+        var householdIds = households.Select(h => h.HouseholdId).ToHashSet();
+        foreach (var feeItem in feeItems.Where(f => f.FeeScope == FeeScope.ChiDinh))
+        {
+            var selected = targets.FirstOrDefault(t => t.FeeItemId == feeItem.Id)?.HouseholdIds ?? [];
+            if (selected.Count == 0)
+                return $"Khoản thu {feeItem.Code} áp dụng cho hộ chỉ định: hãy chọn ít nhất một hộ.";
+            if (selected.Distinct().Count() != selected.Count)
+                return $"Danh sách hộ của khoản thu {feeItem.Code} bị trùng.";
+            var unknown = selected.FirstOrDefault(id => !householdIds.Contains(id), -1);
+            if (unknown != -1)
+                return $"Không tìm thấy hộ gia đình #{unknown} trong danh sách hộ của khoản thu {feeItem.Code}.";
+        }
+        return null;
+    }
+
+    /// <summary>Hộ phải nộp một khoản: khoản toàn chung cư là mọi hộ, khoản chỉ định hộ là các hộ đã chọn.</summary>
+    private static List<HouseholdBillingBasis> PayersOf(
+        FeeItemEntity feeItem, IReadOnlyList<TargetedFeeItemRequest> targets, List<HouseholdBillingBasis> households)
+    {
+        if (feeItem.FeeScope == FeeScope.Chung)
+            return households;
+
+        var selected = targets.Single(t => t.FeeItemId == feeItem.Id).HouseholdIds.ToHashSet();
+        return households.Where(h => selected.Contains(h.HouseholdId)).ToList();
+    }
 
     /// <summary>Cùng chu kỳ với kỳ đang lập: hàng tháng thì cùng tháng, hàng năm thì cùng năm, một lần thì bất kỳ kỳ nào.</summary>
     private static bool SameCycle(FeeCycle cycle, BilledFeeItemRow billed, CreateBillingPeriodRequest request) => cycle switch
@@ -245,7 +323,10 @@ public sealed class BillingPeriodService(
     private static BillingPeriodResponse Map(BillingPeriodEntity period)
     {
         var items = period.Items.OrderBy(i => i.FeeItem.Code).ToList();
-        var receivables = items.SelectMany(i => i.Receivables.Select(r => (Item: i, Receivable: r))).ToList();
+        // Dòng 0 đ (kỳ lập trước khi bỏ các dòng này) không hiện, để hộ không phải nộp gì không có trong bảng kê
+        var receivables = items
+            .SelectMany(i => i.Receivables.Where(r => r.Amount > 0).Select(r => (Item: i, Receivable: r)))
+            .ToList();
 
         var households = receivables
             .GroupBy(x => x.Receivable.HouseholdId)

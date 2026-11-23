@@ -19,6 +19,11 @@ public sealed class BillingPeriodController(IBillingPeriodService billingPeriods
     public async Task<ActionResult<IReadOnlyList<BillingPeriodSummaryResponse>>> GetAll(CancellationToken ct) =>
         Ok(await billingPeriods.GetAllAsync(ct));
 
+    /// <summary>Danh sách hộ cho pop-up chọn hộ của khoản thu chỉ định (Kế toán không xem được api/can-ho).</summary>
+    [HttpGet("ho-gia-dinh")]
+    public async Task<ActionResult<IReadOnlyList<HouseholdOptionResponse>>> GetHouseholdOptions(CancellationToken ct) =>
+        Ok(await billingPeriods.GetHouseholdOptionsAsync(ct));
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BillingPeriodResponse>> GetById(int id, CancellationToken ct)
     {

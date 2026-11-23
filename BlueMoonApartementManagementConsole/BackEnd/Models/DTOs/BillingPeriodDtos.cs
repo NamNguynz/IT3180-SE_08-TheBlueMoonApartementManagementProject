@@ -19,13 +19,31 @@ public sealed record CreateBillingPeriodRequest
 
     public DateOnly DueDate { get; init; }
 
-    /// <summary>Các khoản thu bắt buộc, áp dụng toàn chung cư, đưa vào kỳ.</summary>
+    /// <summary>Các khoản thu bắt buộc đưa vào kỳ, gồm cả khoản toàn chung cư và khoản chỉ định hộ.</summary>
     [Required]
     public IReadOnlyList<int> FeeItemIds { get; init; } = [];
+
+    /// <summary>
+    /// Danh sách hộ phải nộp của từng khoản chỉ định hộ có trong FeeItemIds (chọn ở pop-up khi lập kỳ).
+    /// Khoản toàn chung cư thu của mọi hộ nên không có ở đây.
+    /// </summary>
+    public IReadOnlyList<TargetedFeeItemRequest> TargetedFeeItems { get; init; } = [];
 
     [StringLength(500)]
     public string? Note { get; init; }
 }
+
+/// <summary>Một khoản thu chỉ định hộ và các hộ được chọn để thu khoản đó trong kỳ (ít nhất một hộ).</summary>
+public sealed record TargetedFeeItemRequest
+{
+    public int FeeItemId { get; init; }
+
+    [Required]
+    public IReadOnlyList<int> HouseholdIds { get; init; } = [];
+}
+
+/// <summary>Một hộ trong pop-up chọn hộ cho khoản thu chỉ định.</summary>
+public sealed record HouseholdOptionResponse(int HouseholdId, string HouseholdNumber, string ApartmentCode);
 
 /// <summary>Một dòng trong danh sách kỳ thu.</summary>
 public sealed record BillingPeriodSummaryResponse(
