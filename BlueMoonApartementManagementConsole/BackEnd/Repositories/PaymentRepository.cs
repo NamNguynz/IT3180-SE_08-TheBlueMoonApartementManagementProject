@@ -57,10 +57,9 @@ public sealed class PaymentRepository(AppDbContext db) : IPaymentRepository
                 r.HouseholdId,
                 r.Household.HouseholdNumber,
                 r.Household.Apartment.Code,
-                r.Household.Apartment.Building
+                Building = r.Household.Apartment.Building.Name
             })
-            .Select(g => new HouseholdDueRow(g.Key.HouseholdId, g.Key.HouseholdNumber, g.Key.Code, g.Key.Building,
-                g.Sum(r => r.Amount)))
+            .Select(g => new HouseholdDueRow(g.Key.HouseholdId, g.Key.HouseholdNumber, g.Key.Code, g.Key.Building, g.Sum(r => r.Amount)))
             .ToListAsync(ct);
 
     public Task<List<HouseholdPaidRow>> GetPaidAsync(int periodId, int? householdId, CancellationToken ct = default) =>

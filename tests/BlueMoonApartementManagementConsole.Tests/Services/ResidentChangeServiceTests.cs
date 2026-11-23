@@ -333,7 +333,9 @@ public sealed class ResidentChangeServiceTests
                 .Any(r => r.IdentityNumber == identityNumber && r.Id != exceptId));
 
         public Task<List<ApartmentEntity>> GetApartmentsAsync(CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<PagedResult<ApartmentListRow>> QueryApartmentsAsync(ApartmentListQuery query, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<ApartmentEntity?> GetApartmentByIdAsync(int id, bool tracking, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<BuildingEntity?> GetBuildingAsync(int id, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<HouseholdEntity?> GetHouseholdByApartmentIdAsync(int apartmentId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> HasActiveResidentsAsync(int apartmentId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> ApartmentCodeExistsAsync(string code, int? exceptId = null, CancellationToken ct = default) => throw new NotSupportedException();

@@ -9,6 +9,7 @@
     let mountedRoot = null;
     let rootObserver = null;
     let draggingApartmentId = null;
+    let buildings = [];
 
     const inRoot = (node) => Boolean(node && document.getElementById(rootId)?.contains(node));
 
@@ -114,7 +115,7 @@
             matching: apartments.filter((apartment) =>
                 (!query ||
                     apartment.code.toLocaleLowerCase('vi').includes(query) ||
-                    apartment.building.toLocaleLowerCase('vi').includes(query)) &&
+                    apartment.buildingName.toLocaleLowerCase('vi').includes(query)) &&
                 (areaInCents === null || Math.round(Number(apartment.area) * 100) === areaInCents) &&
                 (!type || apartment.type === type))
         };
@@ -145,7 +146,7 @@
                 const code = document.createElement('strong');
                 code.textContent = apartment.code;
                 const meta = document.createElement('span');
-                meta.textContent = `${apartment.building} · Tầng ${apartment.floor}`;
+                meta.textContent = `${apartment.buildingName} · Tầng ${apartment.floor}`;
                 card.append(code, meta);
                 return card;
             }));
@@ -181,7 +182,7 @@
             title.textContent = apartment.code;
             const subtitle = document.createElement('span');
             subtitle.className = 'apartment-list-meta';
-            subtitle.textContent = `${apartment.building} · Tầng ${apartment.floor} · ${labels[apartment.type] ?? apartment.type}`;
+            subtitle.textContent = `${apartment.buildingName} · Tầng ${apartment.floor} · ${labels[apartment.type] ?? apartment.type}`;
             const badge = document.createElement('span');
             badge.className = apartment.household ? 'badge badge-ok' : 'badge badge-muted';
             badge.textContent = apartment.household ? 'Đã có hộ khẩu' : 'Chưa có hộ khẩu';
@@ -255,7 +256,7 @@
     const fillApartmentForm = (apartment) => {
         const form = $('#apartmentForm');
         setFormValue(form, 'code', apartment.code);
-        setFormValue(form, 'building', apartment.building);
+        setFormValue(form, 'buildingId', apartment.buildingId);
         setFormValue(form, 'floor', apartment.floor);
         setFormValue(form, 'area', apartment.area);
         setFormValue(form, 'bedroomCount', apartment.bedroomCount);
@@ -508,7 +509,7 @@
 
         const body = {
             code: formValue(form, 'code').trim(),
-            building: formValue(form, 'building').trim(),
+            buildingId: Number(formValue(form, 'buildingId')),
             floor: Number(formValue(form, 'floor')),
             area: Number(formValue(form, 'area')),
             bedroomCount: Number(formValue(form, 'bedroomCount')),
@@ -616,6 +617,10 @@
         if (!inRoot(event.target)) return;
         // Không dùng event.target.id: residentForm có <input name="id"> nên form.id là ô input đó, không phải chuỗi id
         const formId = event.target.getAttribute('id');
+        if (formId === 'buildingForm') {
+            event.preventDefault();
+            void onBuildingSubmit(event.target);
+        }
         if (formId === 'apartmentForm') {
             event.preventDefault();
             void onApartmentSubmit(event.target);
@@ -645,6 +650,56 @@
         void selectApartment(Number(card.dataset.id));
     };
 
+    const renderBuildings = () => {
+        const select = $('#apartmentForm').elements.namedItem('buildingId');
+        const current = select.value;
+        select.replaceChildren(
+            new Option('Chọn tòa nhà', ''),
+            ...buildings.map((building) => new Option(building.name, String(building.id))));
+        if ([...select.options].some((option) => option.value === current)) select.value = current;
+
+        $('#buildingCount').textContent = `${buildings.length} tòa nhà`;
+    };
+
+    const loadBuildings = async () => {
+        try {
+            const response = await api('/api/toa-nha');
+            if (response.status === 401) return;
+            if (!response.ok) {
+                showAlert(messageFor(response, 'Không tải được danh sách tòa nhà.'));
+                return;
+            }
+            buildings = response.data ?? [];
+            renderBuildings();
+        } catch {
+            showAlert('Không thể kết nối máy chủ. Vui lòng thử lại.');
+        }
+    };
+
+    const onBuildingSubmit = async (form) => {
+        if (!form.reportValidity()) return;
+        const button = form.querySelector('[type="submit"]');
+        button.disabled = true;
+        try {
+            const response = await api('/api/toa-nha', {
+                method: 'POST',
+                body: { name: formValue(form, 'name').trim() }
+            });
+            if (response.status === 401) return;
+            if (!response.ok) {
+                showAlert(messageFor(response, 'Không tạo được tòa nhà.'));
+                return;
+            }
+            form.reset();
+            await loadBuildings();
+            showAlert(`Đã thêm tòa nhà "${response.data.name}".`, true);
+        } catch {
+            showAlert('Không thể kết nối máy chủ. Vui lòng thử lại.');
+        } finally {
+            button.disabled = false;
+        }
+    };
+
     const init = () => {
         const root = document.getElementById(rootId);
         if (!root) return;
@@ -668,6 +723,7 @@
             document.addEventListener('keydown', onBoardKeydown);
             bound = true;
         }
+        void loadBuildings();
         void loadApartments(false);
     };
 

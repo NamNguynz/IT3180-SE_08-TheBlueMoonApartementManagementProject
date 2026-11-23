@@ -36,7 +36,8 @@ public class ApartmentEntity
 {
     public int Id { get; set; }
     public string Code { get; set; } = string.Empty;
-    public string Building { get; set; } = string.Empty;
+    public int BuildingId { get; set; }
+    public BuildingEntity Building { get; set; } = null!;
     public ApartmentType Type { get; set; } = ApartmentType.CanHo;
     public int Floor { get; set; }
     public decimal Area { get; set; }

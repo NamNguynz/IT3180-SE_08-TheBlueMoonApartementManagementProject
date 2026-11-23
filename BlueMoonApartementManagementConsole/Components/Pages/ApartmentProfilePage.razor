@@ -60,6 +60,22 @@
         </aside>
 
         <div class="ap-detail-column">
+            <section id="buildingPanel" class="card-box ap-section">
+                <div class="ap-section-heading">
+                    <div>
+                        <span class="ap-eyebrow">TÒA NHÀ</span>
+                        <h2 class="card-title">Thêm tòa nhà</h2>
+                    </div>
+                    <span id="buildingCount" class="muted small"></span>
+                </div>
+                <form id="buildingForm" class="ap-building-form ap-form">
+                    <label>
+                        Tên tòa nhà <span class="required-mark">*</span>
+                        <input name="name" maxlength="100" required placeholder="Ví dụ: Tòa A" />
+                    </label>
+                    <button type="submit" class="btn-approve">Thêm tòa nhà</button>
+                </form>
+            </section>
             @* Bảng kéo thả: mỗi cột là một ApartmentStatus, JS đổ thẻ căn hộ và gọi PATCH khi thả. *@
             <section id="apStatusBoard" class="card-box ap-board" aria-label="Bảng trạng thái căn hộ">
                 <div class="ap-section-heading">
@@ -100,7 +116,9 @@
                                 <input name="code" maxlength="30" required placeholder="Ví dụ: A-101" />
                             </label>
                             <label>Tòa nhà <span class="required-mark">*</span>
-                                <input name="building" maxlength="100" required placeholder="Ví dụ: Tòa A" />
+                                <select name="buildingId" required>
+                                    <option value="">Chọn tòa nhà</option>
+                                </select>
                             </label>
                             <label>Tầng <span class="required-mark">*</span>
                                 <input name="floor" type="number" min="0" max="200" required />

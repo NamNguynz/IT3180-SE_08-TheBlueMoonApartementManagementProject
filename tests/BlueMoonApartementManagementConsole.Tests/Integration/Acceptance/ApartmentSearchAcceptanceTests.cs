@@ -22,9 +22,9 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
 {
     private readonly string _prefix = "AK" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant() + "-";
 
-    private CreateApartmentRequest Request(string suffix, ApartmentType type) => new()
+    private CreateApartmentRequest Request(string suffix, ApartmentType type, int buildingId) => new()
     {
-        Code = _prefix + suffix, Building = "Tòa AK", Type = type, Floor = 5, Area = 70m, BedroomCount = 2, Status = ApartmentStatus.DangChoThue
+        Code = _prefix + suffix, BuildingId = buildingId, Type = type, Floor = 5, Area = 70m, BedroomCount = 2, Status = ApartmentStatus.DangChoThue
     };
 
     private static async Task<T> ReadAsync<T>(HttpResponseMessage response, HttpStatusCode expected)
@@ -55,10 +55,11 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
         try
         {
             var created = new Dictionary<ApartmentType, ApartmentProfileResponse>();
+            var buildingId = await TestBuilding.IdAsync(admin, "Tòa AK");
             foreach (var (type, suffix) in new[] { (ApartmentType.CanHo, "01"), (ApartmentType.Kiot, "02"), (ApartmentType.Penthouse, "03") })
             {
                 var apartment = await ReadAsync<ApartmentProfileResponse>(
-                    await admin.PostAsJsonAsync("/api/can-ho", Request(suffix, type), UiFlow.Json), HttpStatusCode.Created);
+                    await admin.PostAsJsonAsync("/api/can-ho", Request(suffix, type, buildingId), UiFlow.Json), HttpStatusCode.Created);
                 Assert.Equal(type, apartment.Type);
                 created[type] = apartment;
             }
@@ -76,7 +77,7 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
             var kiot = created[ApartmentType.Kiot];
             var updateRequest = new UpdateApartmentRequest
             {
-                Code = kiot.Code, Building = kiot.Building, Type = ApartmentType.Penthouse, Floor = kiot.Floor,
+                Code = kiot.Code, BuildingId = kiot.BuildingId, Type = ApartmentType.Penthouse, Floor = kiot.Floor,
                 Area = kiot.Area, BedroomCount = kiot.BedroomCount, Status = kiot.Status
             };
             var updated = await ReadAsync<ApartmentProfileResponse>(
@@ -110,13 +111,14 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
         SkipIfNoDatabase();
         var admin = await AdminAsync();
         var code = _prefix + "X1";
+        var buildingId = await TestBuilding.IdAsync(admin, "Tòa AK");
         try
         {
             object body = kind switch
             {
-                "missing" => new { code, building = "Tòa AK", floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" },
-                "Villa" => new { code, building = "Tòa AK", type = "Villa", floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" },
-                _ => new { code, building = "Tòa AK", type = 5, floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" }
+                "missing" => new { code, buildingId, floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" },
+                "Villa" => new { code, buildingId, type = "Villa", floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" },
+                _ => new { code, buildingId, type = 5, floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" }
             };
 
             var response = await admin.PostAsJsonAsync("/api/can-ho", body, UiFlow.Json);
@@ -139,15 +141,17 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
         var admin = await AdminAsync();
         try
         {
+            var buildingId = await TestBuilding.IdAsync(admin, "Tòa AK");
             int id;
             await using (var connection = new NpgsqlConnection(BlueMoonAppFactory.ConnectionString))
             {
                 await connection.OpenAsync();
                 await using var insert = new NpgsqlCommand("""
-                    INSERT INTO apartments ("Code", "Building", "Floor", "Area", "BedroomCount", "Status")
-                    VALUES (@code, 'Tòa AK', 1, 45, 1, 'DangChoThue') RETURNING "Id"
+                    INSERT INTO apartments ("Code", "BuildingId", "Floor", "Area", "BedroomCount", "Status")
+                    VALUES (@code, @buildingId, 1, 45, 1, 'DangChoThue') RETURNING "Id"
                     """, connection);
                 insert.Parameters.AddWithValue("code", _prefix + "OLD");
+                insert.Parameters.AddWithValue("buildingId", buildingId);
                 id = (int)(await insert.ExecuteScalarAsync())!;
             }
 
@@ -167,8 +171,9 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
         var admin = await AdminAsync();
         try
         {
+            var buildingId = await TestBuilding.IdAsync(admin, "Tòa AK");
             var apartment = await ReadAsync<ApartmentProfileResponse>(
-                await admin.PostAsJsonAsync("/api/can-ho", Request("S1", ApartmentType.CanHo), UiFlow.Json), HttpStatusCode.Created);
+                await admin.PostAsJsonAsync("/api/can-ho", Request("S1", ApartmentType.CanHo, buildingId), UiFlow.Json), HttpStatusCode.Created);
 
             var changed = await ReadAsync<ApartmentProfileResponse>(
                 await admin.PatchAsJsonAsync($"/api/can-ho/{apartment.Id}/trang-thai",

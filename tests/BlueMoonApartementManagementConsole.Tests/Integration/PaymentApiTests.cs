@@ -172,10 +172,11 @@ public class PaymentApiTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoo
             EffectiveFrom = Today
         }, Json), HttpStatusCode.Created);
 
+        var buildingId = await TestBuilding.IdAsync(admin, "Tòa test thu tiền");
         var apartment = await ReadAsync<ApartmentProfileResponse>(await admin.PostAsJsonAsync("/api/can-ho", new CreateApartmentRequest
         {
             Code = _prefix + "-A",
-            Building = "Tòa test thu tiền",
+            BuildingId = buildingId,
             Type = ApartmentType.CanHo,
             Floor = 6,
             Area = area,

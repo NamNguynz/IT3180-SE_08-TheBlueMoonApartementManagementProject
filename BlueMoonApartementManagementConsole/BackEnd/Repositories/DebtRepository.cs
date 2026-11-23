@@ -48,7 +48,7 @@ public sealed class DebtRepository(AppDbContext db) : IDebtRepository
                 r.HouseholdId,
                 r.Household.HouseholdNumber,
                 r.Household.Apartment.Code,
-                r.Household.Apartment.Building
+                Building = r.Household.Apartment.Building.Name
             })
             .Select(g => new DebtDueRow(g.Key.BillingPeriodId, g.Key.Year, g.Key.Month, g.Key.DueDate,
                 g.Key.HouseholdId, g.Key.HouseholdNumber, g.Key.Code, g.Key.Building, g.Sum(r => r.Amount)))

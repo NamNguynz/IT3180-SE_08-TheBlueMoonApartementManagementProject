@@ -37,10 +37,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.Property<int>("BedroomCount")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Building")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<int>("BuildingId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -69,6 +67,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasDefaultValue("CanHo");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BuildingId");
 
                     b.HasIndex("Code")
                         .IsUnique();
@@ -283,6 +283,30 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         {
                             t.HasCheckConstraint("ck_billing_period_items_rate", "\"Rate\" >= 0");
                         });
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BuildingEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("buildings", (string)null);
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.DebtReminderEntity", b =>
@@ -724,6 +748,17 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.ApartmentEntity", b =>
+                {
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BuildingEntity", "Building")
+                        .WithMany("Apartments")
+                        .HasForeignKey("BuildingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Building");
+                });
+
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", b =>
                 {
                     b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.AppUserEntity", null)
@@ -928,6 +963,11 @@ namespace BlueMoonApartementManagementConsole.Migrations
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BillingPeriodItemEntity", b =>
                 {
                     b.Navigation("Receivables");
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BuildingEntity", b =>
+                {
+                    b.Navigation("Apartments");
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeItemEntity", b =>

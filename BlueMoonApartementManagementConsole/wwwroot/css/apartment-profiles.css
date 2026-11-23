@@ -16,6 +16,12 @@
     padding: 14px;
 }
 
+.ap-building-form {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
 .ap-panel-heading,
 .ap-section-heading,
 .ap-resident-heading,

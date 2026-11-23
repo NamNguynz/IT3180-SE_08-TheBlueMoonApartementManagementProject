@@ -9,8 +9,8 @@ public sealed record CreateApartmentRequest
     [Required, StringLength(30)]
     public required string Code { get; init; }
 
-    [Required, StringLength(100)]
-    public required string Building { get; init; }
+    [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn tòa nhà.")]
+    public int BuildingId { get; init; }
 
     /// <summary>Loại hình (PBI-002): CanHo, Kiot, Penthouse. Thiếu hoặc sai giá trị thì API trả 400.</summary>
     [EnumDataType(typeof(ApartmentType))]
@@ -46,8 +46,8 @@ public sealed record UpdateApartmentRequest
     [Required, StringLength(30)]
     public required string Code { get; init; }
 
-    [Required, StringLength(100)]
-    public required string Building { get; init; }
+    [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn tòa nhà.")]
+    public int BuildingId { get; init; }
 
     /// <summary>Loại hình (PBI-002): CanHo, Kiot, Penthouse. Thiếu hoặc sai giá trị thì API trả 400.</summary>
     [EnumDataType(typeof(ApartmentType))]
@@ -161,7 +161,8 @@ public sealed record ResidentProfileRequest
 public sealed record ApartmentProfileResponse(
     int Id,
     string Code,
-    string Building,
+    int BuildingId,
+    string BuildingName,
     ApartmentType Type,
     int Floor,
     decimal Area,
