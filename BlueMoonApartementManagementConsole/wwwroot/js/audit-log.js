@@ -178,6 +178,6 @@
     init();
 
     if (window.Blazor?.addEventListener) {
-        Blazor.addEventListener('enhancedload', init);
+        window.Blazor.addEventListener('enhancedload', init);
     }
 })();

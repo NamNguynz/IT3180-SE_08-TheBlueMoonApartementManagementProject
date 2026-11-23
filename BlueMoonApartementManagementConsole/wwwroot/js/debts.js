@@ -5,7 +5,12 @@
     const printRootId = 'dbPrintRoot';
     let debtList = null;          // kết quả GET api/cong-no
     let selected = new Set();     // khóa "kỳ:hộ" của các dòng đã chọn
-    let initializedRoot;
+    // Listener gắn trên document để không mất khi Blazor thay DOM; mountedRoot dùng để nhận ra lần mount mới.
+    let bound = false;
+    let mountedRoot = null;
+    let rootObserver = null;
+
+    const inRoot = (node) => Boolean(node && document.getElementById(rootId)?.contains(node));
 
     const $ = (selector) => document.querySelector(`#${rootId} ${selector}`);
     const keyOf = (row) => `${row.billingPeriodId}:${row.householdId}`;
@@ -335,7 +340,7 @@
 
     const onClick = async (event) => {
         const button = event.target.closest('[data-action]');
-        if (!button || !document.getElementById(rootId).contains(button)) return;
+        if (!button || !inRoot(button)) return;
 
         switch (button.dataset.action) {
             case 'open-remind':
@@ -355,6 +360,7 @@
 
     const onChange = (event) => {
         const target = event.target;
+        if (!inRoot(target)) return;
         // Tích chọn chỉ cập nhật ô và số đếm, không vẽ lại bảng, để không mất focus bàn phím
         if (target.matches('#dbRows input[type="checkbox"]')) {
             if (target.checked) selected.add(target.dataset.key);
@@ -375,26 +381,49 @@
         }
     };
 
+    const onSubmit = (event) => {
+        if (!inRoot(event.target)) return;
+        if (event.target.getAttribute('id') !== 'dbRemindForm') return;
+        event.preventDefault();
+        void onRemindSubmit(event.target);
+    };
+
+    const onSearchInput = (event) => {
+        if (event.target.getAttribute('id') === 'dbSearch' && inRoot(event.target)) render();
+    };
+
     const init = () => {
         const root = document.getElementById(rootId);
-        if (!root || root === initializedRoot) return;
-        initializedRoot = root;
-        debtList = null;
-        selected = new Set();
-        root.addEventListener('click', onClick);
-        root.addEventListener('change', onChange);
-        root.addEventListener('submit', (event) => {
-            if (event.target.getAttribute('id') !== 'dbRemindForm') return;
-            event.preventDefault();
-            void onRemindSubmit(event.target);
-        });
-        $('#dbSearch').addEventListener('input', render);
+        if (!root) return;
+        if (root !== mountedRoot) {
+            mountedRoot = root;
+            debtList = null;
+            selected = new Set();
+        }
+        if (!bound) {
+            document.addEventListener('click', onClick);
+            document.addEventListener('submit', onSubmit);
+            document.addEventListener('change', onChange);
+            document.addEventListener('input', onSearchInput);
+            bound = true;
+        }
         void loadPeriods();
         void loadDebts();
     };
 
+    // Dự phòng: enhancedload không bắt được trường hợp Blazor thay DOM lúc SSR -> interactive.
+    const observeRootChanges = () => {
+        if (rootObserver) return;
+        rootObserver = new MutationObserver(() => {
+            const current = document.getElementById(rootId);
+            if (current && current !== mountedRoot) init();
+        });
+        rootObserver.observe(document.documentElement, { childList: true, subtree: true });
+    };
+
     init();
     if (window.Blazor?.addEventListener) {
-        Blazor.addEventListener('enhancedload', init);
+        window.Blazor.addEventListener('enhancedload', init);
     }
+    observeRootChanges();
 })();
