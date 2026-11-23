@@ -530,7 +530,13 @@ public sealed class BillingPeriodServiceTests
             {
                 Id = id,
                 HouseholdNumber = number,
-                Apartment = new ApartmentEntity { Code = apartmentCode, Building = "Tòa " + apartmentCode[0], Area = area }
+                Apartment = new ApartmentEntity
+                {
+                    Code = apartmentCode,
+                    BuildingId = 1,
+                    Building = new BuildingEntity { Id = 1, Name = "Tòa " + apartmentCode[0] },
+                    Area = area
+                }
             });
             _residentCounts[id] = residents;
         }

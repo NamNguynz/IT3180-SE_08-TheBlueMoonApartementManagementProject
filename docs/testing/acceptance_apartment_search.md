@@ -24,7 +24,7 @@ cư dân xem loại hình căn hộ của mình (PBI-003); đơn giá theo loạ
 | URL app | `https://localhost:7127` |
 
 **Chuẩn bị:** chạy app trên database **mới** (cấu hình theo README), đăng nhập `admin`, Tư cách **Ban quản trị**,
-vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duyệt nạp đúng bản script mới (`apartment-profiles.js?v=10`).
+vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duyệt nạp đúng bản script mới (`apartment-profiles.js?v=12`).
 
 ## 3. Dữ liệu test (dữ liệu giả)
 

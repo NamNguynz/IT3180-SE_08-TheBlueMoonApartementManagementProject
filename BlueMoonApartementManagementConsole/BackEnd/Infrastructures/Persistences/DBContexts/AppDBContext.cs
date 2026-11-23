@@ -20,6 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
     public DbSet<ReceivableEntity> Receivables => Set<ReceivableEntity>();
     public DbSet<PaymentEntity> Payments => Set<PaymentEntity>();
     public DbSet<DebtReminderEntity> DebtReminders => Set<DebtReminderEntity>();
+    public DbSet<BuildingEntity> Buildings => Set<BuildingEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -79,6 +80,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.HasIndex(a => a.Username);
         });
 
+        modelBuilder.Entity<BuildingEntity>(e =>
+        {
+            e.ToTable("buildings");
+            e.HasKey(b => b.Id);
+            e.Property(b => b.Id).UseIdentityByDefaultColumn();
+            e.Property(b => b.Name).HasMaxLength(100).IsRequired();
+            e.HasIndex(b => b.Name).IsUnique();
+            e.Property(b => b.CreatedAt).IsRequired();
+        });
+
         modelBuilder.Entity<ApartmentEntity>(e =>
         {
             e.ToTable("apartments", t =>
@@ -89,7 +100,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             });
             e.HasKey(a => a.Id);
             e.Property(a => a.Code).HasMaxLength(30).IsRequired();
-            e.Property(a => a.Building).HasMaxLength(100).IsRequired();
+            e.Property(a => a.BuildingId).IsRequired();
+            e.HasIndex(a => a.BuildingId);
+            e.HasOne(a => a.Building).WithMany(b => b.Apartments)
+             .HasForeignKey(a => a.BuildingId)
+             .OnDelete(DeleteBehavior.Restrict);   // không xóa tòa nhà khi còn căn hộ
             // Căn hộ có trước khi thêm loại hình nhận mặc định CanHo (căn hộ ở)
             e.Property(a => a.Type).HasConversion<string>().HasMaxLength(20)
              .HasDefaultValue(ApartmentType.CanHo);

@@ -57,7 +57,7 @@ public sealed class BillingPeriodRepository(AppDbContext db) : IBillingPeriodRep
             .Include(p => p.CreatedBy)
             .Include(p => p.Items).ThenInclude(i => i.FeeItem)
             .Include(p => p.Items).ThenInclude(i => i.FeeRate)
-            .Include(p => p.Items).ThenInclude(i => i.Receivables).ThenInclude(r => r.Household).ThenInclude(h => h.Apartment)
+            .Include(p => p.Items).ThenInclude(i => i.Receivables).ThenInclude(r => r.Household).ThenInclude(h => h.Apartment).ThenInclude(a => a.Building)
             .AsSplitQuery() // tránh nhân bản dòng khi Include nhiều nhánh
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 

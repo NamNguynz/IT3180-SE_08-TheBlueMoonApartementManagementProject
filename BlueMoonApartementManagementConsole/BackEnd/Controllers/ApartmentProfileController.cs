@@ -18,6 +18,12 @@ public sealed class ApartmentProfileController(IApartmentProfileService profiles
     public async Task<ActionResult<IReadOnlyList<ApartmentProfileResponse>>> GetAll(CancellationToken ct) =>
         Ok(await profiles.GetApartmentsAsync(ct));
 
+    /// <summary>API riêng cho trang Danh sách căn hộ: lọc + phân trang, không đổi endpoint cũ.</summary>
+    [HttpGet("danh-sach")]
+    public async Task<ActionResult<PagedResult<ApartmentListRow>>> List(
+        [FromQuery] ApartmentListQuery query, CancellationToken ct) =>
+        Ok(await profiles.QueryApartmentsAsync(query, ct));
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ApartmentProfileResponse>> GetById(int id, CancellationToken ct)
     {

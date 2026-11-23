@@ -185,10 +185,11 @@ public class ResidentChangeApiTests(BlueMoonAppFactory factory) : IClassFixture<
 
     private async Task<(int ApartmentId, HouseholdProfileResponse Household)> CreateHouseholdAsync(HttpClient admin, string suffix)
     {
+        var buildingId = await TestBuilding.IdAsync(admin, "Tòa test biến động");
         var apartment = await ReadAsync<ApartmentProfileResponse>(await admin.PostAsJsonAsync("/api/can-ho", new CreateApartmentRequest
         {
             Code = _prefix + suffix,
-            Building = "Tòa test biến động",
+            BuildingId = buildingId,
             Type = ApartmentType.CanHo,
             Floor = 3,
             Area = 65m,

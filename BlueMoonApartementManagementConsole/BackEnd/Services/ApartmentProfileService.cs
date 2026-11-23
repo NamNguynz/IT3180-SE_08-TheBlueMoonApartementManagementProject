@@ -10,6 +10,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services;
 public interface IApartmentProfileService
 {
     Task<IReadOnlyList<ApartmentProfileResponse>> GetApartmentsAsync(CancellationToken ct = default);
+    Task<PagedResult<ApartmentListRow>> QueryApartmentsAsync(ApartmentListQuery query, CancellationToken ct = default);
     Task<ApartmentProfileResponse?> GetApartmentByIdAsync(int id, CancellationToken ct = default);
     Task<ProfileOperationResult<ApartmentProfileResponse>> CreateApartmentAsync(
         int actorId, string actorName, CreateApartmentRequest request, CancellationToken ct = default);
@@ -28,8 +29,18 @@ public sealed class ApartmentProfileService(
     IApartmentProfileRepository profiles,
     IAuditService audit) : IApartmentProfileService
 {
+    private const string BuildingNotFoundMessage = "Tòa nhà không tồn tại.";
     public async Task<IReadOnlyList<ApartmentProfileResponse>> GetApartmentsAsync(CancellationToken ct = default) =>
         (await profiles.GetApartmentsAsync(ct)).Select(Map).ToList();
+
+    /// <summary>Trang Danh sách căn hộ: chuẩn hóa trang/kích thước trang rồi ủy quyền cho repository.</summary>
+    public Task<PagedResult<ApartmentListRow>> QueryApartmentsAsync(
+        ApartmentListQuery query, CancellationToken ct = default) =>
+        profiles.QueryApartmentsAsync(query with
+        {
+            Page = Math.Max(1, query.Page),
+            PageSize = ListPageSize.Normalize(query.PageSize)
+        }, ct);
 
     public async Task<ApartmentProfileResponse?> GetApartmentByIdAsync(int id, CancellationToken ct = default)
     {
@@ -38,16 +49,20 @@ public sealed class ApartmentProfileService(
     }
 
     public async Task<ProfileOperationResult<ApartmentProfileResponse>> CreateApartmentAsync(
-        int actorId, string actorName, CreateApartmentRequest request, CancellationToken ct = default)
+    int actorId, string actorName, CreateApartmentRequest request, CancellationToken ct = default)
     {
         var code = NormalizeCode(request.Code);
         if (await profiles.ApartmentCodeExistsAsync(code, ct: ct))
             return Conflict<ApartmentProfileResponse>("Mã căn hộ đã tồn tại.");
 
+        var building = await profiles.GetBuildingAsync(request.BuildingId, ct);
+        if (building is null)
+            return new(ProfileStatus.Invalid, Message: BuildingNotFoundMessage);
+
         var apartment = new ApartmentEntity
         {
             Code = code,
-            Building = NormalizeRequired(request.Building),
+            Building = building,
             Type = request.Type,
             Floor = request.Floor,
             Area = request.Area,
@@ -61,13 +76,13 @@ public sealed class ApartmentProfileService(
             return Conflict<ApartmentProfileResponse>("Mã căn hộ đã tồn tại.");
 
         await audit.LogAsync(AuditAction.CreateApartmentProfile, actorName, actorId,
-            apartment.Id.ToString(), $"Tạo hồ sơ căn hộ {apartment.Code}", ct);
+            apartment.Id.ToString(), $"Tạo hồ sơ căn hộ {apartment.Code} tại {building.Name}", ct);
 
         return new(ProfileStatus.Success, Map(apartment));
     }
 
     public async Task<ProfileOperationResult<ApartmentProfileResponse>> UpdateApartmentAsync(
-        int actorId, string actorName, int id, UpdateApartmentRequest request, CancellationToken ct = default)
+    int actorId, string actorName, int id, UpdateApartmentRequest request, CancellationToken ct = default)
     {
         var apartment = await profiles.GetApartmentByIdAsync(id, tracking: true, ct);
         if (apartment is null)
@@ -77,13 +92,17 @@ public sealed class ApartmentProfileService(
         if (await profiles.ApartmentCodeExistsAsync(code, id, ct))
             return Conflict<ApartmentProfileResponse>("Mã căn hộ đã tồn tại.");
 
+        var building = await profiles.GetBuildingAsync(request.BuildingId, ct);
+        if (building is null)
+            return new(ProfileStatus.Invalid, Message: BuildingNotFoundMessage);
+
         // Ô select trong form cũng đổi được trạng thái: chặn ở đây để không vòng qua luật của PATCH.
         var statusError = await ValidateStatusChangeAsync(id, request.Status, apartment.Status, ct);
         if (statusError is not null)
             return new(ProfileStatus.Conflict, Message: statusError);
 
         apartment.Code = code;
-        apartment.Building = NormalizeRequired(request.Building);
+        apartment.Building = building;
         apartment.Type = request.Type;
         apartment.Floor = request.Floor;
         apartment.Area = request.Area;
@@ -305,9 +324,10 @@ public sealed class ApartmentProfileService(
         new(ProfileStatus.Conflict, Message: message);
 
     private static ApartmentProfileResponse Map(ApartmentEntity apartment) =>
-        new(apartment.Id, apartment.Code, apartment.Building, apartment.Type, apartment.Floor, apartment.Area,
-            apartment.BedroomCount, apartment.Status, apartment.Notes,
-            apartment.Household is null ? null : Map(apartment.Household));
+    new(apartment.Id, apartment.Code, apartment.BuildingId, apartment.Building.Name,
+        apartment.Type, apartment.Floor, apartment.Area, apartment.BedroomCount,
+        apartment.Status, apartment.Notes,
+        apartment.Household is null ? null : Map(apartment.Household));
 
     private static HouseholdProfileResponse Map(HouseholdEntity household) =>
         new(household.Id, household.ApartmentId, household.HouseholdNumber, household.HeadName,

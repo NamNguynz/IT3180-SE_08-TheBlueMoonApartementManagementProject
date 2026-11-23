@@ -291,10 +291,11 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
     private async Task<int> CreateHouseholdAsync(HttpClient admin, decimal area, int residents)
     {
         var code = _prefix + "-" + Guid.NewGuid().ToString("N")[..4].ToUpperInvariant();
+        var buildingId = await TestBuilding.IdAsync(admin, "Tòa test kỳ thu");
         var apartment = await ReadAsync<ApartmentProfileResponse>(await admin.PostAsJsonAsync("/api/can-ho", new CreateApartmentRequest
         {
             Code = code,
-            Building = "Tòa test kỳ thu",
+            BuildingId = buildingId,
             Type = ApartmentType.CanHo,
             Floor = 4,
             Area = area,

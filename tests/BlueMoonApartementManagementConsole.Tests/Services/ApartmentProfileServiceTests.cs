@@ -121,7 +121,7 @@ public sealed class ApartmentProfileServiceTests
         var result = await _service.UpdateApartmentAsync(1, "admin", created.Data!.Id, new UpdateApartmentRequest
         {
             Code = "P-3001",
-            Building = "A",
+            BuildingId = 1,
             Type = ApartmentType.Penthouse,
             Floor = 30,
             Area = 250m,
@@ -200,7 +200,7 @@ public sealed class ApartmentProfileServiceTests
         var result = await _service.UpdateApartmentAsync(1, "admin", apartment.Id, new UpdateApartmentRequest
         {
             Code = "R-1003",
-            Building = "A",
+            BuildingId = 1,
             Type = ApartmentType.CanHo,
             Floor = 1,
             Area = 60m,
@@ -216,7 +216,7 @@ public sealed class ApartmentProfileServiceTests
     private static CreateApartmentRequest ApartmentRequest(string code, ApartmentType type = ApartmentType.CanHo) => new()
     {
         Code = code,
-        Building = "A",
+        BuildingId = 1,
         Type = type,
         Floor = 1,
         Area = 68.5m,
@@ -243,6 +243,7 @@ public sealed class ApartmentProfileServiceTests
 
     private sealed class FakeApartmentProfileRepository : IApartmentProfileRepository
     {
+        private readonly List<BuildingEntity> _buildings = [new BuildingEntity { Id = 1, Name = "A" }];
         private readonly List<ApartmentEntity> _apartments = [];
         private readonly List<HouseholdEntity> _households = [];
         private int _nextApartmentId = 1;
@@ -252,8 +253,15 @@ public sealed class ApartmentProfileServiceTests
         public Task<List<ApartmentEntity>> GetApartmentsAsync(CancellationToken ct = default) =>
             Task.FromResult(_apartments);
 
+        public Task<PagedResult<ApartmentListRow>> QueryApartmentsAsync(
+            ApartmentListQuery query, CancellationToken ct = default) =>
+            Task.FromResult(new PagedResult<ApartmentListRow>([], 0, query.Page, query.PageSize));
+
         public Task<ApartmentEntity?> GetApartmentByIdAsync(int id, bool tracking, CancellationToken ct = default) =>
             Task.FromResult(_apartments.SingleOrDefault(a => a.Id == id));
+
+        public Task<BuildingEntity?> GetBuildingAsync(int id, CancellationToken ct = default) =>
+            Task.FromResult(_buildings.SingleOrDefault(b => b.Id == id));
 
         public Task<HouseholdEntity?> GetHouseholdByApartmentIdAsync(int apartmentId, CancellationToken ct = default) =>
             Task.FromResult(_households.SingleOrDefault(h => h.ApartmentId == apartmentId));
@@ -301,7 +309,13 @@ public sealed class ApartmentProfileServiceTests
 
         public ApartmentEntity SeedApartment(string code)
         {
-            var apartment = new ApartmentEntity { Id = _nextApartmentId++, Code = code };
+            var apartment = new ApartmentEntity
+            {
+                Id = _nextApartmentId++,
+                Code = code,
+                BuildingId = 1,
+                Building = _buildings[0]
+            };
             _apartments.Add(apartment);
             return apartment;
         }

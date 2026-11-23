@@ -162,10 +162,11 @@ public class DebtApiTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoonAp
     private async Task<int> CreateHouseholdAsync(HttpClient admin, string suffix, decimal area)
     {
         var code = _prefix + "-" + suffix;
+        var buildingId = await TestBuilding.IdAsync(admin, "Tòa test công nợ");
         var apartment = await ReadAsync<ApartmentProfileResponse>(await admin.PostAsJsonAsync("/api/can-ho", new CreateApartmentRequest
         {
             Code = code,
-            Building = "Tòa test công nợ",
+            BuildingId = buildingId,
             Type = ApartmentType.CanHo,
             Floor = 7,
             Area = area,

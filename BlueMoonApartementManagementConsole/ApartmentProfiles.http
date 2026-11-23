@@ -8,13 +8,24 @@ GET {{baseUrl}}/api/can-ho
 ### Get an apartment and its household/residents (BQT)
 GET {{baseUrl}}/api/can-ho/{{apartmentId}}
 
+### Create a building first (BQT) - lấy Id trả về cho buildingId bên dưới
+POST {{baseUrl}}/api/toa-nha
+Content-Type: application/json
+
+{
+  "name": "Tòa A"
+}
+
+### List buildings (BQT)
+GET {{baseUrl}}/api/toa-nha
+
 ### Create an apartment (BQT)
 POST {{baseUrl}}/api/can-ho
 Content-Type: application/json
 
 {
   "code": "A-101",
-  "building": "A",
+  "buildingId": 1,
   "floor": 1,
   "area": 68.5,
   "bedroomCount": 2,
@@ -28,7 +39,7 @@ Content-Type: application/json
 
 {
   "code": "A-101",
-  "building": "A",
+  "buildingId": 1,
   "floor": 1,
   "area": 70,
   "bedroomCount": 2,

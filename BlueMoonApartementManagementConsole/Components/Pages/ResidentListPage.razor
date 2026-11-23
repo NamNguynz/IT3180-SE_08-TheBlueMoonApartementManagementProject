@@ -1,0 +1,106 @@
+@page "/nhan-khau/ho"
+@attribute [Authorize(Policy = "QuanTriHeThong")]
+@layout DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Hộ & nhân khẩu - Bluemoon</PageTitle>
+
+<section id="residentList" class="page">
+    <div class="page-head">
+        <h1>Danh sách nhân khẩu</h1>
+        <p class="muted">Tra cứu nhân khẩu theo họ tên, ngày sinh và các thông tin cá nhân. Số CCCD cần nhập đủ số.</p>
+    </div>
+
+    <form id="resListFilter" class="filter-bar">
+        <label>
+            Họ tên
+            <input type="search" name="fullName" maxlength="100" placeholder="Tên nhân khẩu" autocomplete="off" />
+        </label>
+        <label>
+            Ngày sinh từ
+            <input type="date" name="dateOfBirthFrom" />
+        </label>
+        <label>
+            Ngày sinh đến
+            <input type="date" name="dateOfBirthTo" />
+        </label>
+        <label>
+            Giới tính
+            <select name="gender">
+                <option value="">Tất cả</option>
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+            </select>
+        </label>
+        <label>
+            Nơi sinh
+            <input type="text" name="placeOfBirth" maxlength="100" placeholder="Nơi sinh" />
+        </label>
+        <label>
+            Nguyên quán
+            <input type="text" name="hometown" maxlength="100" placeholder="Nguyên quán" />
+        </label>
+        <label>
+            Dân tộc
+            <input type="text" name="ethnicity" maxlength="50" placeholder="Dân tộc" />
+        </label>
+        <label>
+            Tôn giáo
+            <input type="text" name="religion" maxlength="50" placeholder="Tôn giáo" />
+        </label>
+        <label>
+            Nơi làm việc
+            <input type="text" name="workplace" maxlength="150" placeholder="Nơi làm việc" />
+        </label>
+        <label>
+            Số CCCD
+            <input type="text" name="identityNumber" maxlength="30" inputmode="numeric" placeholder="Nhập đủ số" />
+        </label>
+        <div class="filter-actions">
+            <button type="submit" class="btn-approve">Tìm kiếm</button>
+            <button type="button" id="resListReset" class="btn-link">Xóa lọc</button>
+        </div>
+    </form>
+
+    <div id="resListAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <div id="resListLoading" class="empty-state">Đang tải danh sách nhân khẩu...</div>
+    <div id="resListEmpty" class="empty-state" hidden>Không có nhân khẩu phù hợp.</div>
+
+    <div id="resListTable" class="table-wrap" hidden>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Ngày sinh</th>
+                    <th>Giới tính</th>
+                    <th>Nơi sinh</th>
+                    <th>Nguyên quán</th>
+                    <th>Dân tộc</th>
+                    <th>Tôn giáo</th>
+                    <th>Nơi làm việc</th>
+                    <th>Số CCCD</th>
+                </tr>
+            </thead>
+            <tbody id="resListBody"></tbody>
+        </table>
+    </div>
+
+    <nav id="resListPager" class="pager" aria-label="Phân trang nhân khẩu" hidden>
+        <label class="page-size">
+            Hiển thị
+            <select id="resListPageSize" aria-label="Số bản ghi mỗi trang">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+            </select>
+            bản ghi/trang
+        </label>
+        <button type="button" id="resListPrev" class="btn-link">← Trước</button>
+        <span id="resListPageInfo"></span>
+        <button type="button" id="resListNext" class="btn-link">Sau →</button>
+    </nav>
+</section>

@@ -89,10 +89,11 @@ public class PersonalDataEncryptionTests(BlueMoonAppFactory factory) : IClassFix
 
     private async Task<int> CreateApartmentAsync(HttpClient admin, string suffix)
     {
+        var buildingId = await TestBuilding.IdAsync(admin, "Tòa test PII");
         var response = await admin.PostAsJsonAsync("/api/can-ho", new CreateApartmentRequest
         {
             Code = _prefix + suffix,
-            Building = "Tòa test PII",
+            BuildingId = buildingId,
             Type = ApartmentType.CanHo,
             Floor = 5,
             Area = 70m,

@@ -1,0 +1,91 @@
+@page "/can-ho/danh-sach"
+@attribute [Authorize(Policy = "QuanTriHeThong")]
+@layout DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+@using BlueMoonApartementManagementConsole.BackEnd.Models
+
+<PageTitle>Danh sách căn hộ - Bluemoon</PageTitle>
+
+<section id="apartmentList" class="page">
+    <div class="page-head">
+        <h1>Danh sách căn hộ</h1>
+        <p class="muted">Tìm kiếm căn hộ theo mã, tòa nhà, khoảng diện tích, số tầng và trạng thái.</p>
+    </div>
+
+    <form id="apListFilter" class="filter-bar">
+        <label>
+            Mã căn hộ
+            <input type="search" name="code" maxlength="30" placeholder="VD: A-101" autocomplete="off" />
+        </label>
+        <label>
+            Tên tòa nhà
+            <select name="buildingId">
+                <option value="">Tất cả tòa nhà</option>
+            </select>
+        </label>
+        <label>
+            Diện tích từ (m²)
+            <input type="number" name="areaFrom" min="0.01" step="0.01" placeholder="0" />
+        </label>
+        <label>
+            Diện tích đến (m²)
+            <input type="number" name="areaTo" min="0.01" step="0.01" placeholder="0" />
+        </label>
+        <label>
+            Số tầng
+            <input type="number" name="floor" min="0" placeholder="0" />
+        </label>
+        <label>
+            Trạng thái
+            <select name="status">
+                <option value="">Tất cả trạng thái</option>
+                @foreach (var (status, label) in ApartmentStatusLabels.All)
+                {
+                    <option value="@status" data-badge="@ApartmentStatusLabels.BadgeClassOf(status)">@label</option>
+                }
+            </select>
+        </label>
+        <div class="filter-actions">
+            <button type="submit" class="btn-approve">Tìm kiếm</button>
+            <button type="button" id="apListReset" class="btn-link">Xóa lọc</button>
+        </div>
+    </form>
+
+    <div id="apListAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <div id="apListLoading" class="empty-state">Đang tải danh sách căn hộ...</div>
+    <div id="apListEmpty" class="empty-state" hidden>Không có căn hộ phù hợp.</div>
+
+    <div id="apListTable" class="table-wrap" hidden>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Mã căn hộ</th>
+                    <th>Tên tòa nhà</th>
+                    <th>Số nhân khẩu</th>
+                    <th>Diện tích (m²)</th>
+                    <th>Số tầng</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody id="apListBody"></tbody>
+        </table>
+    </div>
+
+    <nav id="apListPager" class="pager" aria-label="Phân trang căn hộ" hidden>
+        <label class="page-size">
+            Hiển thị
+            <select id="apListPageSize" aria-label="Số bản ghi mỗi trang">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+            </select>
+            bản ghi/trang
+        </label>
+        <button type="button" id="apListPrev" class="btn-link">← Trước</button>
+        <span id="apListPageInfo"></span>
+        <button type="button" id="apListNext" class="btn-link">Sau →</button>
+    </nav>
+</section>

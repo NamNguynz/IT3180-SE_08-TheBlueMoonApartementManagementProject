@@ -30,10 +30,13 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
     private const string NotFoundTitle = "<h1>Không tìm thấy trang</h1>";
     private const string InDevelopmentTitle = "<h1>Tính năng đang phát triển</h1>";
 
-    // Link menu đang dùng trang tạm (F3), chia theo policy như menu
-    private static readonly string[] ResidentPlaceholders = ["/can-ho/danh-sach", "/nhan-khau/ho"];
-    // Link menu trước là trang tạm, nay đã có trang thật (PBI-007: ResidentChangesPage), vẫn phải giữ phân quyền như menu
-    private static readonly (string Path, string Title)[] ResidentPages = [("/nhan-khau/bien-dong", "<h1>Biến động nhân khẩu</h1>")];
+    // Link menu nhóm "Căn hộ & cư dân" đã có trang thật, vẫn phải giữ phân quyền như menu
+    private static readonly (string Path, string Title)[] ResidentPages =
+        [
+            ("/can-ho/danh-sach", "<h1>Danh sách căn hộ</h1>"),
+            ("/nhan-khau/ho", "<h1>Danh sách nhân khẩu</h1>"),
+            ("/nhan-khau/bien-dong", "<h1>Biến động nhân khẩu</h1>")
+        ];
     private static readonly string[] FinancePlaceholders =
         ["/khoan-thu/danh-muc", "/don-gia", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
     // Tương tự với nhóm Tài chính (PBI-014: BillingPeriodsPage, PBI-016: PaymentsPage, PBI-019: DebtsPage): Kế toán mở được, Cư dân bị chặn
@@ -344,27 +347,22 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
                 Assert.DoesNotContain(NotFoundTitle, page.Html);
             }
         }
-        Assert.Superset(ResidentPlaceholders.Concat(FinancePlaceholders)
+        Assert.Superset(FinancePlaceholders
                 .Concat(ResidentPages.Select(p => p.Path)).Concat(FinancePages.Select(p => p.Path)).ToHashSet(),
             (await LinksOnHomeAsync(bqt)).ToHashSet());
 
-        // Phần 2: trang tạm giữ đúng phân quyền như menu
+        // Phần 2: trang tạm còn lại giữ đúng phân quyền như menu
         var anonymous = NewBrowser();
-        foreach (var path in ResidentPlaceholders.Concat(FinancePlaceholders))
+        foreach (var path in FinancePlaceholders)
         {
             Assert.Contains(InDevelopmentTitle, (await UiFlow.GetAsync(bqt, path)).Html);
-
-            var byAccountant = await UiFlow.GetAsync(accountant, path);
-            if (FinancePlaceholders.Contains(path))
-                Assert.Contains(InDevelopmentTitle, byAccountant.Html);
-            else
-                Assert.Equal("/403", byAccountant.RedirectPath);
+            Assert.Contains(InDevelopmentTitle, (await UiFlow.GetAsync(accountant, path)).Html);
 
             Assert.Equal("/403", (await UiFlow.GetAsync(resident, path)).RedirectPath);
             Assert.Equal("/login?ReturnUrl=" + Uri.EscapeDataString(path), (await UiFlow.GetAsync(anonymous, path)).RedirectPath);
         }
 
-        // Phần 3: trang thật thay cho trang tạm giữ phân quyền như menu: BQT mở được, Kế toán chỉ mở được trang
+        // Phần 3: trang thật giữ phân quyền như menu: BQT mở được, Kế toán chỉ mở được trang
         // nhóm Tài chính, Cư dân bị chặn, khách phải đăng nhập
         foreach (var (path, title) in ResidentPages.Concat(FinancePages))
         {

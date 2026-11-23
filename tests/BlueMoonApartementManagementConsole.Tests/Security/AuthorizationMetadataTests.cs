@@ -31,6 +31,7 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(ApartmentProfileController))]
     [InlineData(typeof(HouseholdProfileController))]
     [InlineData(typeof(ResidentChangeController))]
+    [InlineData(typeof(ResidentController))]
     public void AdminControllers_RequireAdminPolicy(Type controller)
     {
         var attrs = AuthorizeOf(controller);
@@ -65,6 +66,7 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(ApartmentProfileController))]
     [InlineData(typeof(HouseholdProfileController))]
     [InlineData(typeof(ResidentChangeController))]
+    [InlineData(typeof(ResidentController))]
     [InlineData(typeof(BillingPeriodController))]
     [InlineData(typeof(PaymentController))]
     [InlineData(typeof(DebtController))]
@@ -87,7 +89,8 @@ public class AuthorizationMetadataTests
     [InlineData(typeof(AccountManagementPage))]
     [InlineData(typeof(AccountApprovalPage))]
     [InlineData(typeof(AuditLogPage))]
-    [InlineData(typeof(InDevelopmentResidentPage))]
+    [InlineData(typeof(ApartmentListPage))]
+    [InlineData(typeof(ResidentListPage))]
     [InlineData(typeof(ResidentChangesPage))]
     public void AdminPages_RequireAdminPolicy(Type page)
     {
@@ -154,7 +157,7 @@ public class AuthorizationMetadataTests
     // ===== R19: Mỗi route chỉ thuộc một trang =====
 
     /// <summary>
-    /// Link menu chưa có trang thật đang dùng trang tạm InDevelopmentResidentPage / InDevelopmentFinancePage.
+    /// Link menu chưa có trang thật đang dùng trang tạm InDevelopmentFinancePage.
     /// Khi làm trang thật mà quên xóa dòng @page ở trang tạm thì hai trang cùng route và app lỗi khi mở link đó.
     /// </summary>
     [Fact]

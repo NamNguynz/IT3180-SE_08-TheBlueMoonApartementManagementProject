@@ -25,6 +25,7 @@
         CreateBillingPeriod,
         RecordPayment,
         RecordDebtReminder,
+        CreateBuilding
     }
 
     public class AuditLog

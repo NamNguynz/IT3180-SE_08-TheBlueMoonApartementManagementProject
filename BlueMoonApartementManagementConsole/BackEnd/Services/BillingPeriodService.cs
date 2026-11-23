@@ -337,7 +337,7 @@ public sealed class BillingPeriodService(
                         x.Item.FeeItemId, x.Receivable.Quantity, x.Item.Rate, x.Receivable.Amount))
                     .ToList();
                 return new HouseholdBillResponse(household.Id, household.HouseholdNumber,
-                    household.Apartment.Code, household.Apartment.Building, lines, lines.Sum(l => l.Amount));
+                    household.Apartment.Code, household.Apartment.Building.Name, lines, lines.Sum(l => l.Amount));
             })
             .OrderBy(h => h.Building)
             .ThenBy(h => h.ApartmentCode)
