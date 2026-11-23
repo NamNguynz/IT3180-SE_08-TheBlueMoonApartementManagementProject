@@ -6,7 +6,12 @@
     let collection = null;   // tình hình thu của kỳ đang chọn
     let bill = null;          // khoản phải thu của hộ đang mở hộp thoại
     let pendingBody = null;   // nội dung đã nhập, chờ Kế toán xác nhận
-    let initializedRoot;
+    // Listener gắn trên document để không mất khi Blazor thay DOM; mountedRoot dùng để nhận ra lần mount mới.
+    let bound = false;
+    let mountedRoot = null;
+    let rootObserver = null;
+
+    const inRoot = (node) => Boolean(node && document.getElementById(rootId)?.contains(node));
 
     const $ = (selector) => document.querySelector(`#${rootId} ${selector}`);
     const formValue = (form, name) => form.elements.namedItem(name).value;
@@ -325,7 +330,7 @@
 
     const onClick = async (event) => {
         const button = event.target.closest('[data-action]');
-        if (!button || !document.getElementById(rootId).contains(button)) return;
+        if (!button || !inRoot(button)) return;
 
         switch (button.dataset.action) {
             case 'open':
@@ -343,31 +348,59 @@
         }
     };
 
+    const onSubmit = (event) => {
+        if (!inRoot(event.target)) return;
+        if (event.target.getAttribute('id') !== 'pmForm') return;
+        event.preventDefault();
+        onFormSubmit(event.target);
+    };
+
+    const onChange = (event) => {
+        const target = event.target;
+        if (!inRoot(target)) return;
+        const id = target.getAttribute('id');
+        if (id === 'pmPeriod') void loadCollection();
+        if (id === 'pmStatus' && collection) renderCollection();
+        if (target.form?.getAttribute('id') === 'pmForm' && target.name === 'method') toggleReference(target.form);
+    };
+
+    const onSearchInput = (event) => {
+        if (event.target.getAttribute('id') === 'pmSearch' && inRoot(event.target) && collection) renderCollection();
+    };
+
     const init = () => {
         const root = document.getElementById(rootId);
-        if (!root || root === initializedRoot) return;
-        initializedRoot = root;
-        periods = [];
-        collection = null;
-        bill = null;
-        pendingBody = null;
-        root.addEventListener('click', onClick);
-        root.addEventListener('submit', (event) => {
-            if (event.target.getAttribute('id') !== 'pmForm') return;
-            event.preventDefault();
-            onFormSubmit(event.target);
-        });
-        root.addEventListener('change', (event) => {
-            if (event.target.getAttribute('id') === 'pmPeriod') void loadCollection();
-            if (event.target.getAttribute('id') === 'pmStatus') collection && renderCollection();
-            if (event.target.form?.getAttribute('id') === 'pmForm' && event.target.name === 'method') toggleReference(event.target.form);
-        });
-        $('#pmSearch').addEventListener('input', () => collection && renderCollection());
+        if (!root) return;
+        if (root !== mountedRoot) {
+            mountedRoot = root;
+            periods = [];
+            collection = null;
+            bill = null;
+            pendingBody = null;
+        }
+        if (!bound) {
+            document.addEventListener('click', onClick);
+            document.addEventListener('submit', onSubmit);
+            document.addEventListener('change', onChange);
+            document.addEventListener('input', onSearchInput);
+            bound = true;
+        }
         void loadPeriods();
+    };
+
+    // Dự phòng: enhancedload không bắt được trường hợp Blazor thay DOM lúc SSR -> interactive.
+    const observeRootChanges = () => {
+        if (rootObserver) return;
+        rootObserver = new MutationObserver(() => {
+            const current = document.getElementById(rootId);
+            if (current && current !== mountedRoot) init();
+        });
+        rootObserver.observe(document.documentElement, { childList: true, subtree: true });
     };
 
     init();
     if (window.Blazor?.addEventListener) {
-        Blazor.addEventListener('enhancedload', init);
+        window.Blazor.addEventListener('enhancedload', init);
     }
+    observeRootChanges();
 })();

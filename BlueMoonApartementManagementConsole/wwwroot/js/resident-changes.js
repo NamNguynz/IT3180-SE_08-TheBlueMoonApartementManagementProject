@@ -4,7 +4,12 @@
     const rootId = 'residentChanges';
     let households = [];
     let residency = null;
-    let initializedRoot;
+    // Listener gắn trên document để không mất khi Blazor thay DOM; mountedRoot dùng để nhận ra lần mount mới.
+    let bound = false;
+    let mountedRoot = null;
+    let rootObserver = null;
+
+    const inRoot = (node) => Boolean(node && document.getElementById(rootId)?.contains(node));
 
     // Cấu hình hiển thị theo loại biến động (nhãn ngày, ô nơi đi/đến, có ngày kết thúc, có khai báo nhân khẩu mới)
     const changeTypes = {
@@ -378,7 +383,7 @@
 
     const onClick = async (event) => {
         const button = event.target.closest('[data-action]');
-        if (!button || !document.getElementById(rootId).contains(button)) return;
+        if (!button || !inRoot(button)) return;
 
         switch (button.dataset.action) {
             case 'refresh':
@@ -399,25 +404,48 @@
         }
     };
 
+    const onSubmit = (event) => {
+        if (!inRoot(event.target)) return;
+        // Dùng getAttribute: form có <input name="type">, tránh nhầm thuộc tính của form với ô nhập
+        if (event.target.getAttribute('id') !== 'changeForm') return;
+        event.preventDefault();
+        void onChangeSubmit(event.target);
+    };
+
+    const onSearchInput = (event) => {
+        if (event.target.getAttribute('id') === 'rcSearch' && inRoot(event.target)) renderHouseholds();
+    };
+
     const init = () => {
         const root = document.getElementById(rootId);
-        if (!root || root === initializedRoot) return;
-        initializedRoot = root;
-        households = [];
-        residency = null;
-        root.addEventListener('click', onClick);
-        root.addEventListener('submit', (event) => {
-            // Dùng getAttribute: form có <input name="type">, tránh nhầm thuộc tính của form với ô nhập
-            if (event.target.getAttribute('id') !== 'changeForm') return;
-            event.preventDefault();
-            void onChangeSubmit(event.target);
-        });
-        $('#rcSearch').addEventListener('input', renderHouseholds);
+        if (!root) return;
+        if (root !== mountedRoot) {
+            mountedRoot = root;
+            households = [];
+            residency = null;
+        }
+        if (!bound) {
+            document.addEventListener('click', onClick);
+            document.addEventListener('submit', onSubmit);
+            document.addEventListener('input', onSearchInput);
+            bound = true;
+        }
         void loadHouseholds(false);
+    };
+
+    // Dự phòng: enhancedload không bắt được trường hợp Blazor thay DOM lúc SSR -> interactive.
+    const observeRootChanges = () => {
+        if (rootObserver) return;
+        rootObserver = new MutationObserver(() => {
+            const current = document.getElementById(rootId);
+            if (current && current !== mountedRoot) init();
+        });
+        rootObserver.observe(document.documentElement, { childList: true, subtree: true });
     };
 
     init();
     if (window.Blazor?.addEventListener) {
-        Blazor.addEventListener('enhancedload', init);
+        window.Blazor.addEventListener('enhancedload', init);
     }
+    observeRootChanges();
 })();

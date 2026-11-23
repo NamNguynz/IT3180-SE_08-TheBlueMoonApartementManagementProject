@@ -8,7 +8,13 @@
 
     let periods = [];
     let detail = null;
-    let initializedRoot;
+
+    // Listener gắn trên document để không mất khi Blazor thay DOM; mountedRoot dùng để nhận ra lần mount mới.
+    let bound = false;
+    let mountedRoot = null;
+    let rootObserver = null;
+
+    const inRoot = (node) => Boolean(node && document.getElementById(rootId)?.contains(node));
 
     // Form lập kỳ: khoản thu đang hiện (theo id), danh sách hộ đã chọn của từng khoản chỉ định hộ (id → Set id hộ),
     // danh sách hộ để chọn (tải khi mở pop-up lần đầu), và khoản đang chọn hộ trong pop-up
@@ -378,9 +384,17 @@
                 return;
             }
 
+            form.reset();
+            feeItems.clear();
+            targets.clear();
+            householdOptions = null;
+            editing = null;
+            detail = null;
             $('#bpCreate').hidden = true;
+            $('#bpDetail').hidden = true;
+            const targetDialog = $('#bpTargetDialog');
+            if (targetDialog?.open) targetDialog.close();
             await loadPeriods();
-            showDetail(response.data);
             showAlert(`Đã lập bảng kê ${periodName(response.data).toLocaleLowerCase('vi')}: ${response.data.households.length} hộ, tổng ${formatMoney(response.data.totalAmount)} đ.`, true);
         } catch {
             showAlert('Không thể kết nối máy chủ. Vui lòng thử lại.');
@@ -554,7 +568,7 @@
 
     const onClick = async (event) => {
         const button = event.target.closest('[data-action]');
-        if (!button || !document.getElementById(rootId).contains(button)) return;
+        if (!button || !inRoot(button)) return;
 
         switch (button.dataset.action) {
             case 'toggle-create':
@@ -578,6 +592,7 @@
 
     const onChange = (event) => {
         const target = event.target;
+        if (!inRoot(target)) return;
         if (target.form?.getAttribute('id') === 'bpCreateForm') {
             if (['period', 'chargeDate'].includes(target.name)) onPeriodChange(target.form);
             if (target.name === 'feeItemIds') void onFeeItemToggle(target);
@@ -588,34 +603,68 @@
         else if (target.getAttribute('id') === 'bpTargetAll') onTargetAllToggle(target);
     };
 
+    const onSubmit = (event) => {
+        if (!inRoot(event.target)) return;
+        if (event.target.getAttribute('id') !== 'bpCreateForm') return;
+        event.preventDefault();
+        void onCreateSubmit(event.target);
+    };
+
+    const onSearchInput = (event) => {
+        if (!inRoot(event.target)) return;
+        const id = event.target.getAttribute('id');
+        if (id === 'bpSearch' && detail) renderBills();
+        if (id === 'bpTargetSearch' && editing) renderTargetList();
+    };
+
+    // 'cancel' của <dialog> không được tin cậy để delegate trên document: gắn riêng cho từng node mới.
+    const bindRoot = () => {
+        const dialog = $('#bpTargetDialog');
+        if (dialog && !dialog.__bpCancelBound) {
+            dialog.__bpCancelBound = true;
+            dialog.addEventListener('cancel', (event) => {
+                event.preventDefault();
+                cancelTargets();
+            });
+        }
+    };
+
     const init = () => {
         const root = document.getElementById(rootId);
-        if (!root || root === initializedRoot) return;
-        initializedRoot = root;
-        periods = [];
-        detail = null;
-        feeItems = new Map();
-        targets = new Map();
-        householdOptions = null;
-        editing = null;
-        root.addEventListener('click', onClick);
-        root.addEventListener('submit', (event) => {
-            if (event.target.getAttribute('id') !== 'bpCreateForm') return;
-            event.preventDefault();
-            void onCreateSubmit(event.target);
-        });
-        root.addEventListener('change', onChange);
-        $('#bpSearch').addEventListener('input', () => detail && renderBills());
-        $('#bpTargetSearch').addEventListener('input', () => editing && renderTargetList());
-        $('#bpTargetDialog').addEventListener('cancel', (event) => {
-            event.preventDefault();
-            cancelTargets();
-        });
+        if (!root) return;
+        if (root !== mountedRoot) {
+            mountedRoot = root;
+            periods = [];
+            detail = null;
+            feeItems = new Map();
+            targets = new Map();
+            householdOptions = null;
+            editing = null;
+        }
+        if (!bound) {
+            document.addEventListener('click', onClick);
+            document.addEventListener('submit', onSubmit);
+            document.addEventListener('change', onChange);
+            document.addEventListener('input', onSearchInput);
+            bound = true;
+        }
+        bindRoot();
         void loadPeriods();
+    };
+
+    // Dự phòng: enhancedload không bắt được trường hợp Blazor thay DOM lúc SSR -> interactive.
+    const observeRootChanges = () => {
+        if (rootObserver) return;
+        rootObserver = new MutationObserver(() => {
+            const current = document.getElementById(rootId);
+            if (current && current !== mountedRoot) init();
+        });
+        rootObserver.observe(document.documentElement, { childList: true, subtree: true });
     };
 
     init();
     if (window.Blazor?.addEventListener) {
-        Blazor.addEventListener('enhancedload', init);
+        window.Blazor.addEventListener('enhancedload', init);
     }
+    observeRootChanges();
 })();

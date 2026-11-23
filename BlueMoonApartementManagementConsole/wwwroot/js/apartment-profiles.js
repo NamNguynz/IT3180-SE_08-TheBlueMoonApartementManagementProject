@@ -4,8 +4,13 @@
     let selectedApartment = null;
     let residents = [];
     let householdId = null;
-    let initializedRoot;
+    // Listener gắn trên document để không mất khi Blazor thay DOM; mountedRoot dùng để nhận ra lần mount mới.
+    let bound = false;
+    let mountedRoot = null;
+    let rootObserver = null;
     let draggingApartmentId = null;
+
+    const inRoot = (node) => Boolean(node && document.getElementById(rootId)?.contains(node));
 
     // Danh sách tìm kiếm chỉ hiển thị tối đa 5 căn; bảng trạng thái vẫn lấy toàn bộ kết quả.
     const APARTMENT_LIST_LIMIT = 5;
@@ -395,7 +400,7 @@
 
     const onClick = async (event) => {
         const button = event.target.closest('[data-action]');
-        if (!button || !document.getElementById(rootId).contains(button)) return;
+        if (!button || !inRoot(button)) return;
 
         switch (button.dataset.action) {
             case 'new-apartment':
@@ -452,7 +457,7 @@
 
     const onDragStart = (event) => {
         const card = event.target.closest('.ap-board-card');
-        if (!card || !event.dataTransfer) return;
+        if (!inRoot(card) || !event.dataTransfer) return;
         draggingApartmentId = Number(card.dataset.id);
         event.dataTransfer.setData('text/plain', card.dataset.id);
         event.dataTransfer.effectAllowed = 'move';
@@ -461,7 +466,7 @@
 
     const onDragOver = (event) => {
         const column = event.target.closest('.ap-board-column');
-        if (!column || !event.dataTransfer) return;
+        if (!inRoot(column) || !event.dataTransfer) return;
         const blocked = isStatusBlocked(
             apartments.find((item) => item.id === draggingApartmentId), column.dataset.status);
         event.preventDefault();
@@ -472,13 +477,13 @@
 
     const onDragLeave = (event) => {
         const column = event.target.closest('.ap-board-column');
-        if (column && !column.contains(event.relatedTarget))
+        if (inRoot(column) && !column.contains(event.relatedTarget))
             column.classList.remove('is-drag-over', 'is-drop-blocked');
     };
 
     const onDrop = async (event) => {
         const column = event.target.closest('.ap-board-column');
-        if (!column || !event.dataTransfer) return;
+        if (!inRoot(column) || !event.dataTransfer) return;
         event.preventDefault();
         column.classList.remove('is-drag-over', 'is-drop-blocked');
         const id = Number(event.dataTransfer.getData('text/plain') || draggingApartmentId);
@@ -490,7 +495,7 @@
 
     const onDragEnd = () => {
         const board = $('#apStatusBoard');
-        board.querySelectorAll('.is-dragging, .is-drag-over, .is-drop-blocked')
+        if (board) board.querySelectorAll('.is-dragging, .is-drag-over, .is-drop-blocked')
             .forEach((element) => element.classList.remove('is-dragging', 'is-drag-over', 'is-drop-blocked'));
         draggingApartmentId = null;
     };
@@ -607,48 +612,78 @@
         $('#residentDialog').hidden = true;
     };
 
+    const onSubmit = (event) => {
+        if (!inRoot(event.target)) return;
+        // Không dùng event.target.id: residentForm có <input name="id"> nên form.id là ô input đó, không phải chuỗi id
+        const formId = event.target.getAttribute('id');
+        if (formId === 'apartmentForm') {
+            event.preventDefault();
+            void onApartmentSubmit(event.target);
+        }
+        if (formId === 'householdForm') {
+            event.preventDefault();
+            void onHouseholdSubmit(event.target);
+        }
+        if (formId === 'residentForm') onResidentSubmit(event);
+    };
+
+    const onFilterInput = (event) => {
+        if (!inRoot(event.target)) return;
+        if (['apSearch', 'apAreaSearch'].includes(event.target.getAttribute('id'))) renderApartments();
+    };
+
+    const onFilterChange = (event) => {
+        if (event.target.getAttribute('id') === 'apTypeFilter' && inRoot(event.target)) renderApartments();
+    };
+
+    // Bàn phím: Enter/Space trên thẻ thì chọn căn hộ để đổi trạng thái qua ô select trong form
+    const onBoardKeydown = (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const card = event.target.closest('.ap-board-card');
+        if (!inRoot(card)) return;
+        event.preventDefault();
+        void selectApartment(Number(card.dataset.id));
+    };
+
     const init = () => {
         const root = document.getElementById(rootId);
-        if (!root || root === initializedRoot) return;
-        initializedRoot = root;
-        root.addEventListener('click', onClick);
-        root.addEventListener('submit', (event) => {
-            // Không dùng event.target.id: residentForm có <input name="id"> nên form.id là ô input đó, không phải chuỗi id
-            const formId = event.target.getAttribute('id');
-            if (formId === 'apartmentForm') {
-                event.preventDefault();
-                void onApartmentSubmit(event.target);
-            }
-            if (formId === 'householdForm') {
-                event.preventDefault();
-                void onHouseholdSubmit(event.target);
-            }
-            if (formId === 'residentForm') onResidentSubmit(event);
-        });
-        $('#apSearch').addEventListener('input', renderApartments);
-        $('#apAreaSearch').addEventListener('input', renderApartments);
-        $('#apTypeFilter').addEventListener('change', renderApartments);
-
-        const board = $('#apStatusBoard');
-        board.addEventListener('dragstart', onDragStart);
-        board.addEventListener('dragover', onDragOver);
-        board.addEventListener('dragleave', onDragLeave);
-        board.addEventListener('drop', (event) => { void onDrop(event); });
-        board.addEventListener('dragend', onDragEnd);
-        // Bàn phím: Enter/Space trên thẻ thì chọn căn hộ để đổi trạng thái qua ô select trong form
-        board.addEventListener('keydown', (event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            const card = event.target.closest('.ap-board-card');
-            if (!card) return;
-            event.preventDefault();
-            void selectApartment(Number(card.dataset.id));
-        });
-
+        if (!root) return;
+        if (root !== mountedRoot) {
+            mountedRoot = root;
+            selectedApartment = null;
+            residents = [];
+            householdId = null;
+            draggingApartmentId = null;
+        }
+        if (!bound) {
+            document.addEventListener('click', onClick);
+            document.addEventListener('submit', onSubmit);
+            document.addEventListener('input', onFilterInput);
+            document.addEventListener('change', onFilterChange);
+            document.addEventListener('dragstart', onDragStart);
+            document.addEventListener('dragover', onDragOver);
+            document.addEventListener('dragleave', onDragLeave);
+            document.addEventListener('drop', (event) => { void onDrop(event); });
+            document.addEventListener('dragend', onDragEnd);
+            document.addEventListener('keydown', onBoardKeydown);
+            bound = true;
+        }
         void loadApartments(false);
+    };
+
+    // Dự phòng: enhancedload không bắt được trường hợp Blazor thay DOM lúc SSR -> interactive.
+    const observeRootChanges = () => {
+        if (rootObserver) return;
+        rootObserver = new MutationObserver(() => {
+            const current = document.getElementById(rootId);
+            if (current && current !== mountedRoot) init();
+        });
+        rootObserver.observe(document.documentElement, { childList: true, subtree: true });
     };
 
     init();
     if (window.Blazor?.addEventListener) {
-        Blazor.addEventListener('enhancedload', init);
+        window.Blazor.addEventListener('enhancedload', init);
     }
+    observeRootChanges();
 })();
