@@ -97,7 +97,7 @@ public class PersonalDataEncryptionTests(BlueMoonAppFactory factory) : IClassFix
             Floor = 5,
             Area = 70m,
             BedroomCount = 2,
-            Status = "Đang ở"
+            Status = ApartmentStatus.DangChoThue
         }, Json);
         return (await ReadAsync<ApartmentProfileResponse>(response, HttpStatusCode.Created)).Id;
     }

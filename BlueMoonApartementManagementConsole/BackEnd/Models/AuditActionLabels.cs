@@ -26,6 +26,7 @@ public static class AuditActionLabels
         (AuditAction.ChangePassword, "Thay đổi mật khẩu"),
         (AuditAction.CreateApartmentProfile, "Tạo hồ sơ căn hộ"),
         (AuditAction.UpdateApartmentProfile, "Cập nhật hồ sơ căn hộ"),
+        (AuditAction.UpdateApartmentStatus, "Đổi trạng thái căn hộ"),
         (AuditAction.CreateHouseholdProfile, "Tạo hồ sơ hộ khẩu"),
         (AuditAction.UpdateHouseholdProfile, "Cập nhật hồ sơ hộ khẩu"),
         (AuditAction.RecordResidentChange, "Ghi nhận biến động nhân khẩu"),

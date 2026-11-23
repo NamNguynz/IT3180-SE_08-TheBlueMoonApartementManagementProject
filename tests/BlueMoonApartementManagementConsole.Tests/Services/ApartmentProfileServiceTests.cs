@@ -126,11 +126,91 @@ public sealed class ApartmentProfileServiceTests
             Floor = 30,
             Area = 250m,
             BedroomCount = 4,
-            Status = "Đang sử dụng"
+            Status = ApartmentStatus.DangChoThue
         });
 
         Assert.Equal(ProfileStatus.Success, result.Status);
         Assert.Equal(ApartmentType.Penthouse, result.Data!.Type);
+    }
+
+    [Fact]
+    [Trait("TestId", "K8")]
+    public async Task UpdateApartmentStatus_ChangesStatus_AndWritesAudit()
+    {
+        var created = await _service.CreateApartmentAsync(1, "admin", ApartmentRequest("S-1001"));
+
+        var result = await _service.UpdateApartmentStatusAsync(1, "admin", created.Data!.Id,
+            new UpdateApartmentStatusRequest { Status = ApartmentStatus.DaChoThue });
+
+        Assert.Equal(ProfileStatus.Success, result.Status);
+        Assert.Equal(ApartmentStatus.DaChoThue, result.Data!.Status);
+        Assert.Equal(2, _audit.Entries.Count);
+        Assert.Equal(AuditAction.CreateApartmentProfile, _audit.Entries[0].Action);
+        Assert.Equal(AuditAction.UpdateApartmentStatus, _audit.Entries[1].Action);
+    }
+
+    [Fact]
+    [Trait("TestId", "K9")]
+    public async Task UpdateApartmentStatus_RejectsForbiddenStatus_WhenActiveResidentsExist()
+    {
+        var apartment = _repository.SeedApartment("R-1001");
+        apartment.Status = ApartmentStatus.DaChoThue;
+        var household = _repository.SeedHousehold(apartment.Id, "HK-9");
+        _repository.SeedResident(household, "Nguyen Van Cu", "009");
+
+        foreach (var target in new[] { ApartmentStatus.DangChoThue, ApartmentStatus.DangSuaChua })
+        {
+            var result = await _service.UpdateApartmentStatusAsync(1, "admin", apartment.Id,
+                new UpdateApartmentStatusRequest { Status = target });
+
+            Assert.Equal(ProfileStatus.Conflict, result.Status);
+            Assert.Contains("nhân khẩu", result.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(ApartmentStatus.DaChoThue, apartment.Status);
+        }
+
+        Assert.Empty(_audit.Entries);
+    }
+
+    [Fact]
+    [Trait("TestId", "K9")]
+    public async Task UpdateApartmentStatus_AllowsForbiddenStatus_WhenAllResidentsMovedOut()
+    {
+        var apartment = _repository.SeedApartment("R-1002");
+        apartment.Status = ApartmentStatus.DaChoThue;
+        var household = _repository.SeedHousehold(apartment.Id, "HK-10");
+        var resident = _repository.SeedResident(household, "Da Chuyen Di", "010");
+        resident.ResidenceStatus = ResidenceStatus.DaChuyenDi;
+
+        var result = await _service.UpdateApartmentStatusAsync(1, "admin", apartment.Id,
+            new UpdateApartmentStatusRequest { Status = ApartmentStatus.DangSuaChua });
+
+        Assert.Equal(ProfileStatus.Success, result.Status);
+        Assert.Equal(ApartmentStatus.DangSuaChua, result.Data!.Status);
+    }
+
+    [Fact]
+    [Trait("TestId", "K9")]
+    public async Task UpdateApartment_Put_RejectsForbiddenStatus_WhenActiveResidentsExist()
+    {
+        var apartment = _repository.SeedApartment("R-1003");
+        apartment.Status = ApartmentStatus.DaChoThue;
+        var household = _repository.SeedHousehold(apartment.Id, "HK-11");
+        _repository.SeedResident(household, "Con O Day", "011");
+
+        var result = await _service.UpdateApartmentAsync(1, "admin", apartment.Id, new UpdateApartmentRequest
+        {
+            Code = "R-1003",
+            Building = "A",
+            Type = ApartmentType.CanHo,
+            Floor = 1,
+            Area = 60m,
+            BedroomCount = 2,
+            Status = ApartmentStatus.DangChoThue
+        });
+
+        Assert.Equal(ProfileStatus.Conflict, result.Status);
+        Assert.Equal(ApartmentStatus.DaChoThue, apartment.Status);
+        Assert.Empty(_audit.Entries);
     }
 
     private static CreateApartmentRequest ApartmentRequest(string code, ApartmentType type = ApartmentType.CanHo) => new()
@@ -141,7 +221,7 @@ public sealed class ApartmentProfileServiceTests
         Floor = 1,
         Area = 68.5m,
         BedroomCount = 2,
-        Status = "Đang sử dụng"
+        Status = ApartmentStatus.DangChoThue
     };
 
     private static ResidentProfileRequest Resident(string name, DateTimeOffset dateOfBirth) => new()
@@ -177,6 +257,11 @@ public sealed class ApartmentProfileServiceTests
 
         public Task<HouseholdEntity?> GetHouseholdByApartmentIdAsync(int apartmentId, CancellationToken ct = default) =>
             Task.FromResult(_households.SingleOrDefault(h => h.ApartmentId == apartmentId));
+
+        public Task<bool> HasActiveResidentsAsync(int apartmentId, CancellationToken ct = default) =>
+            Task.FromResult(_households.Where(h => h.ApartmentId == apartmentId)
+                .SelectMany(h => h.Residents)
+                .Any(r => r.ResidenceStatus != ResidenceStatus.DaChuyenDi));
 
         public Task<HouseholdEntity?> GetHouseholdByIdAsync(int id, CancellationToken ct = default) =>
             Task.FromResult(_households.SingleOrDefault(h => h.Id == id));

@@ -10,6 +10,7 @@ public interface IApartmentProfileRepository
     Task<List<ApartmentEntity>> GetApartmentsAsync(CancellationToken ct = default);
     Task<ApartmentEntity?> GetApartmentByIdAsync(int id, bool tracking, CancellationToken ct = default);
     Task<HouseholdEntity?> GetHouseholdByApartmentIdAsync(int apartmentId, CancellationToken ct = default);
+    Task<bool> HasActiveResidentsAsync(int apartmentId, CancellationToken ct = default);
     Task<HouseholdEntity?> GetHouseholdByIdAsync(int id, CancellationToken ct = default);
     Task<bool> ApartmentCodeExistsAsync(string code, int? exceptId = null, CancellationToken ct = default);
     Task<bool> HouseholdNumberExistsAsync(string number, int? exceptId = null, CancellationToken ct = default);
@@ -38,6 +39,11 @@ public sealed class ApartmentProfileRepository(AppDbContext db, IPersonalDataEnc
 
     public Task<HouseholdEntity?> GetHouseholdByApartmentIdAsync(int apartmentId, CancellationToken ct = default) =>
         HouseholdProfiles().FirstOrDefaultAsync(h => h.ApartmentId == apartmentId, ct);
+
+    /// <summary>Có ít nhất một nhân khẩu chưa chuyển đi trong căn hộ này không.</summary>
+    public Task<bool> HasActiveResidentsAsync(int apartmentId, CancellationToken ct = default) =>
+        db.Residents.AnyAsync(r => r.Household.ApartmentId == apartmentId &&
+                                   r.ResidenceStatus != ResidenceStatus.DaChuyenDi, ct);
 
     public Task<HouseholdEntity?> GetHouseholdByIdAsync(int id, CancellationToken ct = default) =>
         HouseholdProfiles().FirstOrDefaultAsync(h => h.Id == id, ct);

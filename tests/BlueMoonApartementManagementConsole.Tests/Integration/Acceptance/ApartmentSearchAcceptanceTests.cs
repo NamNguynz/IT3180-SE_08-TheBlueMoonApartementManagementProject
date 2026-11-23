@@ -24,7 +24,7 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
 
     private CreateApartmentRequest Request(string suffix, ApartmentType type) => new()
     {
-        Code = _prefix + suffix, Building = "Tòa AK", Type = type, Floor = 5, Area = 70m, BedroomCount = 2, Status = "Đang sử dụng"
+        Code = _prefix + suffix, Building = "Tòa AK", Type = type, Floor = 5, Area = 70m, BedroomCount = 2, Status = ApartmentStatus.DangChoThue
     };
 
     private static async Task<T> ReadAsync<T>(HttpResponseMessage response, HttpStatusCode expected)
@@ -114,9 +114,9 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
         {
             object body = kind switch
             {
-                "missing" => new { code, building = "Tòa AK", floor = 1, area = 50m, bedroomCount = 1, status = "Trống" },
-                "Villa" => new { code, building = "Tòa AK", type = "Villa", floor = 1, area = 50m, bedroomCount = 1, status = "Trống" },
-                _ => new { code, building = "Tòa AK", type = 5, floor = 1, area = 50m, bedroomCount = 1, status = "Trống" }
+                "missing" => new { code, building = "Tòa AK", floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" },
+                "Villa" => new { code, building = "Tòa AK", type = "Villa", floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" },
+                _ => new { code, building = "Tòa AK", type = 5, floor = 1, area = 50m, bedroomCount = 1, status = "DangChoThue" }
             };
 
             var response = await admin.PostAsJsonAsync("/api/can-ho", body, UiFlow.Json);
@@ -145,13 +145,41 @@ public class ApartmentSearchAcceptanceTests(BlueMoonAppFactory factory)
                 await connection.OpenAsync();
                 await using var insert = new NpgsqlCommand("""
                     INSERT INTO apartments ("Code", "Building", "Floor", "Area", "BedroomCount", "Status")
-                    VALUES (@code, 'Tòa AK', 1, 45, 1, 'Đang sử dụng') RETURNING "Id"
+                    VALUES (@code, 'Tòa AK', 1, 45, 1, 'DangChoThue') RETURNING "Id"
                     """, connection);
                 insert.Parameters.AddWithValue("code", _prefix + "OLD");
                 id = (int)(await insert.ExecuteScalarAsync())!;
             }
 
             Assert.Equal(ApartmentType.CanHo, (await UiFlow.GetJsonAsync<ApartmentProfileResponse>(admin, $"/api/can-ho/{id}")).Type);
+        }
+        finally
+        {
+            await CleanupApartmentsAsync();
+        }
+    }
+
+    [SkippableFact]
+    [Trait("Acceptance", "K8")]
+    public async Task K8_ApartmentStatus_IsChangedViaPatch_AndInvalidStatusIsRejected()
+    {
+        SkipIfNoDatabase();
+        var admin = await AdminAsync();
+        try
+        {
+            var apartment = await ReadAsync<ApartmentProfileResponse>(
+                await admin.PostAsJsonAsync("/api/can-ho", Request("S1", ApartmentType.CanHo), UiFlow.Json), HttpStatusCode.Created);
+
+            var changed = await ReadAsync<ApartmentProfileResponse>(
+                await admin.PatchAsJsonAsync($"/api/can-ho/{apartment.Id}/trang-thai",
+                    new { status = "DangSuaChua" }, UiFlow.Json), HttpStatusCode.OK);
+            Assert.Equal(ApartmentStatus.DangSuaChua, changed.Status);
+            Assert.Equal(ApartmentStatus.DangSuaChua,
+                (await UiFlow.GetJsonAsync<ApartmentProfileResponse>(admin, $"/api/can-ho/{apartment.Id}")).Status);
+
+            Assert.Equal(HttpStatusCode.BadRequest,
+                (await admin.PatchAsJsonAsync($"/api/can-ho/{apartment.Id}/trang-thai",
+                    new { status = "Villa" }, UiFlow.Json)).StatusCode);
         }
         finally
         {

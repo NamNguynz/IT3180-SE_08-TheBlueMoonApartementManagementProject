@@ -18,7 +18,7 @@ Content-Type: application/json
   "floor": 1,
   "area": 68.5,
   "bedroomCount": 2,
-  "status": "Đang sử dụng",
+  "status": "DangChoThue",
   "notes": null
 }
 
@@ -32,8 +32,16 @@ Content-Type: application/json
   "floor": 1,
   "area": 70,
   "bedroomCount": 2,
-  "status": "Đang sử dụng",
+  "status": "DangChoThue",
   "notes": "Đã cập nhật diện tích"
+}
+
+### Change only the apartment status (BQT; drag-and-drop on the profile page)
+PATCH {{baseUrl}}/api/can-ho/{{apartmentId}}/trang-thai
+Content-Type: application/json
+
+{
+  "status": "DaChoThue"
 }
 
 ### Get household registration and residents (BQT)

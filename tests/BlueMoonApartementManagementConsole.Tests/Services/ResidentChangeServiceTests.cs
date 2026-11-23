@@ -335,6 +335,7 @@ public sealed class ResidentChangeServiceTests
         public Task<List<ApartmentEntity>> GetApartmentsAsync(CancellationToken ct = default) => throw new NotSupportedException();
         public Task<ApartmentEntity?> GetApartmentByIdAsync(int id, bool tracking, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<HouseholdEntity?> GetHouseholdByApartmentIdAsync(int apartmentId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> HasActiveResidentsAsync(int apartmentId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> ApartmentCodeExistsAsync(string code, int? exceptId = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> HouseholdNumberExistsAsync(string number, int? exceptId = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task AddApartmentAsync(ApartmentEntity apartment, CancellationToken ct = default) => throw new NotSupportedException();

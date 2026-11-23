@@ -3,8 +3,8 @@
 > Tài liệu dành cho người kiểm thử. Chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
 >
 > **Tự động hóa:** phần API có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`), file
-> `tests/.../Integration/Acceptance/ApartmentSearchAcceptanceTests.cs` (K2, K5, K7). Chạy riêng: `dotnet test --filter "Acceptance=K5"`.
-> Nhãn loại hình phủ đủ mọi giá trị: unit test K6. Lưu và sửa loại hình ở service: unit test trong `ApartmentProfileServiceTests`.
+> `tests/.../Integration/Acceptance/ApartmentSearchAcceptanceTests.cs` (K2, K5, K7, K8). Chạy riêng: `dotnet test --filter "Acceptance=K8"`.
+> Nhãn loại hình và nhãn trạng thái phủ đủ mọi giá trị: unit test K6. Lưu, sửa loại hình, đổi trạng thái và luật nhân khẩu ở service: unit test trong `ApartmentProfileServiceTests` (K9).
 > **Việc lọc danh sách chạy bằng JavaScript trên trình duyệt**, nên K1 – K4 phải **chạy tay**.
 
 ## 1. Mục đích và phạm vi
@@ -24,7 +24,7 @@ cư dân xem loại hình căn hộ của mình (PBI-003); đơn giá theo loạ
 | URL app | `https://localhost:7127` |
 
 **Chuẩn bị:** chạy app trên database **mới** (cấu hình theo README), đăng nhập `admin`, Tư cách **Ban quản trị**,
-vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duyệt nạp đúng bản script mới (`apartment-profiles.js?v=6`).
+vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duyệt nạp đúng bản script mới (`apartment-profiles.js?v=9`).
 
 ## 3. Dữ liệu test (dữ liệu giả)
 
@@ -35,6 +35,11 @@ Tạo 3 căn bằng **+ Thêm căn hộ**:
 | `AT-K-01` | Tòa A | 5 | 70 | Căn hộ ở |
 | `AT-K-02` | Tòa A | 1 | 30 | Kiot |
 | `AT-K-03` | Tòa B | 30 | 250 | Penthouse |
+
+**Trạng thái** không phải ô nhập tự do: ô **Trạng thái** trong form là select theo enum `ApartmentStatus`
+(**Đang cho thuê** / **Đã cho thuê** / **Đang sửa chữa**), không nhập chuỗi tùy ý. Trên danh sách, kéo thả
+thẻ căn hộ giữa các cột trạng thái để đổi nhanh; thao tác kéo thả gọi `PATCH /api/can-ho/{id}/trang-thai`
+với body `{ "status": "DangSuaChua" }`.
 
 ---
 
@@ -111,6 +116,38 @@ Tạo 3 căn bằng **+ Thêm căn hộ**:
 
 Căn hộ tạo trước khi có loại hình được gán mặc định **Căn hộ ở** (test K7).
 
+### K8. Đổi trạng thái căn hộ
+
+> **Tự động** phần gọi API PATCH (`Acceptance=K8`) và unit test service. **Chạy tay** thao tác kéo thả trên trang.
+
+| # | Bước | Kết quả mong đợi |
+|---|---|---|
+| 1 | Chọn `AT-K-01`, trong ô **Trạng thái** chọn **Đã cho thuê**, bấm **Lưu thay đổi** | Hiện **Đã cho thuê**; tải lại trang vẫn giữ giá trị |
+| 2 | Kéo thẻ `AT-K-02` từ **Đang cho thuê** sang cột **Đang sửa chữa** | Thẻ chuyển cột, ô trạng thái hiện đúng **Đang sửa chữa**; Nhật ký có `UpdateApartmentStatus` |
+| 3 | Gọi thẳng `PATCH /api/can-ho/{id}/trang-thai` với `{ "status": "Villa" }` | Status **400**, trạng thái căn hộ không đổi |
+
+| Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|
+| | | |
+
+### K9. Căn hộ có nhân khẩu và giới hạn 5 kết quả
+
+> **Tự động** phần luật ở service (`TestId=K9`: 3 test trong `ApartmentProfileServiceTests`). **Chạy tay** phần giao diện.
+> Luật: căn hộ còn nhân khẩu chưa chuyển đi (tình trạng khác **Đã chuyển đi**) thì **không** được đổi sang
+> **Đang cho thuê** hoặc **Đang sửa chữa**; chỉ được giữ nguyên hoặc chuyển sang **Đã cho thuê**.
+> Áp dụng cho cả kéo thả (`PATCH`) lẫn ô **Trạng thái** trong form (`PUT`).
+
+| # | Bước | Kết quả mong đợi |
+|---|---|---|
+| 1 | Tạo hộ khẩu cho `AT-K-03` với 1 nhân khẩu còn cư trú; xem thẻ căn trên bảng | Thẻ có viền gạch đứt, không kéo được; chọn căn thì ô **Trạng thái** chỉ mở **Đã cho thuê** (và giá trị hiện tại), có dòng nhắc màu vàng |
+| 2 | Kéo thẻ đó vào cột **Đang cho thuê** / **Đang sửa chữa** (hoặc gọi `PATCH` trực tiếp) | Bị từ chối, hiện thông báo "Không thể chuyển căn hộ đang có nhân khẩu..."; API trả **409**, trạng thái không đổi, không ghi nhật ký |
+| 3 | Ghi nhận biến động chuyển đi cho nhân khẩu (trạng thái **DaChuyenDi**), thử lại bước 2 | Đổi trạng thái thành công, thẻ chuyển cột, có nhật ký `UpdateApartmentStatus` |
+| 4 | Tạo trên 5 căn rồi gõ vào ô tìm kiếm để ra nhiều hơn 5 kết quả | Danh sách chỉ hiện **5 căn đầu**, dòng đếm "Hiển thị 5 / N căn hộ phù hợp" và có dòng nhắc thu hẹp tìm kiếm; bảng trạng thái vẫn hiện đủ |
+
+| Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|
+| | | |
+
 ---
 
 ## 5. Giới hạn và câu hỏi
@@ -130,6 +167,8 @@ Căn hộ tạo trước khi có loại hình được gán mặc định **Căn
 | K3. Tra theo diện tích | | |
 | K4. Kết hợp tiêu chí | | |
 | K5. Thiếu, sai loại hình bị từ chối | | |
+| K8. Đổi trạng thái căn hộ | | |
+| K9. Luật nhân khẩu & tối đa 5 kết quả | | |
 
 | | |
 |---|---|

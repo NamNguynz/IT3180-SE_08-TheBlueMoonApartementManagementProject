@@ -5,6 +5,12 @@
     let residents = [];
     let householdId = null;
     let initializedRoot;
+    let draggingApartmentId = null;
+
+    // Danh sách tìm kiếm chỉ hiển thị tối đa 5 căn; bảng trạng thái vẫn lấy toàn bộ kết quả.
+    const APARTMENT_LIST_LIMIT = 5;
+    // Căn hộ đang có nhân khẩu thì không được chuyển sang hai trạng thái này.
+    const RESIDENTS_BLOCKED_STATUSES = ['DangChoThue', 'DangSuaChua'];
 
     const $ = (selector) => document.querySelector(`#${rootId} ${selector}`);
     const formValue = (form, name) => form.elements.namedItem(name).value;
@@ -76,30 +82,88 @@
     // Nhân khẩu mới thêm ở form này chưa có tình trạng, coi như đang cư trú.
     const statusLabels = () => Object.fromEntries(
         [...$('#apResidenceStatusLabels').options].map((o) => [o.value, o.textContent.trim()]));
+    // Nhãn/class badge của trạng thái căn hộ lấy từ datalist do Razor sinh ra
+    const apartmentStatusLabels = () => Object.fromEntries(
+        [...$('#apApartmentStatusLabels').options].map((o) => [o.value, o.textContent.trim()]));
+    const apartmentStatusBadge = (status) => status === 'DaChoThue'
+        ? 'badge badge-ok'
+        : status === 'DangSuaChua' ? 'badge badge-warn' : 'badge badge-muted';
     const currentResidentCount = () =>
         residents.filter((resident) => resident.residenceStatus !== 'DaChuyenDi').length;
+    // Nhân khẩu Đã chuyển đi không tính; dữ liệu lấy từ household.residents trong response của API.
+    const hasActiveResidents = (apartment) => Boolean(apartment?.household?.residents?.some(
+        (resident) => resident.residenceStatus !== 'DaChuyenDi'));
+    const isStatusBlocked = (apartment, status) =>
+        RESIDENTS_BLOCKED_STATUSES.includes(status) && hasActiveResidents(apartment);
+    const residentsBlockedMessage = () =>
+        'Không thể chuyển căn hộ đang có nhân khẩu sang Đang cho thuê hoặc Đang sửa chữa. ' +
+        'Vui lòng ghi nhận biến động chuyển đi cho nhân khẩu trước.';
 
-    const renderApartments = () => {
+    const filteredApartments = () => {
         const query = $('#apSearch').value.trim().toLocaleLowerCase('vi');
         const areaValue = $('#apAreaSearch').value.trim();
         const areaInCents = areaValue === '' ? null : Math.round(Number(areaValue) * 100);
         const type = $('#apTypeFilter').value;
-        const labels = typeLabels();
-        const matching = apartments.filter((apartment) =>
-            (!query ||
-                apartment.code.toLocaleLowerCase('vi').includes(query) ||
-                apartment.building.toLocaleLowerCase('vi').includes(query)) &&
-            (areaInCents === null || Math.round(Number(apartment.area) * 100) === areaInCents) &&
-            (!type || apartment.type === type));
+        return {
+            query, areaInCents, type,
+            matching: apartments.filter((apartment) =>
+                (!query ||
+                    apartment.code.toLocaleLowerCase('vi').includes(query) ||
+                    apartment.building.toLocaleLowerCase('vi').includes(query)) &&
+                (areaInCents === null || Math.round(Number(apartment.area) * 100) === areaInCents) &&
+                (!type || apartment.type === type))
+        };
+    };
 
-        $('#apCount').textContent = query || areaInCents !== null || type
-            ? `${matching.length} / ${apartments.length} căn hộ`
-            : `${apartments.length} căn hộ`;
+    const renderBoard = () => {
+        const board = $('#apStatusBoard');
+        const labels = apartmentStatusLabels();
+        const { matching } = filteredApartments();
+        for (const column of board.querySelectorAll('.ap-board-column')) {
+            const status = column.dataset.status;
+            const items = matching.filter((apartment) => apartment.status === status);
+            const zone = column.querySelector('.ap-board-dropzone');
+            zone.replaceChildren(...items.map((apartment) => {
+                const locked = hasActiveResidents(apartment);
+                const card = document.createElement('div');
+                card.className = 'ap-board-card';
+                card.classList.toggle('is-active', selectedApartment?.id === apartment.id);
+                card.classList.toggle('is-locked', locked);
+                card.draggable = !locked;
+                card.tabIndex = 0;
+                card.setAttribute('role', 'button');
+                card.setAttribute('aria-label',
+                    `${apartment.code} – ${labels[apartment.status] ?? apartment.status}${locked ? ' (đang có nhân khẩu)' : ''}`);
+                if (locked) card.title = residentsBlockedMessage();
+                card.dataset.action = 'select-apartment';
+                card.dataset.id = apartment.id;
+                const code = document.createElement('strong');
+                code.textContent = apartment.code;
+                const meta = document.createElement('span');
+                meta.textContent = `${apartment.building} · Tầng ${apartment.floor}`;
+                card.append(code, meta);
+                return card;
+            }));
+            column.querySelector('.ap-board-count').textContent = items.length;
+        }
+    };
+
+    const renderApartments = () => {
+        const { query, areaInCents, type, matching } = filteredApartments();
+        const labels = typeLabels();
+        const shown = matching.slice(0, APARTMENT_LIST_LIMIT);
+
+        $('#apCount').textContent = matching.length > APARTMENT_LIST_LIMIT
+            ? `Hiển thị ${APARTMENT_LIST_LIMIT} / ${matching.length} căn hộ phù hợp`
+            : query || areaInCents !== null || type
+                ? `${matching.length} / ${apartments.length} căn hộ`
+                : `${apartments.length} căn hộ`;
         $('#apListLoading').hidden = true;
         $('#apListEmpty').hidden = matching.length > 0;
+        $('#apListHint').hidden = matching.length <= APARTMENT_LIST_LIMIT;
 
         const list = $('#apartmentList');
-        list.replaceChildren(...matching.map((apartment) => {
+        list.replaceChildren(...shown.map((apartment) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'apartment-list-item';
@@ -119,6 +183,7 @@
             button.append(title, subtitle, badge);
             return button;
         }));
+        renderBoard();
     };
 
     const loadApartments = async (keepSelection = true) => {
@@ -161,14 +226,25 @@
             $('#apSelection').hidden = false;
             $('#householdPanel').hidden = false;
             $('#apSelectedTitle').textContent = selectedApartment.code;
-            $('#apSelectedBadge').textContent = selectedApartment.status;
-            $('#apSelectedBadge').className = `badge ${selectedApartment.status.toLocaleLowerCase('vi').includes('đang') ? 'badge-ok' : 'badge-muted'}`;
+            const statusLabel = apartmentStatusLabels()[selectedApartment.status] ?? selectedApartment.status;
+            $('#apSelectedBadge').textContent = statusLabel;
+            $('#apSelectedBadge').className = apartmentStatusBadge(selectedApartment.status);
             fillApartmentForm(selectedApartment);
             fillHousehold(selectedApartment.household);
             $('#apAlert').hidden = true;
         } catch {
             showAlert('Không thể kết nối máy chủ. Vui lòng thử lại.');
         }
+    };
+
+    // Khi có nhân khẩu chưa chuyển đi, chỉ giữ option Đã cho thuê và option đang dùng (để form gửi đúng giá trị cũ).
+    const syncStatusOptions = (apartment) => {
+        const select = $('#apartmentForm').elements.namedItem('status');
+        const locked = hasActiveResidents(apartment);
+        for (const option of select.options) {
+            option.disabled = locked && option.value !== apartment?.status;
+        }
+        $('#apStatusHint').hidden = !locked;
     };
 
     const fillApartmentForm = (apartment) => {
@@ -182,6 +258,7 @@
         setFormValue(form, 'type', apartment.type);
         setFormValue(form, 'notes', apartment.notes);
         form.querySelector('[data-role="save-apartment"]').textContent = 'Lưu thay đổi';
+        syncStatusOptions(apartment);
     };
 
     const fillHousehold = (household) => {
@@ -257,6 +334,7 @@
         form.reset();
         setFormValue(form, 'floor', '0');
         setFormValue(form, 'bedroomCount', '0');
+        syncStatusOptions(null);
         form.querySelector('[data-role="save-apartment"]').textContent = 'Tạo căn hộ';
         fillHousehold(null);
         $('#householdPanel').hidden = true;
@@ -352,6 +430,69 @@
                 $('#residentDialog').hidden = true;
                 break;
         }
+    };
+
+    const changeApartmentStatus = async (id, status) => {
+        const apartment = apartments.find((item) => item.id === id);
+        if (isStatusBlocked(apartment, status)) {
+            showAlert(residentsBlockedMessage());
+            return;
+        }
+        const response = await api(`/api/can-ho/${id}/trang-thai`,
+            { method: 'PATCH', body: { status } });
+        if (response.status === 401) return;
+        if (!response.ok) {
+            showAlert(messageFor(response, 'Không đổi được trạng thái căn hộ.'));
+            return;
+        }
+        const label = apartmentStatusLabels()[status] ?? status;
+        await loadApartments(true);
+        showAlert(`Đã chuyển căn hộ sang trạng thái "${label}".`, true);
+    };
+
+    const onDragStart = (event) => {
+        const card = event.target.closest('.ap-board-card');
+        if (!card || !event.dataTransfer) return;
+        draggingApartmentId = Number(card.dataset.id);
+        event.dataTransfer.setData('text/plain', card.dataset.id);
+        event.dataTransfer.effectAllowed = 'move';
+        card.classList.add('is-dragging');
+    };
+
+    const onDragOver = (event) => {
+        const column = event.target.closest('.ap-board-column');
+        if (!column || !event.dataTransfer) return;
+        const blocked = isStatusBlocked(
+            apartments.find((item) => item.id === draggingApartmentId), column.dataset.status);
+        event.preventDefault();
+        event.dataTransfer.dropEffect = blocked ? 'none' : 'move';
+        column.classList.toggle('is-drop-blocked', blocked);
+        column.classList.toggle('is-drag-over', !blocked);
+    };
+
+    const onDragLeave = (event) => {
+        const column = event.target.closest('.ap-board-column');
+        if (column && !column.contains(event.relatedTarget))
+            column.classList.remove('is-drag-over', 'is-drop-blocked');
+    };
+
+    const onDrop = async (event) => {
+        const column = event.target.closest('.ap-board-column');
+        if (!column || !event.dataTransfer) return;
+        event.preventDefault();
+        column.classList.remove('is-drag-over', 'is-drop-blocked');
+        const id = Number(event.dataTransfer.getData('text/plain') || draggingApartmentId);
+        const status = column.dataset.status;
+        const apartment = apartments.find((item) => item.id === id);
+        if (!apartment || apartment.status === status) return;
+        await changeApartmentStatus(id, status);
+    };
+
+    const onDragEnd = () => {
+        const board = $('#apStatusBoard');
+        board.querySelectorAll('.is-dragging, .is-drag-over, .is-drop-blocked')
+            .forEach((element) => element.classList.remove('is-dragging', 'is-drag-over', 'is-drop-blocked'));
+        draggingApartmentId = null;
     };
 
     const onApartmentSubmit = async (form) => {
@@ -487,6 +628,22 @@
         $('#apSearch').addEventListener('input', renderApartments);
         $('#apAreaSearch').addEventListener('input', renderApartments);
         $('#apTypeFilter').addEventListener('change', renderApartments);
+
+        const board = $('#apStatusBoard');
+        board.addEventListener('dragstart', onDragStart);
+        board.addEventListener('dragover', onDragOver);
+        board.addEventListener('dragleave', onDragLeave);
+        board.addEventListener('drop', (event) => { void onDrop(event); });
+        board.addEventListener('dragend', onDragEnd);
+        // Bàn phím: Enter/Space trên thẻ thì chọn căn hộ để đổi trạng thái qua ô select trong form
+        board.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const card = event.target.closest('.ap-board-card');
+            if (!card) return;
+            event.preventDefault();
+            void selectApartment(Number(card.dataset.id));
+        });
+
         void loadApartments(false);
     };
 
