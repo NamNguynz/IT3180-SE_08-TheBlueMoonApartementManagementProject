@@ -14,8 +14,8 @@ public class BillingPeriodEntity
     public int Month { get; set; }
 
     /// <summary>
-    /// Ngày tính phí: lấy đơn giá có hiệu lực vào ngày này. Nằm trong tháng của kỳ thu và không sau hôm nay,
-    /// tức chỉ lập được bảng kê khi đã đến ngày tính phí, và phí tháng nào tính theo đơn giá của tháng đó.
+    /// Ngày tính phí: lấy đơn giá có hiệu lực vào ngày này. Nằm trong tháng của kỳ thu, để phí tháng nào tính theo
+    /// đơn giá của tháng đó. Kỳ của tháng sau được lập trước, nên ngày tính phí có thể sau hôm nay.
     /// </summary>
     public DateOnly ChargeDate { get; set; }
 

@@ -45,7 +45,8 @@ public sealed class BillingPeriodRepository(AppDbContext db) : IBillingPeriodRep
             .Select(p => new BillingPeriodSummaryRow(
                 p.Id, p.Year, p.Month, p.ChargeDate, p.DueDate,
                 p.Items.Count,
-                p.Items.SelectMany(i => i.Receivables).Select(r => r.HouseholdId).Distinct().Count(),
+                // Hộ chỉ có dòng 0 đ (kỳ lập trước khi bỏ các dòng này) không tính là hộ phải nộp
+                p.Items.SelectMany(i => i.Receivables).Where(r => r.Amount > 0).Select(r => r.HouseholdId).Distinct().Count(),
                 p.Items.SelectMany(i => i.Receivables).Sum(r => (decimal?)r.Amount) ?? 0,
                 p.CreatedBy.Username,
                 p.CreatedAt))

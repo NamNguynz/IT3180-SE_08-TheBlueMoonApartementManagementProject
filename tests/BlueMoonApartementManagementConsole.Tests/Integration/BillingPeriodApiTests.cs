@@ -96,7 +96,7 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
     }
 
     [SkippableFact]
-    public async Task SameMonthlyFeeTwiceInOneMonth_Returns409_AndFutureMonthReturns400()
+    public async Task SameMonthlyFeeTwiceInOneMonth_Returns409_NextMonthIsAllowed_LaterMonthReturns400()
     {
         SkipIfNoDatabase();
         var admin = await AdminClientAsync();
@@ -109,16 +109,88 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
         var duplicate = await ReadAsync<ApiError>(await PostPeriodAsync(admin, fee.Id), HttpStatusCode.Conflict);
         Assert.Equal($"Khoản thu {fee.Code} đã được lập trong kỳ thu tháng {Today.Month:00}/{Today.Year}.", duplicate.Message);
 
-        var nextMonth = Today.AddMonths(1);
-        var future = await ReadAsync<ApiError>(await admin.PostAsJsonAsync("/api/ky-thu", new CreateBillingPeriodRequest
+        // Lập trước được kỳ của tháng sau (ngày tính phí sau hôm nay), xa hơn thì bị từ chối
+        var nextMonth = new DateOnly(Today.Year, Today.Month, 1).AddMonths(1);
+        var advance = await ReadAsync<BillingPeriodResponse>(
+            await PostPeriodAsync(admin, nextMonth, [fee.Id]), HttpStatusCode.Created);
+        _periodIds.Add(advance.Id);
+        Assert.Equal((nextMonth.Year, nextMonth.Month), (advance.Year, advance.Month));
+
+        var later = nextMonth.AddMonths(1);
+        var tooEarly = await ReadAsync<ApiError>(await PostPeriodAsync(admin, later, [fee.Id]), HttpStatusCode.BadRequest);
+        Assert.Equal($"Chỉ lập trước được kỳ thu của tháng sau ({nextMonth.Month:00}/{nextMonth.Year}), " +
+                     $"chưa lập được kỳ tháng {later.Month:00}/{later.Year}.", tooEarly.Message);
+    }
+
+    [SkippableFact]
+    public async Task TargetedFee_BillsOnlyChosenHouseholds_AndCanRepeatInTheSameMonth()
+    {
+        SkipIfNoDatabase();
+        var admin = await AdminClientAsync();
+        var repair = await CreateFeeItemAsync(admin, "_SUA", CalculationBasis.Ho, "hộ", 300_000m, FeeScope.ChiDinh);
+        var chosen = await CreateHouseholdAsync(admin, area: 50m, residents: 1);
+        var other = await CreateHouseholdAsync(admin, area: 60m, residents: 1);
+
+        // Pop-up chọn hộ lấy danh sách từ api/ky-thu/ho-gia-dinh
+        var options = await ReadAsync<List<HouseholdOptionResponse>>(
+            await admin.GetAsync("/api/ky-thu/ho-gia-dinh"), HttpStatusCode.OK);
+        Assert.Contains(options, o => o.HouseholdId == chosen);
+        Assert.Contains(options, o => o.HouseholdId == other);
+
+        // Không gửi danh sách hộ thì bị từ chối
+        var missing = await ReadAsync<ApiError>(await PostPeriodAsync(admin, repair.Id), HttpStatusCode.BadRequest);
+        Assert.Equal($"Khoản thu {repair.Code} áp dụng cho hộ chỉ định: hãy chọn ít nhất một hộ.", missing.Message);
+
+        // Hai kỳ trong cùng tháng cho khoản chỉ định: mỗi kỳ chỉ có hộ được chọn, trang thu tiền chỉ hiện hộ đó
+        for (var i = 0; i < 2; i++)
         {
-            Year = nextMonth.Year,
-            Month = nextMonth.Month,
-            ChargeDate = Today,
-            DueDate = nextMonth,
-            FeeItemIds = [fee.Id]
-        }, Json), HttpStatusCode.BadRequest);
-        Assert.StartsWith($"Chưa đến kỳ thu tháng {nextMonth.Month:00}/{nextMonth.Year}", future.Message);
+            var period = await ReadAsync<BillingPeriodResponse>(await PostPeriodAsync(admin, Today, [repair.Id],
+                new TargetedFeeItemRequest { FeeItemId = repair.Id, HouseholdIds = [chosen] }), HttpStatusCode.Created);
+            _periodIds.Add(period.Id);
+            var bill = Assert.Single(period.Households);
+            Assert.Equal((chosen, 300_000m), (bill.HouseholdId, bill.TotalAmount));
+
+            var collection = await ReadAsync<PeriodCollectionResponse>(
+                await admin.GetAsync($"/api/thu-tien/ky-thu/{period.Id}"), HttpStatusCode.OK);
+            var row = Assert.Single(collection.Households);
+            Assert.Equal((chosen, PaymentStatus.ChuaNop), (row.HouseholdId, row.Status));
+        }
+    }
+
+    [SkippableFact]
+    public async Task ZeroAmountLine_IsNotShown_SoTheHouseholdIsNotMarkedAsPaid()
+    {
+        SkipIfNoDatabase();
+        var admin = await AdminClientAsync();
+        var fee = await CreateFeeItemAsync(admin, "_KO", CalculationBasis.Ho, "hộ", 300_000m, FeeScope.ChiDinh);
+        var payer = await CreateHouseholdAsync(admin, area: 50m, residents: 1);
+        var notPaying = await CreateHouseholdAsync(admin, area: 60m, residents: 1);
+
+        var period = await ReadAsync<BillingPeriodResponse>(await PostPeriodAsync(admin, Today, [fee.Id],
+            new TargetedFeeItemRequest { FeeItemId = fee.Id, HouseholdIds = [payer] }), HttpStatusCode.Created);
+        _periodIds.Add(period.Id);
+
+        // Dòng 0 đ như ở các kỳ lập trước bản sửa này (hộ A-101 hiện "Đã nộp đủ" dù chưa nộp)
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var item = await db.BillingPeriodItems.SingleAsync(i => i.BillingPeriodId == period.Id);
+            db.Receivables.Add(new ReceivableEntity { BillingPeriodItemId = item.Id, HouseholdId = notPaying, Quantity = 1, Amount = 0 });
+            await db.SaveChangesAsync();
+        }
+
+        var collection = await ReadAsync<PeriodCollectionResponse>(
+            await admin.GetAsync($"/api/thu-tien/ky-thu/{period.Id}"), HttpStatusCode.OK);
+        Assert.Equal(payer, Assert.Single(collection.Households).HouseholdId);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await admin.GetAsync($"/api/thu-tien/ky-thu/{period.Id}/ho/{notPaying}")).StatusCode);
+
+        var detail = await ReadAsync<BillingPeriodResponse>(await admin.GetAsync($"/api/ky-thu/{period.Id}"), HttpStatusCode.OK);
+        Assert.Equal(payer, Assert.Single(detail.Households).HouseholdId);
+        var summary = Assert.Single(
+            await ReadAsync<List<BillingPeriodSummaryResponse>>(await admin.GetAsync("/api/ky-thu"), HttpStatusCode.OK),
+            p => p.Id == period.Id);
+        Assert.Equal(1, summary.HouseholdCount);
     }
 
     [SkippableFact]
@@ -186,23 +258,29 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
     }
 
     private static Task<HttpResponseMessage> PostPeriodAsync(HttpClient admin, params int[] feeItemIds) =>
+        PostPeriodAsync(admin, Today, feeItemIds);
+
+    /// <summary>Lập kỳ của tháng chứa chargeDate, tính phí vào chargeDate; khoản chỉ định hộ kèm danh sách hộ.</summary>
+    private static Task<HttpResponseMessage> PostPeriodAsync(
+        HttpClient admin, DateOnly chargeDate, int[] feeItemIds, params TargetedFeeItemRequest[] targets) =>
         admin.PostAsJsonAsync("/api/ky-thu", new CreateBillingPeriodRequest
         {
-            Year = Today.Year,
-            Month = Today.Month,
-            ChargeDate = Today,
-            DueDate = Today.AddDays(15),
-            FeeItemIds = feeItemIds
+            Year = chargeDate.Year,
+            Month = chargeDate.Month,
+            ChargeDate = chargeDate,
+            DueDate = chargeDate.AddDays(15),
+            FeeItemIds = feeItemIds,
+            TargetedFeeItems = targets
         }, Json);
 
     private async Task<FeeItemResponse> CreateFeeItemAsync(
-        HttpClient admin, string suffix, CalculationBasis basis, string unit, decimal rate) =>
+        HttpClient admin, string suffix, CalculationBasis basis, string unit, decimal rate, FeeScope scope = FeeScope.Chung) =>
         await ReadAsync<FeeItemResponse>(await admin.PostAsJsonAsync("/api/khoan-thu", new CreateFeeItemRequest
         {
             Code = _prefix + suffix,
             Name = "Phí test kỳ thu " + suffix,
             FeeType = FeeType.BatBuoc,
-            FeeScope = FeeScope.Chung,
+            FeeScope = scope,
             FeeCycle = FeeCycle.Thang,
             CalculationBasis = basis,
             Unit = unit,

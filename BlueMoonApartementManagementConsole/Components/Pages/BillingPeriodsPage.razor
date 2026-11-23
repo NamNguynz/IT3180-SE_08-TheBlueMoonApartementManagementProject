@@ -26,8 +26,9 @@
     <section id="bpCreate" class="card-box" hidden>
         <h2 class="card-title">Lập kỳ thu mới</h2>
         <p class="muted small">
-            Chỉ chọn được khoản thu bắt buộc, áp dụng toàn chung cư; các khoản bắt buộc của mỗi hộ gộp thành một lần thu.
-            Đóng góp tự nguyện thu theo đợt riêng. Bảng kê chỉ lập được khi đã đến ngày tính phí.
+            Chỉ chọn được khoản thu bắt buộc; các khoản của mỗi hộ gộp thành một lần thu. Khoản toàn chung cư thu của mọi hộ,
+            mỗi chu kỳ một lần. Khoản chỉ định hộ thu của các hộ bạn chọn và lập được nhiều kỳ trong một tháng.
+            Lập được kỳ của các tháng trước (lập bù), tháng này và lập trước kỳ của tháng sau. Đóng góp tự nguyện thu theo đợt riêng.
         </p>
         <form id="bpCreateForm">
             <div class="filter-bar">
@@ -48,7 +49,7 @@
                 <legend>Khoản thu đưa vào kỳ (đơn giá lấy theo ngày tính phí)</legend>
                 <div id="bpFeeItemOptions" class="bp-fee-item-options"></div>
                 <p id="bpFeeItemEmpty" class="muted small" hidden>
-                    Chưa có khoản thu bắt buộc nào áp dụng toàn chung cư. Ban quản trị tạo ở trang Khoản thu và đơn giá.
+                    Chưa có khoản thu bắt buộc nào. Ban quản trị tạo ở trang Khoản thu và đơn giá.
                 </p>
             </fieldset>
             <div class="filter-actions">
@@ -57,6 +58,27 @@
             </div>
         </form>
     </section>
+
+    @* Pop-up chọn hộ: hiện khi tích một khoản thu chỉ định hộ. Phải chọn ít nhất một hộ mới xác nhận được. *@
+    <dialog id="bpTargetDialog" class="bp-target-dialog" aria-labelledby="bpTargetTitle">
+        <h2 id="bpTargetTitle" class="card-title"></h2>
+        <p class="muted small">Chọn các hộ phải nộp khoản này trong kỳ. Chọn được nhiều hộ, nhưng phải chọn ít nhất một hộ.</p>
+        <div class="bp-target-tools">
+            <input id="bpTargetSearch" type="search" placeholder="Tìm mã căn, số hộ khẩu..." aria-label="Tìm hộ" autocomplete="off" />
+            <label class="bp-target-all">
+                <input id="bpTargetAll" type="checkbox" /> Chọn tất cả hộ đang hiện
+            </label>
+        </div>
+        <div id="bpTargetList" class="bp-target-list"></div>
+        <p id="bpTargetEmpty" class="muted small" hidden>Không có hộ phù hợp.</p>
+        <div class="bp-target-foot">
+            <span id="bpTargetCount" class="muted small"></span>
+            <div class="filter-actions">
+                <button type="button" class="btn-approve" data-action="confirm-targets">Xác nhận</button>
+                <button type="button" class="btn-link" data-action="cancel-targets">Hủy</button>
+            </div>
+        </div>
+    </dialog>
 
     <div class="table-wrap">
         <table class="data-table">

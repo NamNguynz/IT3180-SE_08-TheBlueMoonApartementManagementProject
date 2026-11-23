@@ -38,6 +38,7 @@ public sealed class DebtRepository(AppDbContext db) : IDebtRepository
     public Task<List<DebtDueRow>> GetDuesAsync(int? periodId, CancellationToken ct = default) =>
         db.Receivables.AsNoTracking()
             .Where(r => periodId == null || r.BillingPeriodItem.BillingPeriodId == periodId)
+            .Where(r => r.Amount > 0) // cùng quy tắc với trang thu tiền: dòng 0 đ không phải khoản phải thu
             .GroupBy(r => new
             {
                 r.BillingPeriodItem.BillingPeriodId,

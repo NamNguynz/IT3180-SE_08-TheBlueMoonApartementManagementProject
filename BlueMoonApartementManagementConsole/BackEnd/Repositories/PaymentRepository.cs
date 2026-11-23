@@ -47,9 +47,11 @@ public sealed class PaymentRepository(AppDbContext db) : IPaymentRepository
     public Task<BillingPeriodEntity?> GetPeriodAsync(int periodId, CancellationToken ct = default) =>
         db.BillingPeriods.AsNoTracking().FirstOrDefaultAsync(p => p.Id == periodId, ct);
 
+    // Bỏ dòng 0 đ: hộ không phải nộp gì thì không có trong danh sách thu tiền, không bị coi là "Đã nộp đủ"
     public Task<List<HouseholdDueRow>> GetDuesAsync(int periodId, int? householdId, CancellationToken ct = default) =>
         db.Receivables.AsNoTracking()
             .Where(r => r.BillingPeriodItem.BillingPeriodId == periodId && (householdId == null || r.HouseholdId == householdId))
+            .Where(r => r.Amount > 0)
             .GroupBy(r => new
             {
                 r.HouseholdId,
@@ -70,7 +72,7 @@ public sealed class PaymentRepository(AppDbContext db) : IPaymentRepository
 
     public Task<List<BillLineRow>> GetBillLinesAsync(int periodId, int householdId, CancellationToken ct = default) =>
         db.Receivables.AsNoTracking()
-            .Where(r => r.BillingPeriodItem.BillingPeriodId == periodId && r.HouseholdId == householdId)
+            .Where(r => r.BillingPeriodItem.BillingPeriodId == periodId && r.HouseholdId == householdId && r.Amount > 0)
             .OrderBy(r => r.BillingPeriodItem.FeeItem.Code)
             .Select(r => new BillLineRow(r.BillingPeriodItem.FeeItem.Code, r.BillingPeriodItem.FeeItem.Name, r.Amount))
             .ToListAsync(ct);

@@ -1,5 +1,5 @@
 // Trang Kỳ thu (PBI-014). Quy tắc lập bảng kê nằm ở BillingPeriodService;
-// file này chỉ hiện form lập kỳ, danh sách kỳ thu và bảng kê, gọi API api/ky-thu.
+// file này chỉ hiện form lập kỳ, pop-up chọn hộ, danh sách kỳ thu và bảng kê, gọi API api/ky-thu.
 (() => {
     const rootId = 'billingPeriods';
     // Nhãn giống trang Khoản thu (fee-items.js)
@@ -10,11 +10,19 @@
     let detail = null;
     let initializedRoot;
 
+    // Form lập kỳ: khoản thu đang hiện (theo id), danh sách hộ đã chọn của từng khoản chỉ định hộ (id → Set id hộ),
+    // danh sách hộ để chọn (tải khi mở pop-up lần đầu), và khoản đang chọn hộ trong pop-up
+    let feeItems = new Map();
+    let targets = new Map();
+    let householdOptions = null;
+    let editing = null;
+
     const $ = (selector) => document.querySelector(`#${rootId} ${selector}`);
     const formValue = (form, name) => form.elements.namedItem(name).value;
 
     const pad = (n) => String(n).padStart(2, '0');
     const isoDate = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    const monthValue = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
     const today = () => isoDate(new Date());
     // Ngày thuần yyyy-MM-dd (DateOnly), hiển thị dd/MM/yyyy
     const formatDate = (value) => {
@@ -237,6 +245,7 @@
     const loadFeeItemOptions = async () => {
         const container = $('#bpFeeItemOptions');
         container.replaceChildren();
+        feeItems = new Map();
         const response = await api('/api/khoan-thu');
         if (response.status === 401) return;
         if (!response.ok) {
@@ -244,26 +253,43 @@
             return;
         }
 
-        // Chỉ khoản bắt buộc, áp dụng toàn chung cư (server cũng kiểm); khoản hàng tháng được chọn sẵn
-        const eligible = (response.data ?? []).filter((item) => item.feeType === 'BatBuoc' && item.feeScope === 'Chung');
+        // Chỉ khoản bắt buộc (server cũng kiểm). Khoản toàn chung cư hàng tháng được chọn sẵn;
+        // khoản chỉ định hộ không chọn sẵn, tích vào thì mở pop-up chọn hộ.
+        const eligible = (response.data ?? []).filter((item) =>
+            item.feeType === 'BatBuoc' && (item.feeScope === 'Chung' || item.feeScope === 'ChiDinh'));
         const now = today();
         container.replaceChildren(...eligible.map((item) => {
+            feeItems.set(item.id, item);
+            const targeted = item.feeScope === 'ChiDinh';
+
+            const row = document.createElement('div');
+            row.className = 'bp-fee-item-row';
             const label = document.createElement('label');
             label.className = 'bp-fee-item';
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.name = 'feeItemIds';
             checkbox.value = item.id;
-            checkbox.checked = item.feeCycle === 'Thang';
+            checkbox.checked = !targeted && item.feeCycle === 'Thang';
             const current = item.rates.find((r) => r.effectiveFrom <= now && (!r.effectiveTo || r.effectiveTo > now));
             const text = document.createElement('span');
             text.textContent = [
                 `${item.code} – ${item.name}`,
-                CYCLE_LABELS[item.feeCycle] ?? item.feeCycle,
+                targeted ? 'Chỉ định hộ' : (CYCLE_LABELS[item.feeCycle] ?? item.feeCycle),
                 current ? `${formatMoney(current.rate)} đ/${item.unit}` : 'chưa có đơn giá hiện hành'
             ].join(' · ');
             label.append(checkbox, text);
-            return label;
+            row.append(label);
+
+            if (targeted) {
+                // Dòng tóm tắt các hộ đã chọn, hiện sau khi xác nhận ở pop-up
+                const summary = document.createElement('div');
+                summary.className = 'bp-target-summary';
+                summary.dataset.feeItemId = item.id;
+                summary.hidden = true;
+                row.append(summary);
+            }
+            return row;
         }));
         $('#bpFeeItemEmpty').hidden = eligible.length > 0;
     };
@@ -271,11 +297,14 @@
     const openCreate = async () => {
         const form = $('#bpCreateForm');
         form.reset();
+        targets = new Map();
+        householdOptions = null; // tải lại khi mở pop-up, vì danh sách hộ có thể đã đổi
         const now = new Date();
-        form.elements.namedItem('period').value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
-        form.elements.namedItem('period').max = form.elements.namedItem('period').value;
+        const period = form.elements.namedItem('period');
+        period.value = monthValue(now);
+        // Lập trước được kỳ của tháng sau, không xa hơn (server cũng kiểm)
+        period.max = monthValue(new Date(now.getFullYear(), now.getMonth() + 1, 1));
         form.elements.namedItem('chargeDate').value = today();
-        form.elements.namedItem('chargeDate').max = today();
         form.elements.namedItem('dueDate').value = lastDayOfMonth(now.getFullYear(), now.getMonth() + 1);
         onPeriodChange(form);
         $('#bpCreate').hidden = false;
@@ -284,22 +313,26 @@
         } catch {
             showAlert('Không thể kết nối máy chủ. Vui lòng thử lại.');
         }
-        form.elements.namedItem('period').focus();
+        period.focus();
     };
 
-    // Ngày tính phí nằm trong tháng của kỳ và không sau hôm nay; hạn nộp không trước ngày tính phí (server cũng kiểm).
-    // Đổi tháng (ví dụ lập bù kỳ cũ) thì đưa ngày tính phí về trong tháng đó.
+    // Ngày tính phí nằm trong tháng của kỳ; hạn nộp không trước ngày tính phí (server cũng kiểm).
+    // Đổi tháng (lập bù kỳ cũ hoặc lập trước kỳ tháng sau) thì đưa ngày tính phí về trong tháng đó.
     const onPeriodChange = (form) => {
         const period = formValue(form, 'period');
         const chargeDate = form.elements.namedItem('chargeDate');
+        const dueDate = form.elements.namedItem('dueDate');
         if (period) {
             const [year, month] = period.split('-').map(Number);
             const monthEnd = lastDayOfMonth(year, month);
             chargeDate.min = `${period}-01`;
-            chargeDate.max = monthEnd < today() ? monthEnd : today();
-            if (chargeDate.value < chargeDate.min || chargeDate.value > chargeDate.max) chargeDate.value = chargeDate.max;
+            chargeDate.max = monthEnd;
+            if (chargeDate.value < chargeDate.min) chargeDate.value = chargeDate.min;
+            if (chargeDate.value > chargeDate.max) chargeDate.value = chargeDate.max;
+            // Hạn nộp đang trước ngày tính phí (thường do vừa đổi sang tháng sau) thì lấy cuối tháng của kỳ
+            if (!dueDate.value || dueDate.value < chargeDate.value) dueDate.value = monthEnd;
         }
-        form.elements.namedItem('dueDate').min = chargeDate.value;
+        dueDate.min = chargeDate.value;
     };
 
     const onCreateSubmit = async (form) => {
@@ -310,6 +343,19 @@
             return;
         }
 
+        // Khoản chỉ định hộ gửi kèm danh sách hộ đã chọn (pop-up bắt chọn ít nhất một hộ; server cũng kiểm)
+        const targetedFeeItems = [];
+        for (const feeItemId of feeItemIds) {
+            const item = feeItems.get(feeItemId);
+            if (item?.feeScope !== 'ChiDinh') continue;
+            const selected = targets.get(feeItemId);
+            if (!selected?.size) {
+                showAlert(`Khoản thu ${item.code} áp dụng cho hộ chỉ định: hãy chọn ít nhất một hộ.`);
+                return;
+            }
+            targetedFeeItems.push({ feeItemId, householdIds: [...selected] });
+        }
+
         const [year, month] = formValue(form, 'period').split('-').map(Number);
         const body = {
             year,
@@ -317,6 +363,7 @@
             chargeDate: formValue(form, 'chargeDate'),
             dueDate: formValue(form, 'dueDate'),
             feeItemIds,
+            targetedFeeItems,
             note: formValue(form, 'note').trim() || null
         };
 
@@ -343,6 +390,168 @@
         }
     };
 
+    // ---- Pop-up chọn hộ cho khoản thu chỉ định ----
+
+    const feeCheckbox = (feeItemId) => $(`input[name="feeItemIds"][value="${feeItemId}"]`);
+
+    const loadHouseholdOptions = async () => {
+        if (householdOptions) return true;
+        const response = await api('/api/ky-thu/ho-gia-dinh');
+        if (response.status === 401) return false;
+        if (!response.ok) {
+            showAlert(messageFor(response, 'Không tải được danh sách hộ.'));
+            return false;
+        }
+        householdOptions = response.data ?? [];
+        return true;
+    };
+
+    // Tích khoản chỉ định hộ thì mở pop-up chọn hộ; bỏ tích thì bỏ luôn danh sách hộ đã chọn
+    const onFeeItemToggle = async (checkbox) => {
+        const feeItemId = Number(checkbox.value);
+        if (feeItems.get(feeItemId)?.feeScope !== 'ChiDinh') return;
+        if (checkbox.checked) {
+            await openTargets(feeItemId);
+        } else {
+            targets.delete(feeItemId);
+            renderTargetSummary(feeItemId);
+        }
+    };
+
+    const openTargets = async (feeItemId) => {
+        // Pop-up đang mở (hoặc đang tải danh sách hộ cho khoản khác, khi tích liền hai khoản): bỏ qua lần này,
+        // và bỏ tích khoản vừa tích nếu nó chưa có danh sách hộ
+        if (editing) {
+            if (!targets.has(feeItemId)) feeCheckbox(feeItemId).checked = false;
+            return;
+        }
+        // Sửa trên bản sao: bấm Hủy thì danh sách đã xác nhận trước đó giữ nguyên
+        editing = { feeItemId, selected: new Set(targets.get(feeItemId) ?? []) };
+
+        let loaded = false;
+        try {
+            loaded = await loadHouseholdOptions();
+        } catch {
+            showAlert('Không thể kết nối máy chủ. Vui lòng thử lại.');
+        }
+        if (!loaded) {
+            // Không mở được pop-up thì không để khoản chỉ định ở trạng thái tích mà chưa có hộ
+            editing = null;
+            if (!targets.has(feeItemId)) feeCheckbox(feeItemId).checked = false;
+            return;
+        }
+
+        const item = feeItems.get(feeItemId);
+        $('#bpTargetTitle').textContent = `Chọn hộ phải nộp: ${item.code} – ${item.name}`;
+        $('#bpTargetSearch').value = '';
+        renderTargetList();
+        $('#bpTargetDialog').showModal();
+        $('#bpTargetSearch').focus();
+    };
+
+    const visibleHouseholds = () => {
+        const query = $('#bpTargetSearch').value.trim().toLocaleLowerCase('vi');
+        return householdOptions.filter((household) =>
+            !query ||
+            household.apartmentCode.toLocaleLowerCase('vi').includes(query) ||
+            household.householdNumber.toLocaleLowerCase('vi').includes(query));
+    };
+
+    const renderTargetList = () => {
+        const households = visibleHouseholds();
+        $('#bpTargetList').replaceChildren(...households.map((household) => {
+            const label = document.createElement('label');
+            label.className = 'bp-target-option';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = 'targetHousehold';
+            checkbox.value = household.householdId;
+            checkbox.checked = editing.selected.has(household.householdId);
+            const text = document.createElement('span');
+            text.textContent = `${household.apartmentCode} · Hộ khẩu ${household.householdNumber}`;
+            label.append(checkbox, text);
+            return label;
+        }));
+        $('#bpTargetEmpty').hidden = households.length > 0;
+        updateTargetCount();
+    };
+
+    // Đếm cả hộ đã chọn nhưng đang bị ẩn bởi ô tìm kiếm. Chưa chọn hộ nào thì không cho xác nhận.
+    const updateTargetCount = () => {
+        const count = editing.selected.size;
+        $('#bpTargetCount').textContent = count > 0 ? `Đã chọn ${count} hộ` : 'Chưa chọn hộ nào';
+        $('[data-action="confirm-targets"]').disabled = count === 0;
+
+        const households = visibleHouseholds();
+        const selectedVisible = households.filter((h) => editing.selected.has(h.householdId)).length;
+        const all = $('#bpTargetAll');
+        all.disabled = households.length === 0;
+        all.checked = households.length > 0 && selectedVisible === households.length;
+        all.indeterminate = selectedVisible > 0 && selectedVisible < households.length;
+    };
+
+    const onTargetToggle = (checkbox) => {
+        const householdId = Number(checkbox.value);
+        if (checkbox.checked) editing.selected.add(householdId);
+        else editing.selected.delete(householdId);
+        updateTargetCount();
+    };
+
+    // "Chọn tất cả" chỉ tác động lên các hộ đang hiện theo ô tìm kiếm
+    const onTargetAllToggle = (checkbox) => {
+        for (const household of visibleHouseholds()) {
+            if (checkbox.checked) editing.selected.add(household.householdId);
+            else editing.selected.delete(household.householdId);
+        }
+        renderTargetList();
+    };
+
+    // Dòng tóm tắt dưới khoản chỉ định: số hộ đã chọn, vài mã căn đầu tiên, nút sửa danh sách
+    const renderTargetSummary = (feeItemId) => {
+        const summary = $(`.bp-target-summary[data-fee-item-id="${feeItemId}"]`);
+        if (!summary) return;
+        const selected = targets.get(feeItemId);
+        summary.hidden = !selected;
+        if (!selected) {
+            summary.replaceChildren();
+            return;
+        }
+
+        const codes = (householdOptions ?? [])
+            .filter((household) => selected.has(household.householdId))
+            .map((household) => household.apartmentCode);
+        const text = document.createElement('span');
+        text.textContent = `Đã chọn ${selected.size} hộ: ${codes.slice(0, 5).join(', ')}${codes.length > 5 ? ', …' : ''}`;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn-link';
+        button.dataset.action = 'edit-targets';
+        button.dataset.id = feeItemId;
+        button.textContent = 'Sửa danh sách hộ';
+        summary.replaceChildren(text, button);
+    };
+
+    const confirmTargets = () => {
+        if (!editing || editing.selected.size === 0) return;
+        targets.set(editing.feeItemId, new Set(editing.selected));
+        renderTargetSummary(editing.feeItemId);
+        closeTargets();
+    };
+
+    // Hủy (nút Hủy hoặc phím Esc): khoản chưa từng có danh sách hộ thì bỏ tích, không để khoản chỉ định không có hộ
+    const cancelTargets = () => {
+        if (editing && !targets.has(editing.feeItemId)) feeCheckbox(editing.feeItemId).checked = false;
+        closeTargets();
+    };
+
+    const closeTargets = () => {
+        editing = null;
+        const dialog = $('#bpTargetDialog');
+        if (dialog.open) dialog.close();
+    };
+
+    // ---- Sự kiện ----
+
     const onClick = async (event) => {
         const button = event.target.closest('[data-action]');
         if (!button || !document.getElementById(rootId).contains(button)) return;
@@ -355,7 +564,28 @@
             case 'view-period':
                 await viewPeriod(Number(button.dataset.id));
                 break;
+            case 'edit-targets':
+                await openTargets(Number(button.dataset.id));
+                break;
+            case 'confirm-targets':
+                confirmTargets();
+                break;
+            case 'cancel-targets':
+                cancelTargets();
+                break;
         }
+    };
+
+    const onChange = (event) => {
+        const target = event.target;
+        if (target.form?.getAttribute('id') === 'bpCreateForm') {
+            if (['period', 'chargeDate'].includes(target.name)) onPeriodChange(target.form);
+            if (target.name === 'feeItemIds') void onFeeItemToggle(target);
+            return;
+        }
+        if (!editing) return;
+        if (target.name === 'targetHousehold') onTargetToggle(target);
+        else if (target.getAttribute('id') === 'bpTargetAll') onTargetAllToggle(target);
     };
 
     const init = () => {
@@ -364,19 +594,23 @@
         initializedRoot = root;
         periods = [];
         detail = null;
+        feeItems = new Map();
+        targets = new Map();
+        householdOptions = null;
+        editing = null;
         root.addEventListener('click', onClick);
         root.addEventListener('submit', (event) => {
             if (event.target.getAttribute('id') !== 'bpCreateForm') return;
             event.preventDefault();
             void onCreateSubmit(event.target);
         });
-        root.addEventListener('change', (event) => {
-            const form = event.target.form;
-            if (form?.getAttribute('id') === 'bpCreateForm' && ['period', 'chargeDate'].includes(event.target.name)) {
-                onPeriodChange(form);
-            }
-        });
+        root.addEventListener('change', onChange);
         $('#bpSearch').addEventListener('input', () => detail && renderBills());
+        $('#bpTargetSearch').addEventListener('input', () => editing && renderTargetList());
+        $('#bpTargetDialog').addEventListener('cancel', (event) => {
+            event.preventDefault();
+            cancelTargets();
+        });
         void loadPeriods();
     };
 
