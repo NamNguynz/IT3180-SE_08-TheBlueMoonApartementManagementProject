@@ -141,12 +141,15 @@ public sealed class BillingPeriodServiceTests
     public static TheoryData<int, int, DateOnly, DateOnly, string> InvalidPeriods => new()
     {
         { 2026, 13, MonthStart, MonthStart, "Tháng của kỳ thu không hợp lệ." },
-        { 2026, 12, Today, new DateOnly(2026, 12, 31), "Chưa đến kỳ thu tháng 12/2026: chỉ lập được từ ngày 01/12/2026." },
+        // Hôm nay 12/11/2026: lập trước được kỳ tháng 12, chưa lập được tháng 01/2027
+        { 2027, 1, new DateOnly(2027, 1, 5), new DateOnly(2027, 1, 31),
+            "Chỉ lập trước được kỳ thu của tháng sau (12/2026), chưa lập được kỳ tháng 01/2027." },
         { 2026, 11, default, new DateOnly(2026, 11, 30), "Ngày tính phí là bắt buộc." },
         { 2026, 11, new DateOnly(2026, 10, 31), new DateOnly(2026, 11, 30), "Ngày tính phí phải nằm trong tháng của kỳ thu (01/11/2026 – 30/11/2026)." },
         // Lập bù kỳ tháng 10 thì phải lấy đơn giá của tháng 10, không lấy ngày hôm nay
         { 2026, 10, Today, new DateOnly(2026, 11, 30), "Ngày tính phí phải nằm trong tháng của kỳ thu (01/10/2026 – 31/10/2026)." },
-        { 2026, 11, new DateOnly(2026, 11, 13), new DateOnly(2026, 11, 30), "Chưa đến ngày tính phí 13/11/2026, chưa lập được bảng kê." },
+        // Lập trước kỳ tháng 12 thì ngày tính phí cũng phải trong tháng 12
+        { 2026, 12, Today, new DateOnly(2026, 12, 31), "Ngày tính phí phải nằm trong tháng của kỳ thu (01/12/2026 – 31/12/2026)." },
         { 2026, 11, Today, default, "Hạn nộp là bắt buộc." },
         { 2026, 11, Today, new DateOnly(2026, 11, 11), "Hạn nộp không được trước ngày tính phí." },
     };
@@ -181,8 +184,9 @@ public sealed class BillingPeriodServiceTests
         AssertInvalid(await CreateAsync(fee.Id, 404), "Không tìm thấy khoản thu #404.");
         AssertInvalid(await CreateAsync(donation.Id),
             "Khoản thu QUY_TU_THIEN là đóng góp tự nguyện, thu theo đợt riêng, không đưa vào kỳ thu.");
+        // Khoản chỉ định hộ đưa vào kỳ được, nhưng phải kèm danh sách hộ
         AssertInvalid(await CreateAsync(assigned.Id),
-            "Khoản thu PHI_RIENG áp dụng cho hộ chỉ định, chưa có danh sách hộ nên chưa đưa vào kỳ thu được.");
+            "Khoản thu PHI_RIENG áp dụng cho hộ chỉ định: hãy chọn ít nhất một hộ.");
         AssertInvalid(await CreateAsync(future.Id),
             "Khoản thu PHI_MOI chưa có đơn giá hiệu lực vào ngày 12/11/2026.");
         Assert.Empty(_repo.Periods);
@@ -271,10 +275,10 @@ public sealed class BillingPeriodServiceTests
     public async Task Calculate_RejectsTheSameFeeItemsAsTheBillingPeriod_WithTheSameMessage()
     {
         var donation = _repo.SeedFeeItem("QUY_TU_THIEN", CalculationBasis.CoDinh, "hộ", 0m, type: FeeType.TuNguyen);
-        var assigned = _repo.SeedFeeItem("PHI_RIENG", CalculationBasis.Ho, "hộ", 10_000m, scope: FeeScope.ChiDinh);
+        var maintenance = _repo.SeedFeeItem("BAO_TRI", CalculationBasis.Ho, "hộ", 10_000m, type: FeeType.BaoTriRieng);
         _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
 
-        foreach (var fee in new[] { donation, assigned })
+        foreach (var fee in new[] { donation, maintenance })
         {
             var calculated = await _service.CalculateAsync(fee.Id, 1, Today);
             var billed = await CreateAsync(fee.Id);
@@ -284,7 +288,166 @@ public sealed class BillingPeriodServiceTests
         }
     }
 
+    // ===== Lập trước kỳ của tháng sau =====
+
+    [Fact]
+    public async Task NextMonth_CanBeCreatedInAdvance_WithTheRateOfThatMonth()
+    {
+        var fee = _repo.SeedFeeItem("PHI_DV", CalculationBasis.DienTich, "m²",
+            (7_000m, MonthStart, new DateOnly(2026, 12, 1)),
+            (8_000m, new DateOnly(2026, 12, 1), null));
+        _repo.SeedHousehold("HK-1", "A-101", area: 10m, residents: 1);
+
+        // Hôm nay 12/11: lập kỳ tháng 12, ngày tính phí 01/12 (sau hôm nay) lấy đơn giá mới của tháng 12
+        var result = await _service.CreateAsync(1, "ketoan", Request(fee.Id) with
+        {
+            Month = 12,
+            ChargeDate = new DateOnly(2026, 12, 1),
+            DueDate = new DateOnly(2026, 12, 31)
+        });
+
+        Assert.Equal(FeeItemStatus.Success, result.Status);
+        Assert.Equal((12, 8_000m, 80_000m), (result.Data!.Month, Assert.Single(result.Data.Items).Rate, result.Data.TotalAmount));
+    }
+
+    [Fact]
+    public async Task ChargeDateLaterThisMonth_IsAllowed()
+    {
+        var fee = _repo.SeedFeeItem("PHI_DV", CalculationBasis.DienTich, "m²", 7_000m);
+        _repo.SeedHousehold("HK-1", "A-101", area: 10m, residents: 1);
+
+        var result = await CreateAsync(new DateOnly(2026, 11, 20), fee.Id);
+
+        Assert.Equal((FeeItemStatus.Success, 70_000m), (result.Status, result.Data!.TotalAmount));
+    }
+
+    // ===== Khoản chỉ định hộ: chỉ thu của các hộ được chọn =====
+
+    [Fact]
+    public async Task TargetedFee_BillsOnlySelectedHouseholds_WhileGeneralFeeBillsEveryone()
+    {
+        var service = _repo.SeedFeeItem("PHI_DV", CalculationBasis.DienTich, "m²", 7_000m);
+        var repair = _repo.SeedFeeItem("PHI_SUA", CalculationBasis.Ho, "hộ", 300_000m, scope: FeeScope.ChiDinh);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
+        _repo.SeedHousehold("HK-2", "A-102", area: 60m, residents: 1);
+        _repo.SeedHousehold("HK-3", "A-103", area: 70m, residents: 1);
+
+        var result = await CreateTargetedAsync([service.Id, repair.Id], (repair.Id, [1, 3]));
+
+        Assert.Equal(FeeItemStatus.Success, result.Status);
+        var period = result.Data!;
+        Assert.Equal(3, period.Households.Count); // khoản toàn chung cư vẫn thu của mọi hộ
+        Assert.Equal(new[] { "A-101", "A-103" }, period.Households
+            .Where(h => h.Lines.Any(l => l.FeeItemId == repair.Id))
+            .Select(h => h.ApartmentCode));
+        Assert.Equal(600_000m, period.Items.Single(i => i.Code == "PHI_SUA").TotalAmount);
+        // A-102 không được chọn: chỉ có phí dịch vụ 60 m² × 7.000
+        Assert.Equal(420_000m, period.Households.Single(h => h.ApartmentCode == "A-102").TotalAmount);
+
+        // Tính thử khoản chỉ định cho một hộ ra đúng số trên bảng kê
+        var calculated = await _service.CalculateAsync(repair.Id, 1, Today);
+        Assert.Equal((FeeItemStatus.Success, 300_000m), (calculated.Status, calculated.Data!.Amount));
+    }
+
+    [Fact]
+    public async Task TargetedFee_HouseholdSelection_IsValidated()
+    {
+        var service = _repo.SeedFeeItem("PHI_DV", CalculationBasis.DienTich, "m²", 7_000m);
+        var repair = _repo.SeedFeeItem("PHI_SUA", CalculationBasis.Ho, "hộ", 300_000m, scope: FeeScope.ChiDinh);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
+
+        const string noHousehold = "Khoản thu PHI_SUA áp dụng cho hộ chỉ định: hãy chọn ít nhất một hộ.";
+        AssertInvalid(await CreateTargetedAsync([repair.Id]), noHousehold);
+        AssertInvalid(await CreateTargetedAsync([repair.Id], (repair.Id, [])), noHousehold);
+        AssertInvalid(await CreateTargetedAsync([repair.Id], (repair.Id, [1, 1])),
+            "Danh sách hộ của khoản thu PHI_SUA bị trùng.");
+        AssertInvalid(await CreateTargetedAsync([repair.Id], (repair.Id, [404])),
+            "Không tìm thấy hộ gia đình #404 trong danh sách hộ của khoản thu PHI_SUA.");
+        AssertInvalid(await CreateTargetedAsync([repair.Id], (repair.Id, [1]), (repair.Id, [1])),
+            "Khoản thu PHI_SUA có nhiều hơn một danh sách hộ.");
+        AssertInvalid(await CreateTargetedAsync([service.Id], (service.Id, [1])),
+            "Khoản thu PHI_DV áp dụng toàn chung cư, không chọn hộ riêng.");
+        AssertInvalid(await CreateTargetedAsync([service.Id], (repair.Id, [1])),
+            $"Có danh sách hộ cho khoản thu #{repair.Id} nhưng khoản này không được chọn vào kỳ.");
+        // JSON "targetedFeeItems": [null] bị từ chối có thông báo, không gây lỗi 500
+        AssertInvalid(await _service.CreateAsync(1, "ketoan", Request(repair.Id) with { TargetedFeeItems = [null!] }),
+            "Danh sách hộ của khoản thu chỉ định không hợp lệ.");
+        Assert.Empty(_repo.Periods);
+    }
+
+    [Theory]
+    [InlineData(FeeCycle.Thang)]
+    [InlineData(FeeCycle.Nam)]
+    [InlineData(FeeCycle.MotLan)]
+    public async Task TargetedFee_CanBeBilledSeveralTimesInTheSameMonth(FeeCycle cycle)
+    {
+        var repair = _repo.SeedFeeItem("PHI_SUA", CalculationBasis.Ho, "hộ", 300_000m, scope: FeeScope.ChiDinh, cycle: cycle);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
+        _repo.Billed.Add(new BilledFeeItemRow(repair.Id, 99, 2026, 11)); // đã có một kỳ tháng 11 thu khoản này
+
+        var result = await CreateTargetedAsync([repair.Id], (repair.Id, [1]));
+
+        Assert.Equal(FeeItemStatus.Success, result.Status);
+    }
+
+    [Fact]
+    public async Task HouseholdOptions_AreSortedByApartmentCode()
+    {
+        _repo.SeedHousehold("HK-2", "B-201", area: 50m, residents: 1);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
+
+        var options = await _service.GetHouseholdOptionsAsync();
+
+        Assert.Equal(new[] { "A-101", "B-201" }, options.Select(o => o.ApartmentCode));
+        Assert.Equal((2, "HK-1"), (options[0].HouseholdId, options[0].HouseholdNumber));
+    }
+
+    // ===== Hộ không phải nộp gì thì không có trong bảng kê =====
+
+    [Fact]
+    public async Task HouseholdWhoseAmountRoundsToZero_IsLeftOutOfTheBill()
+    {
+        var fee = _repo.SeedFeeItem("PHI_NHO", CalculationBasis.DienTich, "m²", 0.01m);
+        _repo.SeedHousehold("HK-1", "A-101", area: 10m, residents: 1);  // 10 × 0,01 = 0,1 → 0 đ
+        _repo.SeedHousehold("HK-2", "A-102", area: 100m, residents: 1); // 100 × 0,01 = 1 đ
+
+        var result = await CreateAsync(fee.Id);
+
+        var household = Assert.Single(result.Data!.Households);
+        Assert.Equal(("A-102", 1m), (household.ApartmentCode, household.TotalAmount));
+    }
+
+    [Fact]
+    public async Task BillWithNothingToCollect_IsRejected()
+    {
+        var hygiene = _repo.SeedFeeItem("PHI_VS", CalculationBasis.NhanKhau, "người", 6_000m);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 0);
+
+        AssertInvalid(await CreateAsync(hygiene.Id),
+            "Bảng kê trống: không hộ nào phải nộp số tiền lớn hơn 0 đ, chưa lập kỳ thu.");
+        Assert.Empty(_repo.Periods);
+    }
+
     // ===== Hàm hỗ trợ =====
+
+    /// <summary>Yêu cầu lập kỳ tháng 11/2026, tính phí hôm nay, hạn nộp cuối tháng.</summary>
+    private static CreateBillingPeriodRequest Request(params int[] feeItemIds) => new()
+    {
+        Year = 2026,
+        Month = 11,
+        ChargeDate = Today,
+        DueDate = new DateOnly(2026, 11, 30),
+        FeeItemIds = feeItemIds
+    };
+
+    private Task<FeeItemOperationResult<BillingPeriodResponse>> CreateTargetedAsync(
+        int[] feeItemIds, params (int FeeItemId, int[] HouseholdIds)[] targets) =>
+        _service.CreateAsync(1, "ketoan", Request(feeItemIds) with
+        {
+            TargetedFeeItems = targets
+                .Select(t => new TargetedFeeItemRequest { FeeItemId = t.FeeItemId, HouseholdIds = t.HouseholdIds })
+                .ToList()
+        });
 
     private Task<FeeItemOperationResult<BillingPeriodResponse>> CreateAsync(params int[] feeItemIds) =>
         CreateAsync(Today, feeItemIds);
