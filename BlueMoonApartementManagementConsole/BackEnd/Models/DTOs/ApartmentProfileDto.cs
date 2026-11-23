@@ -25,11 +25,19 @@ public sealed record CreateApartmentRequest
     [Range(0, 50)]
     public int BedroomCount { get; init; }
 
-    [Required, StringLength(30)]
-    public required string Status { get; init; }
+    /// <summary>Trạng thái ban đầu: DangChoThue, DaChoThue, DangSuaChua.</summary>
+    [EnumDataType(typeof(ApartmentStatus))]
+    public required ApartmentStatus Status { get; init; }
 
     [StringLength(500)]
     public string? Notes { get; init; }
+}
+
+/// <summary>Payload for changing only the apartment status (drag-and-drop on the profile page).</summary>
+public sealed record UpdateApartmentStatusRequest
+{
+    [EnumDataType(typeof(ApartmentStatus))]
+    public required ApartmentStatus Status { get; init; }
 }
 
 /// <summary>Payload for updating an apartment profile.</summary>
@@ -54,8 +62,8 @@ public sealed record UpdateApartmentRequest
     [Range(0, 50)]
     public int BedroomCount { get; init; }
 
-    [Required, StringLength(30)]
-    public required string Status { get; init; }
+    [EnumDataType(typeof(ApartmentStatus))]
+    public required ApartmentStatus Status { get; init; }
 
     [StringLength(500)]
     public string? Notes { get; init; }
@@ -158,7 +166,7 @@ public sealed record ApartmentProfileResponse(
     int Floor,
     decimal Area,
     int BedroomCount,
-    string Status,
+    ApartmentStatus Status,
     string? Notes,
     HouseholdProfileResponse? Household);
 

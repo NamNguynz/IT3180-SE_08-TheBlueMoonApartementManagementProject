@@ -54,9 +54,32 @@
             <div id="apListLoading" class="ap-list-message">Đang tải danh sách căn hộ...</div>
             <div id="apListEmpty" class="ap-list-message" hidden>Chưa có căn hộ phù hợp.</div>
             <div id="apartmentList" class="apartment-list"></div>
+            <div id="apListHint" class="ap-list-message ap-list-hint" hidden>
+                Chỉ hiển thị tối đa 5 căn hộ. Hãy thu hẹp điều kiện tìm kiếm để xem thêm.
+            </div>
         </aside>
 
         <div class="ap-detail-column">
+            @* Bảng kéo thả: mỗi cột là một ApartmentStatus, JS đổ thẻ căn hộ và gọi PATCH khi thả. *@
+            <section id="apStatusBoard" class="card-box ap-board" aria-label="Bảng trạng thái căn hộ">
+                <div class="ap-section-heading">
+                    <div>
+                        <span class="ap-eyebrow">TRẠNG THÁI CĂN HỘ</span>
+                        <h2 class="card-title">Kéo căn hộ sang cột tương ứng</h2>
+                    </div>
+                    <span class="muted small">Thả vào cột để đổi trạng thái</span>
+                </div>
+                <div class="ap-board-columns">
+                    @foreach (var (status, label) in ApartmentStatusLabels.All)
+                    {
+                        <div class="ap-board-column" data-status="@status">
+                            <h3>@label <span class="ap-board-count" data-count-for="@status">0</span></h3>
+                            <div class="ap-board-dropzone" data-status="@status" aria-label="@label"></div>
+                        </div>
+                    }
+                </div>
+            </section>
+
             <div id="apSelectionEmpty" class="empty-state ap-selection-empty">
                 Chọn một căn hộ trong danh sách hoặc tạo hồ sơ mới để bắt đầu.
             </div>
@@ -89,7 +112,15 @@
                                 <input name="bedroomCount" type="number" min="0" max="50" required />
                             </label>
                             <label>Trạng thái <span class="required-mark">*</span>
-                                <input name="status" maxlength="30" required placeholder="Đang sử dụng" />
+                                <select name="status" required>
+                                    @foreach (var (status, label) in ApartmentStatusLabels.All)
+                                    {
+                                        <option value="@status">@label</option>
+                                    }
+                                </select>
+                                <span id="apStatusHint" class="ap-field-hint" hidden>
+                                    Căn hộ đang có nhân khẩu chưa chuyển đi: chỉ có thể chọn Đã cho thuê.
+                                </span>
                             </label>
                             <label>Loại hình <span class="required-mark">*</span>
                                 <select name="type" required>
@@ -234,6 +265,14 @@
        Tình trạng chỉ xem ở trang này, muốn đổi thì ghi nhận ở trang Biến động nhân khẩu. *@
     <datalist id="apResidenceStatusLabels">
         @foreach (var (status, label) in ResidentChangeLabels.Statuses)
+        {
+            <option value="@status">@label</option>
+        }
+    </datalist>
+
+    @* Nhãn trạng thái căn hộ để JS hiển thị badge/thẻ mà không hard-code tiếng Việt *@
+    <datalist id="apApartmentStatusLabels">
+        @foreach (var (status, label) in ApartmentStatusLabels.All)
         {
             <option value="@status">@label</option>
         }

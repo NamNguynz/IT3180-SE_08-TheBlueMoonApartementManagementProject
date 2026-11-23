@@ -1,3 +1,4 @@
+using BlueMoonApartementManagementConsole.BackEnd.Models;
 using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Repositories;
@@ -14,6 +15,8 @@ public interface IApartmentProfileService
         int actorId, string actorName, CreateApartmentRequest request, CancellationToken ct = default);
     Task<ProfileOperationResult<ApartmentProfileResponse>> UpdateApartmentAsync(
         int actorId, string actorName, int id, UpdateApartmentRequest request, CancellationToken ct = default);
+    Task<ProfileOperationResult<ApartmentProfileResponse>> UpdateApartmentStatusAsync(
+        int actorId, string actorName, int id, UpdateApartmentStatusRequest request, CancellationToken ct = default);
     Task<HouseholdProfileResponse?> GetHouseholdByIdAsync(int id, CancellationToken ct = default);
     Task<ProfileOperationResult<HouseholdProfileResponse>> CreateHouseholdAsync(
         int actorId, string actorName, int apartmentId, CreateHouseholdRequest request, CancellationToken ct = default);
@@ -49,7 +52,7 @@ public sealed class ApartmentProfileService(
             Floor = request.Floor,
             Area = request.Area,
             BedroomCount = request.BedroomCount,
-            Status = NormalizeRequired(request.Status),
+            Status = request.Status,
             Notes = NormalizeOptional(request.Notes)
         };
 
@@ -74,13 +77,18 @@ public sealed class ApartmentProfileService(
         if (await profiles.ApartmentCodeExistsAsync(code, id, ct))
             return Conflict<ApartmentProfileResponse>("Mã căn hộ đã tồn tại.");
 
+        // Ô select trong form cũng đổi được trạng thái: chặn ở đây để không vòng qua luật của PATCH.
+        var statusError = await ValidateStatusChangeAsync(id, request.Status, apartment.Status, ct);
+        if (statusError is not null)
+            return new(ProfileStatus.Conflict, Message: statusError);
+
         apartment.Code = code;
         apartment.Building = NormalizeRequired(request.Building);
         apartment.Type = request.Type;
         apartment.Floor = request.Floor;
         apartment.Area = request.Area;
         apartment.BedroomCount = request.BedroomCount;
-        apartment.Status = NormalizeRequired(request.Status);
+        apartment.Status = request.Status;
         apartment.Notes = NormalizeOptional(request.Notes);
 
         if (!await SaveWithUniqueConflictHandlingAsync(ct))
@@ -88,6 +96,33 @@ public sealed class ApartmentProfileService(
 
         await audit.LogAsync(AuditAction.UpdateApartmentProfile, actorName, actorId,
             apartment.Id.ToString(), $"Cập nhật hồ sơ căn hộ {apartment.Code}", ct);
+
+        return new(ProfileStatus.Success, Map(apartment));
+    }
+
+    /// <summary>Đổi riêng trạng thái căn hộ, dùng cho thao tác kéo thả trên trang Hồ sơ căn hộ.</summary>
+    public async Task<ProfileOperationResult<ApartmentProfileResponse>> UpdateApartmentStatusAsync(
+        int actorId, string actorName, int id, UpdateApartmentStatusRequest request, CancellationToken ct = default)
+    {
+        var apartment = await profiles.GetApartmentByIdAsync(id, tracking: true, ct);
+        if (apartment is null)
+            return new(ProfileStatus.NotFound);
+
+        var previous = apartment.Status;
+        if (previous == request.Status)
+            return new(ProfileStatus.Success, Map(apartment));
+
+        var statusError = await ValidateStatusChangeAsync(id, request.Status, previous, ct);
+        if (statusError is not null)
+            return new(ProfileStatus.Conflict, Message: statusError);
+
+        apartment.Status = request.Status;
+        await profiles.SaveChangesAsync(ct);
+
+        await audit.LogAsync(AuditAction.UpdateApartmentStatus, actorName, actorId,
+            apartment.Id.ToString(),
+            $"Đổi trạng thái căn hộ {apartment.Code}: {ApartmentStatusLabels.LabelOf(previous)} → {ApartmentStatusLabels.LabelOf(request.Status)}",
+            ct);
 
         return new(ProfileStatus.Success, Map(apartment));
     }
@@ -248,6 +283,22 @@ public sealed class ApartmentProfileService(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Căn hộ đang có nhân khẩu chưa chuyển đi thì không được chuyển sang Đang cho thuê / Đang sửa chữa.
+    /// Dùng chung cho PATCH trạng thái và PUT hồ sơ để hai đường vào cùng một luật.
+    /// </summary>
+    private async Task<string?> ValidateStatusChangeAsync(
+        int apartmentId, ApartmentStatus target, ApartmentStatus current, CancellationToken ct)
+    {
+        if (target == current || target is not (ApartmentStatus.DangChoThue or ApartmentStatus.DangSuaChua))
+            return null;
+
+        return await profiles.HasActiveResidentsAsync(apartmentId, ct)
+            ? "Căn hộ đang có nhân khẩu chưa chuyển đi; không thể chuyển sang Đang cho thuê hoặc Đang sửa chữa. " +
+              "Vui lòng ghi nhận biến động chuyển đi cho nhân khẩu trước."
+            : null;
     }
 
     private static ProfileOperationResult<T> Conflict<T>(string message) =>

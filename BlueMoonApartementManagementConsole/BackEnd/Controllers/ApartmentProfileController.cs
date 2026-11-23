@@ -44,6 +44,17 @@ public sealed class ApartmentProfileController(IApartmentProfileService profiles
             : ToError(result.Status, result.Message);
     }
 
+    /// <summary>Đổi riêng trạng thái căn hộ (kéo thả cột trạng thái trên trang Hồ sơ căn hộ).</summary>
+    [HttpPatch("{id:int}/trang-thai")]
+    public async Task<IActionResult> UpdateStatus(
+        int id, [FromBody] UpdateApartmentStatusRequest request, CancellationToken ct)
+    {
+        var result = await profiles.UpdateApartmentStatusAsync(ActorId, ActorName, id, request, ct);
+        return result.Status == ProfileStatus.Success
+            ? Ok(result.Data)
+            : ToError(result.Status, result.Message);
+    }
+
     private IActionResult ToError(ProfileStatus status, string? message) => status switch
     {
         ProfileStatus.NotFound => NotFound(new ApiError("NOT_FOUND", message ?? "Không tìm thấy căn hộ.")),

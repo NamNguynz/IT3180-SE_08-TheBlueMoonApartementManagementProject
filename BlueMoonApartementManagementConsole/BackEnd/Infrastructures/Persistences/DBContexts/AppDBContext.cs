@@ -82,7 +82,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
         modelBuilder.Entity<ApartmentEntity>(e =>
         {
             e.ToTable("apartments", t =>
-                t.HasCheckConstraint("ck_apartments_type", "\"Type\" IN ('CanHo','Kiot','Penthouse')"));
+            {
+                t.HasCheckConstraint("ck_apartments_type", "\"Type\" IN ('CanHo','Kiot','Penthouse')");
+                t.HasCheckConstraint("ck_apartments_status",
+                    "\"Status\" IN ('DangChoThue','DaChoThue','DangSuaChua')");
+            });
             e.HasKey(a => a.Id);
             e.Property(a => a.Code).HasMaxLength(30).IsRequired();
             e.Property(a => a.Building).HasMaxLength(100).IsRequired();
@@ -90,7 +94,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.Property(a => a.Type).HasConversion<string>().HasMaxLength(20)
              .HasDefaultValue(ApartmentType.CanHo);
             e.Property(a => a.Area).HasPrecision(10, 2);
-            e.Property(a => a.Status).HasMaxLength(30).IsRequired();
+            // Trạng thái lưu dạng tên enum; giá trị cũ (tiếng Việt) được conversion trong migration
+            e.Property(a => a.Status).HasConversion<string>().HasMaxLength(30).IsRequired()
+             .HasDefaultValue(ApartmentStatus.DangChoThue);
             e.Property(a => a.Notes).HasMaxLength(500);
             e.HasIndex(a => a.Code).IsUnique();
         });

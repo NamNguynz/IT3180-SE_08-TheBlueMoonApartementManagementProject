@@ -193,7 +193,7 @@ public class ResidentChangeApiTests(BlueMoonAppFactory factory) : IClassFixture<
             Floor = 3,
             Area = 65m,
             BedroomCount = 2,
-            Status = "Đang ở"
+            Status = ApartmentStatus.DangChoThue
         }, Json), HttpStatusCode.Created);
 
         var household = await ReadAsync<HouseholdProfileResponse>(await admin.PostAsJsonAsync(

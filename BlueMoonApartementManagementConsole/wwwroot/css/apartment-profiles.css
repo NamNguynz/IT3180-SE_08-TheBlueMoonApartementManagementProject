@@ -140,10 +140,120 @@
     font-size: 13px;
 }
 
+.ap-list-hint {
+    padding: 8px 4px 0;
+    font-size: 12px;
+}
+
 .ap-list-message[hidden],
 .ap-detail-column [hidden],
 .ap-dialog-backdrop[hidden] {
     display: none !important;
+}
+
+/* Bảng kéo thả đổi trạng thái căn hộ */
+.ap-board {
+    margin-bottom: 18px;
+    padding: 20px;
+}
+
+.ap-board .ap-section-heading {
+    margin-bottom: 12px;
+}
+
+.ap-board-columns {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.ap-board-column {
+    min-width: 0;
+    padding: 10px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.ap-board-column.is-drag-over {
+    background: #eaf2ff;
+    border-color: var(--primary);
+    border-style: dashed;
+}
+
+.ap-board-column.is-drop-blocked {
+    background: #fff1f2;
+    border-color: #fca5a5;
+    border-style: dashed;
+}
+
+.ap-board-column h3 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 10px;
+    color: var(--navy);
+    font-size: 13px;
+}
+
+.ap-board-count {
+    min-width: 22px;
+    padding: 1px 6px;
+    text-align: center;
+    font-size: 11px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.ap-board-dropzone {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 80px;
+}
+
+.ap-board-card {
+    display: grid;
+    gap: 3px;
+    padding: 9px 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: 8px;
+    cursor: grab;
+}
+
+.ap-board-card:hover,
+.ap-board-card.is-active {
+    background: #f3f7fd;
+}
+
+.ap-board-card.is-dragging {
+    opacity: 0.45;
+    cursor: grabbing;
+}
+
+.ap-board-card.is-locked {
+    border-left-color: var(--muted);
+    border-left-style: dashed;
+    cursor: not-allowed;
+}
+
+.ap-board-card strong {
+    color: var(--navy);
+}
+
+.ap-board-card span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.ap-board-card:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(30, 79, 160, 0.2);
 }
 
 .ap-detail-column {
@@ -225,6 +335,17 @@
     background: #eff6ff;
     border: 1px solid #bfdbfe;
     border-radius: 8px;
+}
+
+.ap-field-hint {
+    display: block;
+    margin-top: 5px;
+    color: #92400e;
+    font-size: 12px;
+}
+
+.ap-field-hint[hidden] {
+    display: none;
 }
 
 .ap-resident-heading {
@@ -386,6 +507,10 @@
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         max-height: 260px;
     }
+
+    .ap-board-columns {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
 }
 
 @media (max-width: 520px) {
@@ -400,6 +525,14 @@
 
     .ap-span-2 {
         grid-column: auto;
+    }
+
+    .ap-board {
+        padding: 14px;
+    }
+
+    .ap-board-columns {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .ap-section-heading,

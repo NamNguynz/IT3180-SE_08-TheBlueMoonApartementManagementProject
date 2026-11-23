@@ -221,7 +221,7 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
             Floor = 4,
             Area = area,
             BedroomCount = 2,
-            Status = "Đang ở"
+            Status = ApartmentStatus.DangChoThue
         }, Json), HttpStatusCode.Created);
 
         var household = await ReadAsync<HouseholdProfileResponse>(await admin.PostAsJsonAsync(

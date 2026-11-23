@@ -56,8 +56,10 @@ namespace BlueMoonApartementManagementConsole.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("DangChoThue");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -73,6 +75,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
 
                     b.ToTable("apartments", null, t =>
                         {
+                            t.HasCheckConstraint("ck_apartments_status", "\"Status\" IN ('DangChoThue','DaChoThue','DangSuaChua')");
+
                             t.HasCheckConstraint("ck_apartments_type", "\"Type\" IN ('CanHo','Kiot','Penthouse')");
                         });
                 });

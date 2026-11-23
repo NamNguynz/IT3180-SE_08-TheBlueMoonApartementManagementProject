@@ -170,7 +170,7 @@ public class DebtApiTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoonAp
             Floor = 7,
             Area = area,
             BedroomCount = 2,
-            Status = "Đang ở"
+            Status = ApartmentStatus.DangChoThue
         }, Json), HttpStatusCode.Created);
 
         var household = await ReadAsync<HouseholdProfileResponse>(await admin.PostAsJsonAsync(

@@ -16,6 +16,7 @@
         ChangePassword,
         CreateApartmentProfile,
         UpdateApartmentProfile,
+        UpdateApartmentStatus,
         CreateHouseholdProfile,
         UpdateHouseholdProfile,
         RecordResidentChange,

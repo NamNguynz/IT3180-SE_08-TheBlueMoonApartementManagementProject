@@ -11,6 +11,13 @@ public enum ApartmentType
     Penthouse
 }
 
+public enum ApartmentStatus
+{
+    DangChoThue,
+    DaChoThue,
+    DangSuaChua
+}
+
 /// <summary>
 /// Tình trạng cư trú hiện tại của nhân khẩu (PBI-007, LAW-004). Chỉ đổi qua ghi nhận biến động
 /// (ResidentChangeService), để mỗi lần đổi đều có một dòng lịch sử trong resident_changes.
@@ -34,7 +41,7 @@ public class ApartmentEntity
     public int Floor { get; set; }
     public decimal Area { get; set; }
     public int BedroomCount { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public ApartmentStatus Status { get; set; } = ApartmentStatus.DangChoThue;
     public string? Notes { get; set; }
     public HouseholdEntity? Household { get; set; }
 }
