@@ -239,7 +239,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("Year", "Month");
+                    b.HasIndex("Year", "Month")
+                        .IsUnique();
 
                     b.ToTable("billing_periods", null, t =>
                         {

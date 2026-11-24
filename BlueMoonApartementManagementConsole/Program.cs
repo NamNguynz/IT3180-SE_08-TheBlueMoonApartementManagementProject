@@ -43,6 +43,11 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IDebtRepository, DebtRepository>();
 builder.Services.AddScoped<IDebtService, DebtService>();
+builder.Services.AddScoped<IDebtReportRepository, DebtReportRepository>();
+builder.Services.AddScoped<IIncomeReportRepository, IncomeReportRepository>();
+builder.Services.AddScoped<IDebtReportService, DebtReportService>();
+builder.Services.AddScoped<IIncomeReportService, IncomeReportService>();
+builder.Services.AddScoped<IReportExcelService, ReportExcelService>();
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

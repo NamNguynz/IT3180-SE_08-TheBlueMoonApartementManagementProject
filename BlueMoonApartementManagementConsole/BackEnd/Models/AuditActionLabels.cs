@@ -35,6 +35,7 @@ public static class AuditActionLabels
         (AuditAction.CreateBillingPeriod, "Lập kỳ thu"),
         (AuditAction.RecordPayment, "Ghi nhận thu tiền"),
         (AuditAction.RecordDebtReminder, "Ghi nhận nhắc nộp"),
-        (AuditAction.CreateBuilding, "Tạo tòa nhà")
+        (AuditAction.CreateBuilding, "Tạo tòa nhà"),
+        (AuditAction.ExportReport, "Xuất báo cáo")
     ];
 }

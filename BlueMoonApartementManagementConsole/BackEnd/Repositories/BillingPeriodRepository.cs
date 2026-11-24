@@ -24,6 +24,9 @@ public interface IBillingPeriodRepository
 {
     Task<List<BillingPeriodSummaryRow>> GetSummariesAsync(CancellationToken ct = default);
 
+    /// <summary>Kỳ thu của một tháng, dùng để bổ sung khoản thu thay vì lập kỳ trùng tháng.</summary>
+    Task<BillingPeriodEntity?> GetByMonthAsync(int year, int month, CancellationToken ct = default);
+
     /// <summary>Kỳ thu kèm khoản thu, đơn giá đã dùng và các dòng phải thu (có hộ, căn hộ).</summary>
     Task<BillingPeriodEntity?> GetDetailAsync(int id, CancellationToken ct = default);
 
@@ -51,6 +54,9 @@ public sealed class BillingPeriodRepository(AppDbContext db) : IBillingPeriodRep
                 p.CreatedBy.Username,
                 p.CreatedAt))
             .ToListAsync(ct);
+
+    public Task<BillingPeriodEntity?> GetByMonthAsync(int year, int month, CancellationToken ct = default) =>
+        db.BillingPeriods.FirstOrDefaultAsync(p => p.Year == year && p.Month == month, ct);
 
     public Task<BillingPeriodEntity?> GetDetailAsync(int id, CancellationToken ct = default) =>
         db.BillingPeriods.AsNoTracking()

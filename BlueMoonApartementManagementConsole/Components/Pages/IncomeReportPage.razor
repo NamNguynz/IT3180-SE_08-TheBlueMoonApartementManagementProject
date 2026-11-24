@@ -1,0 +1,97 @@
+@page "/bao-cao/thu-chi"
+@attribute [Authorize(Policy = "TaiChinh")]
+@layout DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+@using BlueMoonApartementManagementConsole.BackEnd.Models
+@using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs
+
+<PageTitle>Báo cáo thu chi - Bluemoon</PageTitle>
+
+<HeadContent>
+    <link rel="stylesheet" href="css/reports.css" />
+</HeadContent>
+
+@* PBI-023: gom tiền thực thu theo NGÀY XÁC NHẬN THU (RecordedAt). Không dùng biểu đồ, không có dữ liệu chi phí. *@
+<section id="incomeReport" class="page reports report-income">
+    <div class="page-head page-head-row">
+        <div>
+            <h1>Báo cáo thu chi</h1>
+            <p class="muted">Tổng hợp tiền thu đã được kế toán xác nhận theo tuần, tháng, quý hoặc năm. Mốc thời gian là ngày xác nhận thu.</p>
+        </div>
+        <button type="button" id="irExport" class="btn-secondary">Xuất Excel</button>
+    </div>
+
+    <form id="irFilter" class="filter-bar">
+        <label>
+            Loại kỳ
+            <select name="ky" aria-label="Loại kỳ báo cáo">
+                @foreach (var (kind, label) in ReportLabels.PeriodKinds)
+                {
+                    <option value="@kind">@label</option>
+                }
+            </select>
+        </label>
+        <label>
+            Mốc thời gian
+            <input type="date" name="moc" aria-label="Mốc thời gian" />
+        </label>
+        <label>
+            Từ ngày
+            <input type="date" name="from" aria-label="Từ ngày" />
+        </label>
+        <label>
+            Đến ngày
+            <input type="date" name="to" aria-label="Đến ngày" />
+        </label>
+        <div class="filter-actions">
+            <button type="submit" class="btn-approve">Tìm kiếm</button>
+            <button type="button" id="irReset" class="btn-link">Xóa lọc</button>
+        </div>
+    </form>
+    <p class="muted small ir-hint">Chọn mốc thời gian để xem đúng kỳ chứa mốc đó, hoặc nhập cả từ ngày và đến ngày để xem một khoảng tùy ý (tối đa 366 ngày).</p>
+
+    <div id="irAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <div id="irLoading" class="empty-state">Đang tổng hợp báo cáo...</div>
+    <div id="irEmpty" class="empty-state" hidden>Không có khoản thu nào được xác nhận trong khoảng này.</div>
+
+    <div id="irContent" hidden>
+        <p id="irRange" class="muted small"></p>
+        <div class="rp-summary">
+            <div class="card-box"><span class="muted small">Loại kỳ</span><strong id="irKyLabel">–</strong></div>
+            <div class="card-box"><span class="muted small">Tổng thu</span><strong id="irTotal">–</strong></div>
+            <div class="card-box"><span class="muted small">Số kỳ</span><strong id="irPeriodCount">–</strong></div>
+        </div>
+
+        <div id="irTable" class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr id="irHead"></tr>
+                </thead>
+                <tbody id="irBody"></tbody>
+            </table>
+        </div>
+
+        <nav id="irPager" class="pager" aria-label="Phân trang báo cáo thu chi" hidden>
+            <label class="page-size">
+                Hiển thị
+                <select id="irPageSize" aria-label="Số bản ghi mỗi trang">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                </select>
+                bản ghi/trang
+            </label>
+            <button type="button" id="irPrev" class="btn-link">← Trước</button>
+            <span id="irPageInfo"></span>
+            <button type="button" id="irNext" class="btn-link">Sau →</button>
+        </nav>
+
+        <div class="rp-expense">
+            <h2>Chi phí</h2>
+            <p class="muted">Chưa có dữ liệu chi phí</p>
+        </div>
+    </div>
+</section>

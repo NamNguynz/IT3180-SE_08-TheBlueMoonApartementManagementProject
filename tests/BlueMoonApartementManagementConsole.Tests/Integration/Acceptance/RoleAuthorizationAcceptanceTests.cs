@@ -28,7 +28,6 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
 
     private const string AccessDeniedTitle = "<h1>Không có quyền truy cập</h1>";
     private const string NotFoundTitle = "<h1>Không tìm thấy trang</h1>";
-    private const string InDevelopmentTitle = "<h1>Tính năng đang phát triển</h1>";
 
     // Link menu nhóm "Căn hộ & cư dân" đã có trang thật, vẫn phải giữ phân quyền như menu
     private static readonly (string Path, string Title)[] ResidentPages =
@@ -37,14 +36,19 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
             ("/nhan-khau/ho", "<h1>Danh sách nhân khẩu</h1>"),
             ("/nhan-khau/bien-dong", "<h1>Biến động nhân khẩu</h1>")
         ];
-    private static readonly string[] FinancePlaceholders =
-        ["/khoan-thu/danh-muc", "/don-gia", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
+    // 2 route tạm đã có trang thật thay thế nên đã xóa @page khỏi InDevelopmentFinancePage.
+    // Không còn trong menu; gõ trực tiếp phải ra trang NotFound cho mọi vai trò.
+    private static readonly string[] RemovedPlaceholderPaths =
+        ["/khoan-thu/danh-muc", "/don-gia"];
     // Tương tự với nhóm Tài chính (PBI-014: BillingPeriodsPage, PBI-016: PaymentsPage, PBI-019: DebtsPage): Kế toán mở được, Cư dân bị chặn
     private static readonly (string Path, string Title)[] FinancePages =
         [
+            ("/tai-chinh/khoan-thu", "<h1>Khoản thu và đơn giá</h1>"),
             ("/ky-thu", "<h1>Kỳ thu và bảng kê phải thu</h1>"),
             ("/thu-tien", "<h1>Ghi nhận thu tiền</h1>"),
-            ("/cong-no", "<h1>Công nợ và nhắc nộp</h1>")
+            ("/cong-no", "<h1>Công nợ và nhắc nộp</h1>"),
+            ("/bao-cao/thu-cong-no", "<h1>Báo cáo thu và công nợ</h1>"),
+            ("/bao-cao/thu-chi", "<h1>Báo cáo thu chi</h1>")
         ];
 
     private static string RoleLine(string label) => $"Bạn đang đăng nhập với vai trò <strong>{label}</strong>.";
@@ -347,19 +351,33 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
                 Assert.DoesNotContain(NotFoundTitle, page.Html);
             }
         }
-        Assert.Superset(FinancePlaceholders
-                .Concat(ResidentPages.Select(p => p.Path)).Concat(FinancePages.Select(p => p.Path)).ToHashSet(),
-            (await LinksOnHomeAsync(bqt)).ToHashSet());
+        // Mọi link trang thật trong danh sách kỳ vọng phải có trên trang chủ.
+        // 2 đường dẫn tạm chỉ gõ trực tiếp, không còn ở menu nên không tính vào đây.
+        var expectedRealPaths = ResidentPages.Select(p => p.Path).Concat(FinancePages.Select(p => p.Path)).ToHashSet();
+        var homeLinks = (await LinksOnHomeAsync(bqt)).ToHashSet();
+        Assert.True(expectedRealPaths.IsSubsetOf(homeLinks),
+            "Link trang chủ thiếu trong danh sách kỳ vọng: " + string.Join(", ", expectedRealPaths.Except(homeLinks)));
 
-        // Phần 2: trang tạm còn lại giữ đúng phân quyền như menu
+        // Phần 2: 2 route tạm đã gỡ @page => không còn trên menu và không còn được bảo vệ bởi policy TaiChinh.
+        // Gõ trực tiếp thì ai cũng thấy trang NotFound (không redirect /403 hay /login).
         var anonymous = NewBrowser();
-        foreach (var path in FinancePlaceholders)
+        var accountantHomeLinks = (await LinksOnHomeAsync(accountant)).ToHashSet();
+        foreach (var path in RemovedPlaceholderPaths)
         {
-            Assert.Contains(InDevelopmentTitle, (await UiFlow.GetAsync(bqt, path)).Html);
-            Assert.Contains(InDevelopmentTitle, (await UiFlow.GetAsync(accountant, path)).Html);
+            Assert.DoesNotContain(path, homeLinks);
+            Assert.DoesNotContain(path, accountantHomeLinks);
 
-            Assert.Equal("/403", (await UiFlow.GetAsync(resident, path)).RedirectPath);
-            Assert.Equal("/login?ReturnUrl=" + Uri.EscapeDataString(path), (await UiFlow.GetAsync(anonymous, path)).RedirectPath);
+            foreach (var (_, browser) in users)
+            {
+                var page = await UiFlow.GetAsync(browser, path);
+                Assert.Equal(HttpStatusCode.NotFound, page.Status);
+                Assert.Null(page.RedirectPath);
+                Assert.Contains(NotFoundTitle, page.Html);
+            }
+            var anonymousPage = await UiFlow.GetAsync(anonymous, path);
+            Assert.Equal(HttpStatusCode.NotFound, anonymousPage.Status);
+            Assert.Null(anonymousPage.RedirectPath);
+            Assert.Contains(NotFoundTitle, anonymousPage.Html);
         }
 
         // Phần 3: trang thật giữ phân quyền như menu: BQT mở được, Kế toán chỉ mở được trang
