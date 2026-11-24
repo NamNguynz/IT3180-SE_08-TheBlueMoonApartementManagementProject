@@ -15,8 +15,8 @@ Xác nhận:
 - Ban Quản Trị chỉ thao tác được tài khoản **trong phạm vi của mình**: mọi cư dân, và các tài khoản BQT / Kế toán do mình (hoặc cấp dưới của mình) cấp.
 - Thu hồi quyền (vô hiệu hóa) có hiệu lực **ngay ở request kế tiếp**.
 
-**Ngoài phạm vi:** chức năng của các trang Tài chính, Báo cáo, Căn hộ, Nhân khẩu. Trang nào chưa xây dựng thì hiện trang tạm
-"Tính năng đang phát triển". B9 chỉ kiểm tra trang tạm mở được và đúng phân quyền.
+**Ngoài phạm vi:** chức năng nghiệp vụ của các trang Tài chính, Báo cáo, Căn hộ, Nhân khẩu. Các trang tạm đã được thay bằng trang thật và gỡ `@page`;
+B9 chỉ kiểm tra link thật mở được, giữ phân quyền, còn 2 route tạm cũ trả trang "Không tìm thấy trang".
 
 Unit test tương ứng (chạy bằng `dotnet test`):
 - `tests/BlueMoonApartementManagementConsole.Tests/Services/AuthServiceRoleTests.cs` (R1 đến R6)
@@ -209,24 +209,24 @@ Thêm: kiểm tra cột **Người cấp** của `ketoan_a1` là `bqt_a`, của 
 |---|---|---|
 | | | |
 
-### B9. Mọi link trên trang chủ đều mở được, trang tạm giữ đúng phân quyền
+### B9. Mọi link trên trang chủ đều mở được, route tạm đã gỡ trả NotFound
 
 > **Tự động** (`Acceptance=B9`). Không cần chạy tay.
 
-Các link chưa có trang thật hiện trang tạm "Tính năng đang phát triển" (F3):
-- Nhóm **Tài chính** (Ban Quản Trị và Kế Toán): `/khoan-thu/danh-muc`, `/don-gia`.
+2 route tạm từng dùng `InDevelopmentFinancePage` đã có trang thật thay thế nên đã xóa `@page`:
+- `/khoan-thu/danh-muc`, `/don-gia`. Chúng không còn trong menu; gõ trực tiếp hiện "Không tìm thấy trang" cho mọi vai trò, kể cả khách (không redirect `/403` hay `/login` vì route không còn tồn tại).
 
 Các link đã có trang thật nhưng vẫn phải giữ phân quyền như menu:
 - Nhóm **Căn hộ & cư dân** (chỉ Ban Quản Trị): `/can-ho/danh-sach`, `/nhan-khau/ho`, `/nhan-khau/bien-dong`.
-- Nhóm **Tài chính, Báo cáo** (Ban Quản Trị và Kế Toán): `/ky-thu`, `/thu-tien`, `/cong-no`, `/bao-cao/thu-cong-no`, `/bao-cao/thu-chi`.
+- Nhóm **Tài chính, Báo cáo** (Ban Quản Trị và Kế Toán): `/tai-chinh/khoan-thu`, `/ky-thu`, `/thu-tien`, `/cong-no`, `/bao-cao/thu-cong-no`, `/bao-cao/thu-chi`.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Đăng nhập lần lượt `bqt_a`, `ketoan_a1`, `cudan_01`. Bấm từng link ở menu bên trái, ở mục "Công việc thường dùng" và tên tài khoản góc phải | Link nào cũng mở được trang. **Không** link nào ra trang "Không tìm thấy trang" |
-| 2 | `bqt_a`: gõ thẳng các địa chỉ ở trên | 2 trang tạm hiện "Tính năng đang phát triển"; 8 trang còn lại hiện đúng nội dung thật |
-| 3 | `ketoan_a1`: gõ thẳng các địa chỉ ở trên | 2 trang tạm và 5 trang Tài chính, Báo cáo mở được; 3 trang Căn hộ & cư dân chuyển tới `/403` |
-| 4 | `cudan_01`: gõ thẳng các địa chỉ ở trên | Cả 10 trang chuyển tới `/403` |
-| 5 | Chưa đăng nhập (cửa sổ ẩn danh mới): gõ thẳng các địa chỉ ở trên | Bị chuyển về `/login` |
+| 2 | `bqt_a`, `ketoan_a1`: gõ thẳng 2 route tạm ở trên | Không còn trong menu; hiện "Không tìm thấy trang" |
+| 3 | `cudan_01`, khách ẩn danh: gõ thẳng 2 route tạm | Cũng hiện "Không tìm thấy trang" (không chuyển `/403` hay `/login`) |
+| 4 | Các link thật: `cudan_01` | Chuyển tới `/403` |
+| 5 | Các link thật: chưa đăng nhập | Chuyển về `/login?ReturnUrl=...` |
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
@@ -243,7 +243,7 @@ Vấn đề **đã sửa** mà vẫn gặp lại thì đánh **Fail**. Vấn đ�
 |---|---|---|---|
 | F1 | Không có trang `/403`. Khi bị từ chối quyền, app chuyển tới `/403` nhưng hiện trang "Not Found" | **Đã sửa**: trang `/403` hiện "Không có quyền truy cập", trả mã 403 | B4 |
 | F2 | Chưa cấu hình `FallbackPolicy`: trang mới nào quên gắn `[Authorize]` sẽ mở công khai | **Không sửa** (nhóm quyết định). Unit test R18 đã chặn trên CI trường hợp trang Razor quên gắn `[Authorize]` | Không thấy được khi test tay |
-| F3 | Menu **Căn hộ & cư dân**, **Tài chính**, **Báo cáo** trỏ tới các trang chưa xây dựng, bấm vào ra "Not Found" | **Đã sửa tạm**: các link đó mở trang "Tính năng đang phát triển", giữ đúng phân quyền như menu. Ba link `/can-ho/danh-sach`, `/khoan-thu/danh-muc`, `/don-gia` có thể trùng với trang đã có, đang chờ Nam và Minh xác nhận | B9 |
+| F3 | Menu **Căn hộ & cư dân**, **Tài chính**, **Báo cáo** trỏ tới các trang chưa xây dựng, bấm vào ra "Not Found" | **Đã xong**: các link đó đã có trang thật và được giữ trong menu. Trang tạm `InDevelopmentFinancePage` đã xóa `@page`; 2 route tạm cũ `/khoan-thu/danh-muc`, `/don-gia` trả "Không tìm thấy trang" | B9 |
 | F4 | Câu hỏi nghiệp vụ: cư dân tự đăng ký được duyệt ngay không qua xác minh; ai cũng có thể tự đăng ký xin vai trò Ban Quản Trị (phải chờ duyệt) | **Đã chốt PA1**: giữ nguyên. Cư dân được duyệt ngay, Ban Quản Trị và Kế Toán tự đăng ký phải chờ Ban Quản Trị khác duyệt | B1, B2 |
 
 ## 6. Tổng hợp và nghiệm thu
