@@ -392,6 +392,15 @@
         if (event.target.getAttribute('id') === 'dbSearch' && inRoot(event.target)) render();
     };
 
+    // Từ báo cáo thu công nợ chuyển sang: giữ kỳ thu và tìm đúng hộ đã chọn.
+    const applyDeepLink = () => {
+        const query = new URLSearchParams(location.search);
+        const periodId = query.get('kyThu');
+        const household = query.get('ho');
+        if (periodId && $('#dbPeriod')) $('#dbPeriod').value = periodId;
+        if (household && $('#dbSearch')) $('#dbSearch').value = household;
+    };
+
     const init = () => {
         const root = document.getElementById(rootId);
         if (!root) return;
@@ -407,8 +416,10 @@
             document.addEventListener('input', onSearchInput);
             bound = true;
         }
-        void loadPeriods();
-        void loadDebts();
+        void loadPeriods().then(() => {
+            applyDeepLink();
+            void loadDebts();
+        });
     };
 
     // Dự phòng: enhancedload không bắt được trường hợp Blazor thay DOM lúc SSR -> interactive.

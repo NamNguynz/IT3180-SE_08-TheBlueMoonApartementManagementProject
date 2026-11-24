@@ -1,0 +1,95 @@
+/* 2 trang báo cáo thu và công nợ / thu chi: dùng lại form, bảng, pager của dashboard.css. */
+
+.reports [hidden] {
+    display: none !important;
+}
+
+.reports .data-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.reports .required {
+    color: #b42318;
+}
+
+.reports .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border: 1px solid var(--primary);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.reports .btn-secondary:hover:not(:disabled) {
+    background: #e8f0fb;
+}
+
+.reports .btn-secondary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.rp-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.report-income .rp-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rp-summary .card-box {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+}
+
+.rp-summary strong {
+    color: var(--navy);
+    font-size: 20px;
+}
+
+.rp-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.rp-expense {
+    margin-top: 20px;
+    padding: 16px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--card);
+}
+
+.rp-expense h2 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    color: var(--navy);
+}
+
+.rp-expense p {
+    margin: 0;
+}
+
+.ir-hint {
+    margin: -6px 0 14px;
+}
+
+@media (max-width: 900px) {
+    .rp-summary,
+    .report-income .rp-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

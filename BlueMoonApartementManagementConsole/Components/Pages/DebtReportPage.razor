@@ -1,0 +1,120 @@
+@page "/bao-cao/thu-cong-no"
+@attribute [Authorize(Policy = "TaiChinh")]
+@layout DashboardLayout
+
+@using Microsoft.AspNetCore.Authorization
+@using BlueMoonApartementManagementConsole.BackEnd.Models
+@using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs
+@using BlueMoonApartementManagementConsole.BackEnd.Models.Enities
+
+<PageTitle>Báo cáo thu và công nợ - Bluemoon</PageTitle>
+
+<HeadContent>
+    <link rel="stylesheet" href="css/reports.css" />
+</HeadContent>
+
+@* PBI-022/PBI-044: số liệu lấy từ /api/bao-cao/thu-cong-no, màn hình và Excel dùng chung service. *@
+<section id="debtReport" class="page reports report-debt">
+    <div class="page-head page-head-row">
+        <div>
+            <h1>Báo cáo thu và công nợ</h1>
+            <p class="muted">Lọc theo kỳ thu (bắt buộc), loại khoản thu, trạng thái và hộ cư dân. Mặc định xếp hộ còn nợ nhiều nhất trước.</p>
+        </div>
+        <button type="button" id="drExport" class="btn-secondary">Xuất Excel</button>
+    </div>
+
+    <form id="drFilter" class="filter-bar">
+        <label>
+            Kỳ thu <span class="required">*</span>
+            <select name="kyThu" required aria-label="Kỳ thu">
+                <option value="">Chọn kỳ thu</option>
+            </select>
+        </label>
+        <label>
+            Loại khoản thu
+            <select name="loaiKhoan" aria-label="Loại khoản thu">
+                <option value="">Tất cả loại khoản</option>
+                @foreach (var feeType in ReportLabels.FeeTypes)
+                {
+                    <option value="@feeType">@ReportLabels.FeeTypeLabels[feeType.ToString()]</option>
+                }
+            </select>
+        </label>
+        <label>
+            Trạng thái
+            <select id="drStatus" name="trangThai" aria-label="Trạng thái nộp">
+                <option value="">Tất cả trạng thái</option>
+                @foreach (var (status, label) in PaymentLabels.Statuses)
+                {
+                    <option value="@status">@label</option>
+                }
+            </select>
+        </label>
+        <label class="rp-search">
+            Tìm hộ
+            <input type="search" name="ho" maxlength="100" placeholder="Mã căn, tòa nhà, số hộ khẩu, chủ hộ..." autocomplete="off" />
+        </label>
+        <div class="filter-actions">
+            <button type="submit" class="btn-approve">Tìm kiếm</button>
+            <button type="button" id="drReset" class="btn-link">Xóa lọc</button>
+        </div>
+    </form>
+
+    <div id="drAlert" class="alert" role="alert" aria-live="polite" hidden></div>
+
+    <div id="drEmptyPeriod" class="empty-state" hidden>Chưa có kỳ thu nào. Vui lòng lập kỳ thu trước khi xem báo cáo.</div>
+
+    <div id="drContent" hidden>
+        <p id="drPeriodLabel" class="muted small"></p>
+        <div class="rp-summary">
+            <div class="card-box"><span class="muted small">Tổng phải thu</span><strong id="drMustPay">–</strong></div>
+            <div class="card-box"><span class="muted small">Thực thu</span><strong id="drPaid">–</strong></div>
+            <div class="card-box"><span class="muted small">Công nợ</span><strong id="drRemaining">–</strong></div>
+            <div class="card-box"><span class="muted small">Số hộ còn nợ</span><strong id="drOwedHouseholds">–</strong></div>
+        </div>
+
+        <div id="drLoading" class="empty-state">Đang tổng hợp báo cáo...</div>
+        <div id="drEmpty" class="empty-state" hidden>Không có hộ nào khớp bộ lọc.</div>
+
+        <div id="drTable" class="table-wrap" hidden>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Chọn</th>
+                        <th>Căn hộ</th>
+                        <th>Tòa nhà</th>
+                        <th>Số hộ khẩu</th>
+                        <th>Chủ hộ</th>
+                        <th class="num">Phải thu (đ)</th>
+                        <th class="num">Đã thu (đ)</th>
+                        <th class="num">Còn nợ (đ)</th>
+                        <th>Trạng thái</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="drBody"></tbody>
+            </table>
+        </div>
+
+        <nav id="drPager" class="pager" aria-label="Phân trang báo cáo công nợ" hidden>
+            <label class="page-size">
+                Hiển thị
+                <select id="drPageSize" aria-label="Số bản ghi mỗi trang">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                </select>
+                bản ghi/trang
+            </label>
+            <button type="button" id="drPrev" class="btn-link">← Trước</button>
+            <span id="drPageInfo"></span>
+            <button type="button" id="drNext" class="btn-link">Sau →</button>
+        </nav>
+
+        <div class="rp-actions">
+            <button type="button" id="drRemind" class="btn-approve" disabled>Chuyển sang danh sách nhắc nộp</button>
+            <span class="muted small">Chọn một hộ trong bảng để mở PBI-019 với kỳ và hộ đó.</span>
+        </div>
+    </div>
+</section>

@@ -136,6 +136,38 @@ public sealed class BillingPeriodServiceTests
         }
     }
 
+    [Fact]
+    public async Task DifferentFeeItemsInTheSameMonth_AreMergedIntoOnePeriod()
+    {
+        var serviceFee = _repo.SeedFeeItem("PHI_DV", CalculationBasis.DienTich, "m²", 7_000m);
+        var hygiene = _repo.SeedFeeItem("PHI_VS", CalculationBasis.NhanKhau, "người", 6_000m);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 2);
+
+        var first = await CreateAsync(serviceFee.Id);
+        var second = await CreateAsync(hygiene.Id);
+
+        Assert.Equal(FeeItemStatus.Success, second.Status);
+        Assert.Equal(first.Data!.Id, second.Data!.Id);
+        var period = Assert.Single(_repo.Periods);
+        Assert.Equal(2, period.Items.Count);
+        Assert.Equal(2, second.Data.Items.Count);
+        Assert.Equal(350_000m + 12_000m, second.Data.TotalAmount);
+        Assert.Contains("Bổ sung khoản thu vào kỳ thu tháng 11/2026", _audit.Entries[1].Detail);
+    }
+
+    [Fact]
+    public async Task TargetedFeeRepeatedInTheSameMonth_IsRejected()
+    {
+        var repair = _repo.SeedFeeItem("PHI_SUA", CalculationBasis.Ho, "hộ", 300_000m, scope: FeeScope.ChiDinh);
+        _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
+        _repo.Billed.Add(new BilledFeeItemRow(repair.Id, 99, 2026, 11));
+
+        var result = await CreateAsync(repair.Id);
+
+        Assert.Equal(FeeItemStatus.Conflict, result.Status);
+        Assert.Empty(_repo.Periods);
+    }
+
     // ===== Từ chối dữ liệu không hợp lệ =====
 
     public static TheoryData<int, int, DateOnly, DateOnly, string> InvalidPeriods => new()
@@ -379,15 +411,19 @@ public sealed class BillingPeriodServiceTests
     [InlineData(FeeCycle.Thang)]
     [InlineData(FeeCycle.Nam)]
     [InlineData(FeeCycle.MotLan)]
-    public async Task TargetedFee_CanBeBilledSeveralTimesInTheSameMonth(FeeCycle cycle)
+    public async Task TargetedFee_MergesIntoTheExistingPeriodOfTheSameMonth(FeeCycle cycle)
     {
         var repair = _repo.SeedFeeItem("PHI_SUA", CalculationBasis.Ho, "hộ", 300_000m, scope: FeeScope.ChiDinh, cycle: cycle);
+        var parking = _repo.SeedFeeItem("PHI_GUI", CalculationBasis.Ho, "hộ", 100_000m, scope: FeeScope.ChiDinh, cycle: cycle);
         _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
-        _repo.Billed.Add(new BilledFeeItemRow(repair.Id, 99, 2026, 11)); // đã có một kỳ tháng 11 thu khoản này
 
-        var result = await CreateTargetedAsync([repair.Id], (repair.Id, [1]));
+        var first = await CreateTargetedAsync([repair.Id], (repair.Id, [1]));
+        var second = await CreateTargetedAsync([parking.Id], (parking.Id, [1]));
 
-        Assert.Equal(FeeItemStatus.Success, result.Status);
+        Assert.Equal(FeeItemStatus.Success, second.Status);
+        Assert.Equal(first.Data!.Id, second.Data!.Id);
+        Assert.Single(_repo.Periods);
+        Assert.Equal(2, Assert.Single(_repo.Periods).Items.Count);
     }
 
     [Fact]
@@ -544,6 +580,9 @@ public sealed class BillingPeriodServiceTests
         public Task<List<BillingPeriodSummaryRow>> GetSummariesAsync(CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public Task<BillingPeriodEntity?> GetByMonthAsync(int year, int month, CancellationToken ct = default) =>
+            Task.FromResult(Periods.FirstOrDefault(p => p.Year == year && p.Month == month));
+
         public Task<BillingPeriodEntity?> GetDetailAsync(int id, CancellationToken ct = default) =>
             Task.FromResult(Periods.SingleOrDefault(p => p.Id == id));
 
@@ -574,13 +613,14 @@ public sealed class BillingPeriodServiceTests
             {
                 period.Id = Periods.Count;
                 period.CreatedBy = new AppUserEntity { Id = period.CreatedById, Username = "ketoan" };
-                foreach (var item in period.Items)
-                {
-                    item.FeeItem = _feeItems.Single(f => f.Id == item.FeeItemId);
-                    item.FeeRate = item.FeeItem.Rates.Single(r => r.Id == item.FeeRateId);
-                    foreach (var receivable in item.Receivables)
-                        receivable.Household = _households.Single(h => h.Id == receivable.HouseholdId);
-                }
+            }
+            // Khoản bổ sung vào kỳ cũ cũng cần navigation như EF khi đọc lại
+            foreach (var item in Periods.SelectMany(p => p.Items).Where(i => i.FeeItem is null))
+            {
+                item.FeeItem = _feeItems.Single(f => f.Id == item.FeeItemId);
+                item.FeeRate = item.FeeItem.Rates.Single(r => r.Id == item.FeeRateId);
+                foreach (var receivable in item.Receivables.Where(r => r.Household is null))
+                    receivable.Household = _households.Single(h => h.Id == receivable.HouseholdId);
             }
             return Task.CompletedTask;
         }

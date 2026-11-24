@@ -123,11 +123,12 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
     }
 
     [SkippableFact]
-    public async Task TargetedFee_BillsOnlyChosenHouseholds_AndCanRepeatInTheSameMonth()
+    public async Task TargetedFees_BillOnlyChosenHouseholds_AndMergeIntoOnePeriodPerMonth()
     {
         SkipIfNoDatabase();
         var admin = await AdminClientAsync();
         var repair = await CreateFeeItemAsync(admin, "_SUA", CalculationBasis.Ho, "hộ", 300_000m, FeeScope.ChiDinh);
+        var parking = await CreateFeeItemAsync(admin, "_GUI", CalculationBasis.Ho, "hộ", 100_000m, FeeScope.ChiDinh);
         var chosen = await CreateHouseholdAsync(admin, area: 50m, residents: 1);
         var other = await CreateHouseholdAsync(admin, area: 60m, residents: 1);
 
@@ -141,20 +142,43 @@ public class BillingPeriodApiTests(BlueMoonAppFactory factory) : IClassFixture<B
         var missing = await ReadAsync<ApiError>(await PostPeriodAsync(admin, repair.Id), HttpStatusCode.BadRequest);
         Assert.Equal($"Khoản thu {repair.Code} áp dụng cho hộ chỉ định: hãy chọn ít nhất một hộ.", missing.Message);
 
-        // Hai kỳ trong cùng tháng cho khoản chỉ định: mỗi kỳ chỉ có hộ được chọn, trang thu tiền chỉ hiện hộ đó
-        for (var i = 0; i < 2; i++)
+        var first = await ReadAsync<BillingPeriodResponse>(await PostPeriodAsync(admin, Today, [repair.Id],
+            new TargetedFeeItemRequest { FeeItemId = repair.Id, HouseholdIds = [chosen] }), HttpStatusCode.Created);
+        _periodIds.Add(first.Id);
+        int countAfterFirst;
+        await using (var scope = factory.Services.CreateAsyncScope())
         {
-            var period = await ReadAsync<BillingPeriodResponse>(await PostPeriodAsync(admin, Today, [repair.Id],
-                new TargetedFeeItemRequest { FeeItemId = repair.Id, HouseholdIds = [chosen] }), HttpStatusCode.Created);
-            _periodIds.Add(period.Id);
-            var bill = Assert.Single(period.Households);
-            Assert.Equal((chosen, 300_000m), (bill.HouseholdId, bill.TotalAmount));
-
-            var collection = await ReadAsync<PeriodCollectionResponse>(
-                await admin.GetAsync($"/api/thu-tien/ky-thu/{period.Id}"), HttpStatusCode.OK);
-            var row = Assert.Single(collection.Households);
-            Assert.Equal((chosen, PaymentStatus.ChuaNop), (row.HouseholdId, row.Status));
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            countAfterFirst = await db.BillingPeriods.CountAsync(p => p.Year == Today.Year && p.Month == Today.Month);
         }
+
+        // Khoản khác cùng tháng, khác hộ: bổ sung vào chính kỳ đã lập, không tạo kỳ trùng tên
+        var second = await ReadAsync<BillingPeriodResponse>(await PostPeriodAsync(admin, Today, [parking.Id],
+            new TargetedFeeItemRequest { FeeItemId = parking.Id, HouseholdIds = [other] }), HttpStatusCode.Created);
+        _periodIds.Add(second.Id);
+        Assert.Equal(first.Id, second.Id);
+        Assert.Contains(second.Items, i => i.FeeItemId == repair.Id);
+        Assert.Contains(second.Items, i => i.FeeItemId == parking.Id);
+        var chosenBill = Assert.Single(second.Households, h => h.HouseholdId == chosen);
+        Assert.Equal((chosen, 300_000m), (chosenBill.HouseholdId, chosenBill.TotalAmount));
+        Assert.Equal(100_000m, Assert.Single(second.Households, h => h.HouseholdId == other).TotalAmount);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Equal(countAfterFirst,
+                await db.BillingPeriods.CountAsync(p => p.Year == Today.Year && p.Month == Today.Month));
+        }
+
+        var collection = await ReadAsync<PeriodCollectionResponse>(
+            await admin.GetAsync($"/api/thu-tien/ky-thu/{second.Id}"), HttpStatusCode.OK);
+        Assert.Equal(PaymentStatus.ChuaNop, Assert.Single(collection.Households, h => h.HouseholdId == chosen).Status);
+        Assert.Equal(PaymentStatus.ChuaNop, Assert.Single(collection.Households, h => h.HouseholdId == other).Status);
+
+        // Cùng một khoản đã lập trong tháng thì vẫn bị từ chối, dù chọn hộ khác
+        var duplicate = await ReadAsync<ApiError>(await PostPeriodAsync(admin, Today, [repair.Id],
+            new TargetedFeeItemRequest { FeeItemId = repair.Id, HouseholdIds = [other] }), HttpStatusCode.Conflict);
+        Assert.Equal($"Khoản thu {repair.Code} đã được lập trong kỳ thu tháng {Today.Month:00}/{Today.Year}.", duplicate.Message);
     }
 
     [SkippableFact]

@@ -257,7 +257,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.Property(p => p.ChargeDate).HasColumnType("date").IsRequired();
             e.Property(p => p.DueDate).HasColumnType("date").IsRequired();
             e.Property(p => p.Note).HasMaxLength(500);
-            e.HasIndex(p => new { p.Year, p.Month });
+            // Một tháng chỉ có một kỳ thu: các khoản phát sinh sau đó được bổ sung vào kỳ có sẵn,
+            // để báo cáo thu/công nợ tổng hợp được cả tháng (xem BillingPeriodService.CreateAsync).
+            e.HasIndex(p => new { p.Year, p.Month }).IsUnique();
             e.HasOne(p => p.CreatedBy).WithMany()
              .HasForeignKey(p => p.CreatedById)
              .OnDelete(DeleteBehavior.Restrict);

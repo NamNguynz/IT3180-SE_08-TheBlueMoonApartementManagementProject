@@ -38,13 +38,16 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
             ("/nhan-khau/bien-dong", "<h1>Biến động nhân khẩu</h1>")
         ];
     private static readonly string[] FinancePlaceholders =
-        ["/khoan-thu/danh-muc", "/don-gia", "/bao-cao/thu-cong-no", "/bao-cao/thu-chi"];
+        ["/khoan-thu/danh-muc", "/don-gia"];
     // Tương tự với nhóm Tài chính (PBI-014: BillingPeriodsPage, PBI-016: PaymentsPage, PBI-019: DebtsPage): Kế toán mở được, Cư dân bị chặn
     private static readonly (string Path, string Title)[] FinancePages =
         [
+            ("/tai-chinh/khoan-thu", "<h1>Khoản thu và đơn giá</h1>"),
             ("/ky-thu", "<h1>Kỳ thu và bảng kê phải thu</h1>"),
             ("/thu-tien", "<h1>Ghi nhận thu tiền</h1>"),
-            ("/cong-no", "<h1>Công nợ và nhắc nộp</h1>")
+            ("/cong-no", "<h1>Công nợ và nhắc nộp</h1>"),
+            ("/bao-cao/thu-cong-no", "<h1>Báo cáo thu và công nợ</h1>"),
+            ("/bao-cao/thu-chi", "<h1>Báo cáo thu chi</h1>")
         ];
 
     private static string RoleLine(string label) => $"Bạn đang đăng nhập với vai trò <strong>{label}</strong>.";
@@ -347,9 +350,12 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
                 Assert.DoesNotContain(NotFoundTitle, page.Html);
             }
         }
-        Assert.Superset(FinancePlaceholders
-                .Concat(ResidentPages.Select(p => p.Path)).Concat(FinancePages.Select(p => p.Path)).ToHashSet(),
-            (await LinksOnHomeAsync(bqt)).ToHashSet());
+        // Mọi link trang thật trong danh sách kỳ vọng phải có trên trang chủ.
+        // 2 đường dẫn tạm chỉ gõ trực tiếp, không còn ở menu nên không tính vào đây.
+        var expectedRealPaths = ResidentPages.Select(p => p.Path).Concat(FinancePages.Select(p => p.Path)).ToHashSet();
+        var homeLinks = (await LinksOnHomeAsync(bqt)).ToHashSet();
+        Assert.True(expectedRealPaths.IsSubsetOf(homeLinks),
+            "Link trang chủ thiếu trong danh sách kỳ vọng: " + string.Join(", ", expectedRealPaths.Except(homeLinks)));
 
         // Phần 2: trang tạm còn lại giữ đúng phân quyền như menu
         var anonymous = NewBrowser();

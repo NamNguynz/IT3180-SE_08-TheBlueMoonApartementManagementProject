@@ -214,16 +214,19 @@ Thêm: kiểm tra cột **Người cấp** của `ketoan_a1` là `bqt_a`, của 
 > **Tự động** (`Acceptance=B9`). Không cần chạy tay.
 
 Các link chưa có trang thật hiện trang tạm "Tính năng đang phát triển" (F3):
+- Nhóm **Tài chính** (Ban Quản Trị và Kế Toán): `/khoan-thu/danh-muc`, `/don-gia`.
+
+Các link đã có trang thật nhưng vẫn phải giữ phân quyền như menu:
 - Nhóm **Căn hộ & cư dân** (chỉ Ban Quản Trị): `/can-ho/danh-sach`, `/nhan-khau/ho`, `/nhan-khau/bien-dong`.
-- Nhóm **Tài chính** và **Báo cáo** (Ban Quản Trị và Kế Toán): `/khoan-thu/danh-muc`, `/don-gia`, `/ky-thu`, `/thu-tien`, `/cong-no`, `/bao-cao/thu-cong-no`, `/bao-cao/thu-chi`.
+- Nhóm **Tài chính, Báo cáo** (Ban Quản Trị và Kế Toán): `/ky-thu`, `/thu-tien`, `/cong-no`, `/bao-cao/thu-cong-no`, `/bao-cao/thu-chi`.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Đăng nhập lần lượt `bqt_a`, `ketoan_a1`, `cudan_01`. Bấm từng link ở menu bên trái, ở mục "Công việc thường dùng" và tên tài khoản góc phải | Link nào cũng mở được trang. **Không** link nào ra trang "Không tìm thấy trang" |
-| 2 | `bqt_a`: gõ thẳng 10 địa chỉ ở trên | Cả 10 trang hiện "Tính năng đang phát triển" |
-| 3 | `ketoan_a1`: gõ thẳng 10 địa chỉ ở trên | 7 trang nhóm Tài chính, Báo cáo hiện "Tính năng đang phát triển". 3 trang nhóm Căn hộ & cư dân chuyển tới `/403` |
-| 4 | `cudan_01`: gõ thẳng 10 địa chỉ ở trên | Cả 10 trang chuyển tới `/403` |
-| 5 | Chưa đăng nhập (cửa sổ ẩn danh mới): gõ thẳng 10 địa chỉ ở trên | Bị chuyển về `/login` |
+| 2 | `bqt_a`: gõ thẳng các địa chỉ ở trên | 2 trang tạm hiện "Tính năng đang phát triển"; 8 trang còn lại hiện đúng nội dung thật |
+| 3 | `ketoan_a1`: gõ thẳng các địa chỉ ở trên | 2 trang tạm và 5 trang Tài chính, Báo cáo mở được; 3 trang Căn hộ & cư dân chuyển tới `/403` |
+| 4 | `cudan_01`: gõ thẳng các địa chỉ ở trên | Cả 10 trang chuyển tới `/403` |
+| 5 | Chưa đăng nhập (cửa sổ ẩn danh mới): gõ thẳng các địa chỉ ở trên | Bị chuyển về `/login` |
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
