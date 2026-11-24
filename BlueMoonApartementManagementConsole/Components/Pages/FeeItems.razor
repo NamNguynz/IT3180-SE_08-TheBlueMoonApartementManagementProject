@@ -103,4 +103,18 @@
         </table>
         <p id="fee-empty" class="muted" hidden>Chưa có khoản thu nào.</p>
     </div>
+
+    <nav id="feePager" class="pager" aria-label="Phân trang khoản thu" hidden>
+        <label class="page-size">Hiển thị
+            <select id="feePageSize" aria-label="Số bản ghi mỗi trang">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+            </select> bản ghi/trang
+        </label>
+        <button type="button" id="feePrev" class="btn-link">← Trước</button>
+        <span id="feePageInfo"></span>
+        <button type="button" id="feeNext" class="btn-link">Sau →</button>
+    </nav>
 </div>

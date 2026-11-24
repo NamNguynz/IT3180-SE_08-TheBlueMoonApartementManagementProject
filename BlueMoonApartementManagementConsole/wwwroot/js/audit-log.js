@@ -1,5 +1,4 @@
 ﻿(() => {
-    const PAGE_SIZE = 20;
     const VN_OFFSET = '+07:00';
 
     const el = (id) => document.getElementById(id);
@@ -57,7 +56,7 @@
         if (username) params.set('username', username);
 
         params.set('page', page);
-        params.set('pageSize', PAGE_SIZE);
+        params.set('pageSize', Number(document.getElementById('auditPageSize')?.value || 20));
         return params.toString();
     };
 
@@ -169,6 +168,9 @@
         if (!window.__auditBound) {
             document.addEventListener('click', onClick);
             document.addEventListener('submit', onSubmit);
+            document.addEventListener('change', (e) => {
+                if (e.target.id === 'auditPageSize') load(1);
+            });
             window.__auditBound = true;
         }
 

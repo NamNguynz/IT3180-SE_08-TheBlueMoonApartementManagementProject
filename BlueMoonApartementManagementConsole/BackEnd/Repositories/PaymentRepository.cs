@@ -38,6 +38,9 @@ public interface IPaymentRepository
     /// <summary>Các lần nộp của hộ trong kỳ, cũ trước, kèm người ghi nhận.</summary>
     Task<List<PaymentEntity>> GetPaymentsAsync(int periodId, int householdId, CancellationToken ct = default);
 
+    /// <summary>Tên file ảnh minh chứng của một lần nộp; null với dữ liệu cũ chưa có ảnh.</summary>
+    Task<string?> GetProofPathAsync(int paymentId, CancellationToken ct = default);
+
     /// <summary>Lưu lần nộp nếu tổng đã nộp sau khi lưu không vượt <paramref name="amountDue"/>.</summary>
     Task<PaymentSaveResult> AddAsync(PaymentEntity payment, decimal amountDue, CancellationToken ct = default);
 }
@@ -83,6 +86,12 @@ public sealed class PaymentRepository(AppDbContext db) : IPaymentRepository
             .OrderBy(p => p.PaidAt)
             .ThenBy(p => p.Id)
             .ToListAsync(ct);
+
+    public Task<string?> GetProofPathAsync(int paymentId, CancellationToken ct = default) =>
+        db.Payments.AsNoTracking()
+            .Where(p => p.Id == paymentId)
+            .Select(p => p.ProofImagePath)
+            .FirstOrDefaultAsync(ct);
 
     public async Task<PaymentSaveResult> AddAsync(PaymentEntity payment, decimal amountDue, CancellationToken ct = default)
     {

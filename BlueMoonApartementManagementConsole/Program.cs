@@ -40,6 +40,7 @@ builder.Services.AddScoped<IFeeItemService, FeeItemService>();
 builder.Services.AddScoped<IBillingPeriodRepository, BillingPeriodRepository>();
 builder.Services.AddScoped<IBillingPeriodService, BillingPeriodService>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddSingleton<IPaymentProofStore, PaymentProofStore>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IDebtRepository, DebtRepository>();
 builder.Services.AddScoped<IDebtService, DebtService>();

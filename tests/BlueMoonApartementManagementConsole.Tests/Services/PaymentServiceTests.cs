@@ -16,15 +16,18 @@ namespace BlueMoonApartementManagementConsole.Tests.Services;
 public sealed class PaymentServiceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 12, 9, 0, 0, TimeSpan.Zero);
+    private static readonly byte[] ProofBytes = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==");
     private const int PeriodId = 1;
 
     private readonly FakePaymentRepository _repo = new();
     private readonly FakeAuditService _audit = new();
+    private readonly FakePaymentProofStore _proofs = new();
     private readonly PaymentService _service;
 
     public PaymentServiceTests()
     {
-        _service = new PaymentService(_repo, _audit, new FakeTimeProvider(Now));
+        _service = new PaymentService(_repo, _audit, _proofs, new FakeTimeProvider(Now));
         _repo.Periods[PeriodId] = new BillingPeriodEntity
         {
             Id = PeriodId, Year = 2026, Month = 11, ChargeDate = new DateOnly(2026, 11, 12), DueDate = new DateOnly(2026, 11, 30)
@@ -97,7 +100,7 @@ public sealed class PaymentServiceTests
             PaidAt = Now.AddMinutes(minutesInFuture),
             Method = method,
             Reference = reference
-        });
+        }, Proof());
 
         AssertInvalid(result, message);
         Assert.Empty(_repo.Payments);
@@ -109,7 +112,7 @@ public sealed class PaymentServiceTests
         var missing = await _service.RecordAsync(1, "ketoan", new RecordPaymentRequest
         {
             BillingPeriodId = PeriodId, HouseholdId = 1, Amount = 1_000m, Method = PaymentMethod.TienMat
-        });
+        }, Proof());
         AssertInvalid(missing, "Hãy nhập thời điểm nhận tiền.");
 
         // Máy Kế toán nhanh hơn máy chủ vài phút vẫn được nhận
@@ -134,10 +137,10 @@ public sealed class PaymentServiceTests
     [Fact]
     public async Task UnknownPeriod_OrHouseholdWithoutReceivable_IsRejected()
     {
-        var unknownPeriod = await _service.RecordAsync(1, "ketoan", Request(404, 1, 1_000m, PaymentMethod.TienMat));
+        var unknownPeriod = await _service.RecordAsync(1, "ketoan", Request(404, 1, 1_000m, PaymentMethod.TienMat), Proof());
         Assert.Equal(FeeItemStatus.NotFound, unknownPeriod.Status);
 
-        AssertInvalid(await _service.RecordAsync(1, "ketoan", Request(PeriodId, 99, 1_000m, PaymentMethod.TienMat)),
+        AssertInvalid(await _service.RecordAsync(1, "ketoan", Request(PeriodId, 99, 1_000m, PaymentMethod.TienMat), Proof()),
             "Hộ này không có khoản phải thu trong kỳ thu tháng 11/2026.");
         Assert.Empty(_repo.Payments);
     }
@@ -163,7 +166,7 @@ public sealed class PaymentServiceTests
     public async Task Period_ShowsEachHouseholdStatus_AndTotals()
     {
         await RecordAsync(500_000m, PaymentMethod.TienMat);
-        await _service.RecordAsync(1, "ketoan", Request(PeriodId, 2, 914_975m, PaymentMethod.TienMat));
+        await _service.RecordAsync(1, "ketoan", Request(PeriodId, 2, 914_975m, PaymentMethod.TienMat), Proof());
 
         var period = (await _service.GetPeriodAsync(PeriodId))!;
 
@@ -191,11 +194,84 @@ public sealed class PaymentServiceTests
         Assert.Equal(Enum.GetValues<PaymentStatus>().Order(), PaymentLabels.Statuses.Select(x => x.Status).Order());
     }
 
+    // ===== Ảnh minh chứng =====
+
+    [Fact]
+    public async Task MissingProof_IsRejected_WithMessage()
+    {
+        var result = await _service.RecordAsync(1, "ketoan",
+            Request(PeriodId, 1, 100_000m, PaymentMethod.TienMat), null);
+
+        AssertInvalid(result, "Vui lòng đính kèm ảnh minh chứng khi ghi nhận lần nộp.");
+        Assert.Empty(_repo.Payments);
+        Assert.Empty(_proofs.Files);
+    }
+
+    public static TheoryData<string, string, long, string> InvalidProofs => new()
+    {
+        { "minh-chung.gif", "image/gif", ProofBytes.Length, "Ảnh minh chứng chỉ chấp nhận định dạng JPG, PNG hoặc WebP." },
+        { "minh-chung.png", "image/jpeg", ProofBytes.Length, "Ảnh minh chứng không đúng định dạng JPG, PNG hoặc WebP." },
+        { "minh-chung.png", "image/png", PaymentProofRules.MaxBytes + 1, "Ảnh minh chứng không được vượt quá 5 MB." }
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidProofs))]
+    public async Task InvalidProof_IsRejected_WithMessage(string fileName, string contentType, long length, string message)
+    {
+        var result = await _service.RecordAsync(1, "ketoan",
+            Request(PeriodId, 1, 100_000m, PaymentMethod.TienMat), Proof(fileName, contentType, length));
+
+        AssertInvalid(result, message);
+        Assert.Empty(_repo.Payments);
+        Assert.Empty(_proofs.Files);
+    }
+
+    [Fact]
+    public async Task SuccessfulPayment_SavesProof_AndExposesDownloadUrl()
+    {
+        var result = await RecordAsync(100_000m, PaymentMethod.TienMat);
+
+        Assert.Equal(FeeItemStatus.Success, result.Status);
+        var payment = Assert.Single(_repo.Payments);
+        Assert.NotNull(payment.ProofImagePath);
+        Assert.EndsWith(".png", payment.ProofImagePath);
+        Assert.True(_proofs.Files.ContainsKey(payment.ProofImagePath));
+        Assert.Equal(PaymentService.ProofUrl(payment.Id), result.Data!.Payment.ProofImageUrl);
+    }
+
+    [Fact]
+    public async Task GetProofAsync_ReturnsSavedImage_AndNullForPaymentsWithoutProof()
+    {
+        await RecordAsync(100_000m, PaymentMethod.TienMat);
+        var payment = Assert.Single(_repo.Payments);
+
+        var proof = await _service.GetProofAsync(payment.Id);
+
+        Assert.NotNull(proof);
+        Assert.Equal("image/png", proof.Value.ContentType);
+        using (proof.Value.Stream)
+        using (var buffer = new MemoryStream())
+        {
+            await proof.Value.Stream.CopyToAsync(buffer);
+            Assert.Equal(ProofBytes, buffer.ToArray());
+        }
+
+        Assert.Null(await _service.GetProofAsync(999)); // không tồn tại
+
+        _repo.Payments.Add(new PaymentEntity { Id = 900, ProofImagePath = null });
+        Assert.Null(await _service.GetProofAsync(900)); // lần nộp cũ trước khi có ảnh
+    }
+
     // ===== Hàm hỗ trợ =====
 
     private Task<FeeItemOperationResult<RecordPaymentResponse>> RecordAsync(
         decimal amount, PaymentMethod method, string? reference = null, string? payer = null, DateTimeOffset? paidAt = null) =>
-        _service.RecordAsync(1, "ketoan", Request(PeriodId, 1, amount, method, reference, payer, paidAt));
+        _service.RecordAsync(1, "ketoan", Request(PeriodId, 1, amount, method, reference, payer, paidAt), Proof());
+
+    /// <summary>Ảnh PNG 1x1; có thể đổi tên/content-type/length để kiểm tra các trường hợp từ chối.</summary>
+    private static PaymentProofUpload Proof(
+        string fileName = "minh-chung.png", string contentType = "image/png", long? length = null) =>
+        new(fileName, contentType, length ?? ProofBytes.Length, new MemoryStream(ProofBytes, writable: false));
 
     private static RecordPaymentRequest Request(int periodId, int householdId, decimal amount, PaymentMethod method,
         string? reference = null, string? payer = null, DateTimeOffset? paidAt = null) => new()
@@ -213,6 +289,32 @@ public sealed class PaymentServiceTests
     {
         Assert.Equal(FeeItemStatus.Invalid, result.Status);
         Assert.Equal(message, result.Message);
+    }
+
+    /// <summary>Kho ảnh trong bộ nhớ: chép nội dung, cấp tên ngẫu nhiên, mở stream mới và xóa khi được yêu cầu.</summary>
+    private sealed class FakePaymentProofStore : IPaymentProofStore
+    {
+        public Dictionary<string, byte[]> Files { get; } = new(StringComparer.Ordinal);
+
+        public Task<string> SaveAsync(PaymentProofUpload upload, CancellationToken ct = default)
+        {
+            using var buffer = new MemoryStream();
+            upload.Content.CopyTo(buffer);
+            var storedName = $"{Guid.NewGuid():N}.png";
+            Files[storedName] = buffer.ToArray();
+            return Task.FromResult(storedName);
+        }
+
+        public Task<(Stream Stream, string ContentType)?> OpenAsync(string storedName, CancellationToken ct = default) =>
+            Files.TryGetValue(storedName, out var bytes)
+                ? Task.FromResult<(Stream, string)?>((new MemoryStream(bytes, writable: false), "image/png"))
+                : Task.FromResult<(Stream, string)?>(null);
+
+        public Task DeleteAsync(string storedName, CancellationToken ct = default)
+        {
+            Files.Remove(storedName);
+            return Task.CompletedTask;
+        }
     }
 
     /// <summary>Kho trong bộ nhớ; AddAsync kiểm tổng đã nộp như repository thật và cấp Id, người ghi nhận.</summary>
@@ -246,6 +348,9 @@ public sealed class PaymentServiceTests
         public Task<List<PaymentEntity>> GetPaymentsAsync(int periodId, int householdId, CancellationToken ct = default) =>
             Task.FromResult(Payments.Where(p => p.BillingPeriodId == periodId && p.HouseholdId == householdId)
                 .OrderBy(p => p.PaidAt).ThenBy(p => p.Id).ToList());
+
+        public Task<string?> GetProofPathAsync(int paymentId, CancellationToken ct = default) =>
+            Task.FromResult(Payments.FirstOrDefault(p => p.Id == paymentId)?.ProofImagePath);
 
         public Task<PaymentSaveResult> AddAsync(PaymentEntity payment, decimal amountDue, CancellationToken ct = default)
         {

@@ -322,6 +322,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.Property(p => p.Reference).HasMaxLength(200);
             e.Property(p => p.PayerName).HasMaxLength(100);
             e.Property(p => p.Note).HasMaxLength(500);
+            // Chỉ lưu tên file ngẫu nhiên do hệ thống tạo; null ở dữ liệu cũ trước khi yêu cầu ảnh minh chứng
+            e.Property(p => p.ProofImagePath).HasMaxLength(260);
             // Tổng đã nộp của một hộ trong kỳ được đọc mỗi lần ghi (transaction Serializable dựa vào index này)
             e.HasIndex(p => new { p.BillingPeriodId, p.HouseholdId });
             e.HasOne(p => p.BillingPeriod).WithMany()

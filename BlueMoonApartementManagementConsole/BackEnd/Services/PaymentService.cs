@@ -11,7 +11,10 @@ public interface IPaymentService
     Task<PeriodCollectionResponse?> GetPeriodAsync(int periodId, CancellationToken ct = default);
     Task<HouseholdPaymentDetailResponse?> GetHouseholdAsync(int periodId, int householdId, CancellationToken ct = default);
     Task<FeeItemOperationResult<RecordPaymentResponse>> RecordAsync(
-        int actorId, string actorName, RecordPaymentRequest request, CancellationToken ct = default);
+        int actorId, string actorName, RecordPaymentRequest request, PaymentProofUpload? proof, CancellationToken ct = default);
+
+    /// <summary>Mở ảnh minh chứng của một lần nộp để controller trả về cho người dùng có quyền tài chính.</summary>
+    Task<(Stream Stream, string ContentType)?> GetProofAsync(int paymentId, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -25,7 +28,7 @@ public interface IPaymentService
 ///
 /// Cách ghi nhận một lần nộp (RecordAsync):
 ///   1. Kiểm tra dữ liệu nhập: phương thức, số tiền &gt; 0 và là đồng nguyên, thời điểm nhận không sau hiện tại,
-///      chuyển khoản phải có mã giao dịch / nội dung để đối chiếu.
+///      chuyển khoản phải có mã giao dịch / nội dung để đối chiếu, và phải có ảnh minh chứng hợp lệ.
 ///   2. Kiểm tra khoản phải thu: kỳ thu tồn tại, hộ có khoản phải thu trong kỳ, chưa nộp đủ,
 ///      số tiền không vượt số còn thiếu (không nhận nộp thừa).
 ///   3. Lưu trong transaction Serializable (đọc lại tổng đã nộp ngay trước khi thêm), rồi ghi nhật ký.
@@ -34,6 +37,7 @@ public interface IPaymentService
 public sealed class PaymentService(
     IPaymentRepository repo,
     IAuditService audit,
+    IPaymentProofStore proofs,
     TimeProvider clock) : IPaymentService
 {
     // Cho phép đồng hồ máy Kế toán nhanh hơn máy chủ một chút khi nhập "vừa nhận tiền"
@@ -79,10 +83,10 @@ public sealed class PaymentService(
     }
 
     public async Task<FeeItemOperationResult<RecordPaymentResponse>> RecordAsync(
-        int actorId, string actorName, RecordPaymentRequest request, CancellationToken ct = default)
+        int actorId, string actorName, RecordPaymentRequest request, PaymentProofUpload? proof, CancellationToken ct = default)
     {
-        // Bước 1: dữ liệu nhập
-        var error = ValidateInput(request);
+        // Bước 1: dữ liệu nhập, kể cả ảnh minh chứng (bắt buộc với mọi lần nộp mới)
+        var error = ValidateInput(request) ?? PaymentProofRules.Validate(proof);
         if (error is not null)
             return Invalid(error);
 
@@ -102,7 +106,18 @@ public sealed class PaymentService(
         if (request.Amount > remaining)
             return Invalid($"Số tiền nộp vượt số còn thiếu ({Money(remaining)} đ). Không nhận nộp thừa.");
 
-        // Bước 3: lưu (đọc lại tổng đã nộp trong transaction), rồi ghi nhật ký
+        // Bước 3: lưu ảnh trước, rồi lưu lần nộp trong transaction (đọc lại tổng đã nộp), cuối cùng ghi nhật ký.
+        // Nếu DB từ chối thì xóa file đã lưu để không để lại rác.
+        string storedName;
+        try
+        {
+            storedName = await proofs.SaveAsync(proof!, ct);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return Invalid("Không lưu được ảnh minh chứng. Vui lòng thử lại.");
+        }
+
         var payment = new PaymentEntity
         {
             BillingPeriodId = period.Id,
@@ -114,13 +129,17 @@ public sealed class PaymentService(
             Reference = NormalizeOptional(request.Reference),
             PayerName = NormalizeOptional(request.PayerName),
             Note = NormalizeOptional(request.Note),
+            ProofImagePath = storedName,
             RecordedById = actorId,
             RecordedAt = clock.GetUtcNow()
         };
         var saved = await repo.AddAsync(payment, due.AmountDue, ct);
         if (saved != PaymentSaveResult.Saved)
+        {
+            await proofs.DeleteAsync(storedName, ct);
             return new(FeeItemStatus.Conflict, Message:
                 "Vừa có lần nộp khác được ghi cho hộ này nên số còn thiếu đã thay đổi. Hãy tải lại và kiểm tra trước khi ghi.");
+        }
 
         await audit.LogAsync(AuditAction.RecordPayment, actorName, actorId, payment.Id.ToString(),
             $"Biên nhận {ReceiptNumber(payment.Id)}: hộ {due.HouseholdNumber}, kỳ thu tháng {period.Month:00}/{period.Year}, " +
@@ -129,6 +148,12 @@ public sealed class PaymentService(
 
         var bill = (await GetHouseholdAsync(period.Id, due.HouseholdId, ct))!;
         return new(FeeItemStatus.Success, new RecordPaymentResponse(bill.Payments.Single(p => p.Id == payment.Id), bill));
+    }
+
+    public async Task<(Stream Stream, string ContentType)?> GetProofAsync(int paymentId, CancellationToken ct = default)
+    {
+        var storedName = await repo.GetProofPathAsync(paymentId, ct);
+        return storedName is null ? null : await proofs.OpenAsync(storedName, ct);
     }
 
     // ---- Quy tắc ----
@@ -161,6 +186,9 @@ public sealed class PaymentService(
 
     public static string ReceiptNumber(int paymentId) => $"BN-{paymentId:D6}";
 
+    /// <summary>URL tải ảnh minh chứng qua API được bảo vệ (không trả đường dẫn file vật lý).</summary>
+    public static string ProofUrl(int paymentId) => $"/api/thu-tien/{paymentId}/anh-minh-chung";
+
     /// <summary>Số tiền kiểu Việt Nam: 1.234.567 (không phụ thuộc culture của máy chủ). Dùng chung với DebtService.</summary>
     internal static string Money(decimal value) =>
         value.ToString("#,0", CultureInfo.InvariantCulture).Replace(',', '.');
@@ -183,5 +211,8 @@ public sealed class PaymentService(
 
     private static PaymentResponse Map(PaymentEntity p) =>
         new(p.Id, ReceiptNumber(p.Id), p.Amount, p.PaidAt, p.Method, p.Reference, p.PayerName, p.Note,
-            p.RecordedBy.Username, p.RecordedAt);
+            p.RecordedBy.Username, p.RecordedAt)
+        {
+            ProofImageUrl = p.ProofImagePath is null ? null : ProofUrl(p.Id)
+        };
 }

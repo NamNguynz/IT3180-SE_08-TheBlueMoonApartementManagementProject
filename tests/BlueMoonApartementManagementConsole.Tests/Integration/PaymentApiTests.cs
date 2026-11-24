@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BlueMoonApartementManagementConsole.BackEnd.Infrastructures.Persistences.DBContexts;
@@ -122,6 +124,42 @@ public class PaymentApiTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoo
         Assert.Equal(HttpStatusCode.NotFound, (await PostPaymentAsync(admin, 999999999, 1, 1_000m, PaymentMethod.TienMat)).StatusCode);
     }
 
+    [SkippableFact]
+    public async Task MissingProofImage_Returns400_WithMessage()
+    {
+        SkipIfNoDatabase();
+        var admin = await AdminClientAsync();
+        var (periodId, householdId) = await BillOneHouseholdAsync(admin, area: 40m);
+
+        using var form = PaymentApiTestHelpers.PaymentForm(periodId, householdId, 100_000m,
+            PaymentMethod.TienMat, includeProof: false);
+        var error = await ReadAsync<ApiError>(await admin.PostAsync("/api/thu-tien", form), HttpStatusCode.BadRequest);
+
+        Assert.Contains("ảnh minh chứng", error.Message.ToLowerInvariant());
+    }
+
+    [SkippableFact]
+    public async Task ProofImage_IsServedByProtectedGet_AndMissingProofReturns404()
+    {
+        SkipIfNoDatabase();
+        var admin = await AdminClientAsync();
+        var (periodId, householdId) = await BillOneHouseholdAsync(admin, area: 40m);
+
+        using var form = PaymentApiTestHelpers.PaymentForm(periodId, householdId, 100_000m, PaymentMethod.TienMat);
+        var recorded = await ReadAsync<RecordPaymentResponse>(
+            await admin.PostAsync("/api/thu-tien", form), HttpStatusCode.Created);
+
+        Assert.Equal($"/api/thu-tien/{recorded.Payment.Id}/anh-minh-chung", recorded.Payment.ProofImageUrl);
+
+        var image = await admin.GetAsync(recorded.Payment.ProofImageUrl!);
+        Assert.Equal(HttpStatusCode.OK, image.StatusCode);
+        Assert.Equal("image/png", image.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(PaymentApiTestHelpers.ProofBytes, await image.Content.ReadAsByteArrayAsync());
+
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await admin.GetAsync("/api/thu-tien/999999999/anh-minh-chung")).StatusCode);
+    }
+
     // ===== Hàm hỗ trợ =====
 
     private static void SkipIfNoDatabase() =>
@@ -143,18 +181,13 @@ public class PaymentApiTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoo
         return JsonSerializer.Deserialize<T>(body, Json)!;
     }
 
-    private static Task<HttpResponseMessage> PostPaymentAsync(HttpClient admin, int periodId, int householdId,
-        decimal amount, PaymentMethod method, string? reference = null) =>
-        admin.PostAsJsonAsync("/api/thu-tien", new RecordPaymentRequest
-        {
-            BillingPeriodId = periodId,
-            HouseholdId = householdId,
-            Amount = amount,
-            PaidAt = DateTimeOffset.Now.AddMinutes(-10),
-            Method = method,
-            Reference = reference,
-            PayerName = "Người nộp test"
-        }, Json);
+    private static async Task<HttpResponseMessage> PostPaymentAsync(HttpClient admin, int periodId, int householdId,
+        decimal amount, PaymentMethod method, string? reference = null, bool includeProof = true)
+    {
+        using var form = PaymentApiTestHelpers.PaymentForm(periodId, householdId, amount, method,
+            reference, includeProof: includeProof);
+        return await admin.PostAsync("/api/thu-tien", form);
+    }
 
     /// <summary>Tạo khoản thu theo diện tích 7.000 đ/m², một hộ test và kỳ thu tháng này; trả về (kỳ thu, hộ).</summary>
     private async Task<(int PeriodId, int HouseholdId)> BillOneHouseholdAsync(HttpClient admin, decimal area)
@@ -210,5 +243,45 @@ public class PaymentApiTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoo
         _periodIds.Add(period.Id);
 
         return (period.Id, household.Id);
+    }
+}
+
+/// <summary>
+/// Form gửi tới POST /api/thu-tien, dùng chung cho các test tích hợp ghi nhận thu tiền.
+/// Tên các field khớp với PaymentController.Record ([FromForm] + file proofImage).
+/// </summary>
+internal static class PaymentApiTestHelpers
+{
+    /// <summary>Ảnh PNG 1x1 hợp lệ theo PaymentProofRules.</summary>
+    internal static readonly byte[] ProofBytes = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==");
+
+    internal static MultipartFormDataContent PaymentForm(
+        int periodId,
+        int householdId,
+        decimal amount,
+        PaymentMethod method,
+        string? reference = null,
+        string? payerName = "Người nộp test",
+        DateTimeOffset? paidAt = null,
+        bool includeProof = true)
+    {
+        var form = new MultipartFormDataContent();
+        form.Add(new StringContent(periodId.ToString(CultureInfo.InvariantCulture)), "billingPeriodId");
+        form.Add(new StringContent(householdId.ToString(CultureInfo.InvariantCulture)), "householdId");
+        form.Add(new StringContent(amount.ToString(CultureInfo.InvariantCulture)), "amount");
+        form.Add(new StringContent((paidAt ?? DateTimeOffset.Now.AddMinutes(-10)).ToString("O", CultureInfo.InvariantCulture)), "paidAt");
+        form.Add(new StringContent(method.ToString()), "method");
+        form.Add(new StringContent(reference ?? string.Empty), "reference");
+        form.Add(new StringContent(payerName ?? string.Empty), "payerName");
+        form.Add(new StringContent(string.Empty), "note");
+
+        if (includeProof)
+        {
+            var proof = new ByteArrayContent(ProofBytes);
+            proof.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+            form.Add(proof, "proofImage", "minh-chung.png");
+        }
+        return form;
     }
 }

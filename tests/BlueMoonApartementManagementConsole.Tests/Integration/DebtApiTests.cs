@@ -200,15 +200,11 @@ public class DebtApiTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoonAp
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.ChargeDate, dueDate.AddDays(-5)).SetProperty(p => p.DueDate, dueDate));
     }
 
-    private static async Task PayAsync(HttpClient admin, int periodId, int householdId, decimal amount) =>
-        await ReadAsync<RecordPaymentResponse>(await admin.PostAsJsonAsync("/api/thu-tien", new RecordPaymentRequest
-        {
-            BillingPeriodId = periodId,
-            HouseholdId = householdId,
-            Amount = amount,
-            PaidAt = DateTimeOffset.UtcNow.AddMinutes(-5),
-            Method = PaymentMethod.TienMat
-        }, Json), HttpStatusCode.Created);
+    private static async Task PayAsync(HttpClient admin, int periodId, int householdId, decimal amount)
+    {
+        using var form = PaymentApiTestHelpers.PaymentForm(periodId, householdId, amount, PaymentMethod.TienMat);
+        await ReadAsync<RecordPaymentResponse>(await admin.PostAsync("/api/thu-tien", form), HttpStatusCode.Created);
+    }
 
     private static Task<HttpResponseMessage> PostRemindersAsync(HttpClient admin, int periodId, int householdId) =>
         admin.PostAsJsonAsync("/api/cong-no/nhac-nop", new RecordRemindersRequest

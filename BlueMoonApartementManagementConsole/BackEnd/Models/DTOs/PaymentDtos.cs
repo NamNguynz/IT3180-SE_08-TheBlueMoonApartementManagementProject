@@ -32,6 +32,44 @@ public sealed record RecordPaymentRequest
     public string? Note { get; init; }
 }
 
+/// <summary>Ảnh minh chứng do client gửi kèm khi ghi nhận lần nộp (bắt buộc với lần nộp mới).</summary>
+public sealed record PaymentProofUpload(string FileName, string ContentType, long Length, Stream Content);
+
+/// <summary>Giới hạn chung cho ảnh minh chứng: JPG/PNG/WebP, tối đa 5 MB.</summary>
+public static class PaymentProofRules
+{
+    public const long MaxBytes = 5L * 1024 * 1024;
+
+    private static readonly Dictionary<string, string> TypesByExtension = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [".jpg"] = "image/jpeg",
+        [".jpeg"] = "image/jpeg",
+        [".png"] = "image/png",
+        [".webp"] = "image/webp"
+    };
+
+    /// <summary>Trả về thông báo lỗi nếu ảnh không hợp lệ, ngược lại trả về null.</summary>
+    public static string? Validate(PaymentProofUpload? proof)
+    {
+        if (proof is null || proof.Length <= 0)
+            return "Vui lòng đính kèm ảnh minh chứng khi ghi nhận lần nộp.";
+        if (proof.Length > MaxBytes)
+            return "Ảnh minh chứng không được vượt quá 5 MB.";
+
+        var extension = Path.GetExtension(proof.FileName);
+        if (!TypesByExtension.TryGetValue(extension, out var expectedType))
+            return "Ảnh minh chứng chỉ chấp nhận định dạng JPG, PNG hoặc WebP.";
+        if (!string.Equals(proof.ContentType, expectedType, StringComparison.OrdinalIgnoreCase))
+            return "Ảnh minh chứng không đúng định dạng JPG, PNG hoặc WebP.";
+
+        return null;
+    }
+
+    /// <summary>Lấy content-type từ đuôi file đã được kiểm tra; không tin vào tên/content-type do client gửi khi phục vụ lại.</summary>
+    public static string? ContentTypeOf(string storedName) =>
+        TypesByExtension.TryGetValue(Path.GetExtension(storedName), out var type) ? type : null;
+}
+
 /// <summary>Tình hình thu của một kỳ: tổng phải thu, đã thu, còn thiếu và từng hộ.</summary>
 public sealed record PeriodCollectionResponse(
     int BillingPeriodId,
@@ -84,7 +122,11 @@ public sealed record PaymentResponse(
     string? PayerName,
     string? Note,
     string RecordedBy,
-    DateTimeOffset RecordedAt);
+    DateTimeOffset RecordedAt)
+{
+    /// <summary>URL để tải ảnh minh chứng qua API được bảo vệ; null với các lần nộp cũ chưa có ảnh.</summary>
+    public string? ProofImageUrl { get; init; }
+}
 
 /// <summary>Kết quả ghi nhận: biên nhận của lần nộp vừa ghi và khoản phải thu sau khi cập nhật.</summary>
 public sealed record RecordPaymentResponse(PaymentResponse Payment, HouseholdPaymentDetailResponse Bill);

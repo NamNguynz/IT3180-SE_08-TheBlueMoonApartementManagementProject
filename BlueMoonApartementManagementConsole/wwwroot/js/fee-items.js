@@ -8,6 +8,8 @@
 
     var items = [];
     var canManage = false;
+    var page = 1;
+    var pageSize = 10;
 
     function byId(id) { return document.getElementById(id); }
 
@@ -110,12 +112,36 @@
         if (!body) return;
 
         var filtered = applyFilters(items);
+        // Enhanced navigation có thể thay select bằng bản SSR (mặc định 10) trong khi JS giữ giá trị cũ.
+        var sizeSelect = byId('feePageSize');
+        if (sizeSelect) pageSize = Number(sizeSelect.value) || 10;
+        var total = filtered.length;
+        var totalPages = Math.max(1, Math.ceil(total / pageSize));
+        if (page > totalPages) page = totalPages;
+        var start = (page - 1) * pageSize;
+        var shown = filtered.slice(start, start + pageSize);
+
         body.textContent = '';
-        filtered.forEach(function (item) {
+        shown.forEach(function (item) {
             body.appendChild(buildRow(item));
             body.appendChild(buildDetailRow(item));
         });
-        if (empty) empty.hidden = filtered.length > 0;
+        if (empty) empty.hidden = total > 0;
+
+        var pager = byId('feePager');
+        if (pager) pager.hidden = total === 0;
+        var info = byId('feePageInfo');
+        if (info) info.textContent = 'Trang ' + page + ' / ' + totalPages + ' (' + total + ' bản ghi)';
+        var prev = byId('feePrev');
+        if (prev) {
+            prev.disabled = page <= 1;
+            prev.dataset.page = String(page - 1);
+        }
+        var next = byId('feeNext');
+        if (next) {
+            next.disabled = page >= totalPages;
+            next.dataset.page = String(page + 1);
+        }
     }
 
     function cell(text) {
@@ -331,9 +357,18 @@
     }
 
     function onClick(event) {
-        var btn = event.target.closest ? event.target.closest('button[data-action]') : null;
         var root = pageRoot();
-        if (!btn || !root || !root.contains(btn)) return;
+        if (!root) return;
+
+        var pagerBtn = event.target.closest ? event.target.closest('#feePrev, #feeNext') : null;
+        if (pagerBtn && root.contains(pagerBtn)) {
+            page = Number(pagerBtn.dataset.page);
+            render();
+            return;
+        }
+
+        var btn = event.target.closest ? event.target.closest('button[data-action]') : null;
+        if (!btn || !root.contains(btn)) return;
 
         if (btn.dataset.action === 'lookup') {
             onLookup(btn);
@@ -372,7 +407,14 @@
     }
 
     function onFilter(event) {
+        if (event.target.id === 'feePageSize') {
+            pageSize = Number(event.target.value);
+            page = 1;
+            render();
+            return;
+        }
         if (event.target.id === 'fee-filter-type' || event.target.id === 'fee-filter-text') {
+            page = 1;
             render();
         }
     }

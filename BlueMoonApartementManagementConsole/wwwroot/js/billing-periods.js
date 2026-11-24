@@ -9,6 +9,14 @@
     let periods = [];
     let detail = null;
 
+    // Phân trang thuần client-side cho 3 danh sách; không gửi page/pageSize lên API.
+    let periodPage = 1;
+    let periodSize = 10;
+    let billPage = 1;
+    let billSize = 10;
+    let targetPage = 1;
+    let targetSize = 10;
+
     // Listener gắn trên document để không mất khi Blazor thay DOM; mountedRoot dùng để nhận ra lần mount mới.
     let bound = false;
     let mountedRoot = null;
@@ -95,10 +103,28 @@
         return td;
     };
 
+    // ---- Phân trang client-side (cùng tạo bộ ba nav/select/nút cho cả 3 danh sách) ----
+
+    const pageCountFor = (count, size) => Math.max(1, Math.ceil(count / size));
+    const clampPage = (page, count, size) => Math.min(Math.max(1, page), pageCountFor(count, size));
+
+    const updatePager = (prefix, page, size, count) => {
+        const pager = $(`#${prefix}Pager`);
+        if (!pager) return;
+        const pageCount = pageCountFor(count, size);
+        pager.hidden = count === 0;
+        pager.dataset.page = String(page);
+        $(`#${prefix}PageInfo`).textContent = `Trang ${page} / ${pageCount} (${count} bản ghi)`;
+        $(`#${prefix}Prev`).disabled = page <= 1;
+        $(`#${prefix}Next`).disabled = page >= pageCount;
+    };
+
     // ---- Danh sách kỳ thu ----
 
     const renderPeriods = () => {
-        $('#bpPeriods').replaceChildren(...periods.map((period) => {
+        periodPage = clampPage(periodPage, periods.length, periodSize);
+        const pagePeriods = periods.slice((periodPage - 1) * periodSize, periodPage * periodSize);
+        $('#bpPeriods').replaceChildren(...pagePeriods.map((period) => {
             const row = document.createElement('tr');
             row.classList.toggle('is-selected', detail?.id === period.id);
             const actions = document.createElement('td');
@@ -121,6 +147,7 @@
             return row;
         }));
         $('#bpPeriodsEmpty').hidden = periods.length > 0;
+        updatePager('bp', periodPage, periodSize, periods.length);
     };
 
     const loadPeriods = async () => {
@@ -155,6 +182,8 @@
     };
 
     const showDetail = (period) => {
+        // Xem kỳ khác thì bảng kê bắt đầu lại từ trang đầu
+        if (detail?.id !== period.id) billPage = 1;
         detail = period;
         $('#bpSearch').value = '';
         $('#bpDetail').hidden = false;
@@ -197,6 +226,9 @@
             household.building.toLocaleLowerCase('vi').includes(query) ||
             household.householdNumber.toLocaleLowerCase('vi').includes(query));
 
+        billPage = clampPage(billPage, households.length, billSize);
+        const pageHouseholds = households.slice((billPage - 1) * billSize, billPage * billSize);
+
         const headRow = document.createElement('tr');
         for (const text of ['Căn hộ', 'Tòa', 'Số hộ khẩu']) {
             const th = document.createElement('th');
@@ -216,7 +248,7 @@
         headRow.append(totalHead);
         $('#bpBillHead').replaceChildren(headRow);
 
-        $('#bpBills').replaceChildren(...households.map((household) => {
+        $('#bpBills').replaceChildren(...pageHouseholds.map((household) => {
             const row = document.createElement('tr');
             row.append(cell(household.apartmentCode), cell(household.building), cell(household.householdNumber));
             for (const item of detail.items) {
@@ -231,6 +263,7 @@
             return row;
         }));
         $('#bpBillsEmpty').hidden = households.length > 0;
+        updatePager('bpBill', billPage, billSize, households.length);
 
         // Dòng tổng luôn là tổng cả kỳ, không đổi theo ô tìm kiếm
         const footRow = document.createElement('tr');
@@ -305,6 +338,7 @@
         form.reset();
         targets = new Map();
         householdOptions = null; // tải lại khi mở pop-up, vì danh sách hộ có thể đã đổi
+        targetPage = 1;
         const now = new Date();
         const period = form.elements.namedItem('period');
         period.value = monthValue(now);
@@ -458,6 +492,7 @@
         const item = feeItems.get(feeItemId);
         $('#bpTargetTitle').textContent = `Chọn hộ phải nộp: ${item.code} – ${item.name}`;
         $('#bpTargetSearch').value = '';
+        targetPage = 1; // mở lại pop-up thì bắt đầu từ trang đầu
         renderTargetList();
         $('#bpTargetDialog').showModal();
         $('#bpTargetSearch').focus();
@@ -473,7 +508,9 @@
 
     const renderTargetList = () => {
         const households = visibleHouseholds();
-        $('#bpTargetList').replaceChildren(...households.map((household) => {
+        targetPage = clampPage(targetPage, households.length, targetSize);
+        const pageHouseholds = households.slice((targetPage - 1) * targetSize, targetPage * targetSize);
+        $('#bpTargetList').replaceChildren(...pageHouseholds.map((household) => {
             const label = document.createElement('label');
             label.className = 'bp-target-option';
             const checkbox = document.createElement('input');
@@ -487,6 +524,7 @@
             return label;
         }));
         $('#bpTargetEmpty').hidden = households.length > 0;
+        updatePager('bpTarget', targetPage, targetSize, households.length);
         updateTargetCount();
     };
 
@@ -567,6 +605,22 @@
     // ---- Sự kiện ----
 
     const onClick = async (event) => {
+        const pagerButton = event.target.closest('#bpPrev, #bpNext, #bpBillPrev, #bpBillNext, #bpTargetPrev, #bpTargetNext');
+        if (pagerButton && inRoot(pagerButton) && !pagerButton.disabled) {
+            const forward = pagerButton.id.endsWith('Next');
+            if (pagerButton.id.startsWith('bpBill')) {
+                billPage += forward ? 1 : -1;
+                renderBills();
+            } else if (pagerButton.id.startsWith('bpTarget')) {
+                targetPage += forward ? 1 : -1;
+                renderTargetList();
+            } else {
+                periodPage += forward ? 1 : -1;
+                renderPeriods();
+            }
+            return;
+        }
+
         const button = event.target.closest('[data-action]');
         if (!button || !inRoot(button)) return;
 
@@ -593,6 +647,28 @@
     const onChange = (event) => {
         const target = event.target;
         if (!inRoot(target)) return;
+
+        // Phải xử lý trước các early-return của form lập kỳ / pop-up chọn hộ
+        const id = target.getAttribute('id');
+        if (id === 'bpPageSize') {
+            periodSize = Number(target.value) || 10;
+            periodPage = 1;
+            renderPeriods();
+            return;
+        }
+        if (id === 'bpBillPageSize') {
+            billSize = Number(target.value) || 10;
+            billPage = 1;
+            if (detail) renderBills();
+            return;
+        }
+        if (id === 'bpTargetPageSize') {
+            targetSize = Number(target.value) || 10;
+            targetPage = 1;
+            if (editing) renderTargetList();
+            return;
+        }
+
         if (target.form?.getAttribute('id') === 'bpCreateForm') {
             if (['period', 'chargeDate'].includes(target.name)) onPeriodChange(target.form);
             if (target.name === 'feeItemIds') void onFeeItemToggle(target);
@@ -613,8 +689,14 @@
     const onSearchInput = (event) => {
         if (!inRoot(event.target)) return;
         const id = event.target.getAttribute('id');
-        if (id === 'bpSearch' && detail) renderBills();
-        if (id === 'bpTargetSearch' && editing) renderTargetList();
+        if (id === 'bpSearch' && detail) {
+            billPage = 1;
+            renderBills();
+        }
+        if (id === 'bpTargetSearch' && editing) {
+            targetPage = 1;
+            renderTargetList();
+        }
     };
 
     // 'cancel' của <dialog> không được tin cậy để delegate trên document: gắn riêng cho từng node mới.
@@ -640,6 +722,12 @@
             targets = new Map();
             householdOptions = null;
             editing = null;
+            periodPage = 1;
+            periodSize = 10;
+            billPage = 1;
+            billSize = 10;
+            targetPage = 1;
+            targetSize = 10;
         }
         if (!bound) {
             document.addEventListener('click', onClick);

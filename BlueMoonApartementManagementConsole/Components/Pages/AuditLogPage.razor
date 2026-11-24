@@ -65,6 +65,10 @@
     </div>
 
     <nav id="auditPager" class="pager" hidden>
+        <label class="page-size">Hiển thị
+            <select id="auditPageSize" aria-label="Số bản ghi mỗi trang">
+                <option value="5">5</option><option value="10">10</option><option value="15">15</option><option value="20" selected>20</option>
+            </select> bản ghi/trang</label>
         <button type="button" id="auditPrev" class="btn-link">← Trước</button>
         <span id="auditPageInfo"></span>
         <button type="button" id="auditNext" class="btn-link">Sau →</button>

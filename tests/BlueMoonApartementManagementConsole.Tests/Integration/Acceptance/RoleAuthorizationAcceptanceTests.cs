@@ -140,7 +140,8 @@ public class RoleAuthorizationAcceptanceTests(BlueMoonAppFactory factory)
             var shown = Regex.Matches(html, "<div class=\"nav-title\">(.*?)</div>").Select(m => m.Groups[1].Value).ToArray();
 
             Assert.Equal(groups, shown);
-            Assert.Contains(">Trang chủ</a>", html);
+            // Menu có thể bọc thêm <span> cho/icon; chỉ cần đảm bảo link Trang chủ vẫn có chữ.
+            Assert.Contains(">Trang chủ<", html);
         }
     }
 

@@ -78,6 +78,20 @@
         <p id="dbEmpty" class="empty-state" hidden>Không có hộ nào còn nợ.</p>
     </div>
 
+    <nav id="dbPager" class="pager" aria-label="Phân trang công nợ" hidden>
+        <label class="page-size">Hiển thị
+            <select id="dbPageSize" aria-label="Số bản ghi mỗi trang">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+            </select> bản ghi/trang
+        </label>
+        <button type="button" id="dbPrev" class="btn-link">← Trước</button>
+        <span id="dbPageInfo"></span>
+        <button type="button" id="dbNext" class="btn-link">Sau →</button>
+    </nav>
+
     @* Hộp thoại nhắc nộp: xem giấy báo của các hộ đã chọn, in, rồi ghi nhận đã nhắc *@
     <div id="dbRemindDialog" class="db-dialog-backdrop" hidden>
         <section class="db-dialog" role="dialog" aria-modal="true" aria-labelledby="dbRemindTitle">

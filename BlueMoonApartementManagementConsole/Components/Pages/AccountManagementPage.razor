@@ -86,4 +86,14 @@
             <tbody id="accBody"></tbody>
         </table>
     </div>
+
+    <nav id="accPager" class="pager" aria-label="Phân trang tài khoản" hidden>
+        <label class="page-size">Hiển thị
+            <select id="accPageSize" aria-label="Số bản ghi mỗi trang">
+                <option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option>
+            </select> bản ghi/trang</label>
+        <button type="button" id="accPrev" class="btn-link">← Trước</button>
+        <span id="accPageInfo"></span>
+        <button type="button" id="accNext" class="btn-link">Sau →</button>
+    </nav>
 </section>

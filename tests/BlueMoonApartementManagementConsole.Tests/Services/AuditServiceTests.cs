@@ -95,12 +95,12 @@ public class AuditServiceTests
     [InlineData(0, 20, 1, 20)]       // trang nhỏ hơn 1
     [InlineData(-3, 20, 1, 20)]
     [InlineData(2, 20, 2, 20)]
-    [InlineData(1, 0, 1, 10)]        // số dòng nhỏ hơn 10
-    [InlineData(1, 5, 1, 10)]
-    [InlineData(1, 10, 1, 10)]       // biên dưới
-    [InlineData(1, 100, 1, 100)]     // biên trên
-    [InlineData(1, 101, 1, 100)]
-    [InlineData(1, 1000, 1, 100)]    // số dòng lớn hơn 100
+    [InlineData(1, 0, 1, 5)]         // ListPageSize.Normalize đưa về 5
+    [InlineData(1, 5, 1, 5)]         // biên dưới mới
+    [InlineData(1, 10, 1, 10)]
+    [InlineData(1, 100, 1, 20)]      // helper chỉ cho phép 5 / 10 / 15 / 20
+    [InlineData(1, 101, 1, 20)]
+    [InlineData(1, 1000, 1, 20)]     // giá trị lớn bị đưa về 20
     public async Task Query_ClampsPageAndPageSize(int page, int pageSize, int expectedPage, int expectedPageSize)
     {
         var result = await _service.QueryAsync(Query(page, pageSize));

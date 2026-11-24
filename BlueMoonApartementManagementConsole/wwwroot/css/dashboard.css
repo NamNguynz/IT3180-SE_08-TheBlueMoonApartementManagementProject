@@ -121,7 +121,9 @@ body {
 }
 
 .nav-link {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 9px 20px 9px 28px;
     font-size: 14px;
     color: inherit;
@@ -139,6 +141,16 @@ body {
         border-left-color: #7fb0ff;
         font-weight: 600;
     }
+
+.nav-icon {
+    display: inline-block;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    background-color: #ffffff;
+    -webkit-mask: var(--icon) no-repeat center / contain;
+    mask: var(--icon) no-repeat center / contain;
+}
 
 /* ===== Header ===== */
 .dash-header {

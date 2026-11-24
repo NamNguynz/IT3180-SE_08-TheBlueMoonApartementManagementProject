@@ -101,6 +101,15 @@
     width: 100%;
 }
 
+.pm-form input[type="file"] {
+    width: 100%;
+}
+
+.pm-proof-link {
+    color: var(--navy);
+    text-decoration: underline;
+}
+
 .pm-confirm {
     margin-bottom: 12px;
     padding: 12px 14px;
