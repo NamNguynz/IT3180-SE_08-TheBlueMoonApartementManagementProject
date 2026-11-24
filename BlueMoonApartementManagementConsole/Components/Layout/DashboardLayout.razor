@@ -38,40 +38,82 @@
                 </div>
 
                 <nav class="dash-nav">
-                    <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Trang chủ</NavLink>
+                    <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                        <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/home.svg')"></span>
+                        <span>Trang chủ</span>
+                    </NavLink>
 
                     <AuthorizeView Roles="BQT">
                         <div class="nav-group">
                             <div class="nav-title">Căn hộ & cư dân</div>
-                            <NavLink class="nav-link" href="/can-ho/ho-so">Hồ sơ căn hộ</NavLink>
-                            <NavLink class="nav-link" href="/can-ho/danh-sach">Danh sách căn hộ</NavLink>
-                            <NavLink class="nav-link" href="/nhan-khau/ho">Hộ & nhân khẩu</NavLink>
-                            <NavLink class="nav-link" href="/nhan-khau/bien-dong">Biến động nhân khẩu</NavLink>
+                            <NavLink class="nav-link" href="/can-ho/ho-so">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/script.svg')"></span>
+                                <span> Hồ sơ căn hộ </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/can-ho/danh-sach">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/list.svg')"></span>
+                                <span> Danh sách căn hộ </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/nhan-khau/ho">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/people.svg')"></span>
+                                <span> Hộ & nhân khẩu </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/nhan-khau/bien-dong">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/person.svg')"></span>
+                                <span> Biến động nhân khẩu </span>
+                            </NavLink>
                         </div>
                     </AuthorizeView>
 
                     <AuthorizeView Roles="BQT,KE_TOAN">
                         <div class="nav-group">
                             <div class="nav-title">Tài chính</div>
-                            <NavLink class="nav-link" href="/tai-chinh/khoan-thu">Khoản thu và đơn giá</NavLink>
-                            <NavLink class="nav-link" href="/ky-thu">Kỳ thu</NavLink>
-                            <NavLink class="nav-link" href="/thu-tien">Ghi nhận thanh toán</NavLink>
-                            <NavLink class="nav-link" href="/cong-no">Công nợ</NavLink>
+                            <NavLink class="nav-link" href="/tai-chinh/khoan-thu">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/dollar.svg')"></span>
+                                <span> Khoản thu và đơn giá </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/ky-thu">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/calendar.svg')"></span>
+                                <span> Kỳ thu </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/thu-tien">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/credit-card.svg')"></span>
+                                <span> Ghi nhận thanh toán </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/cong-no">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/warning.svg')"></span>
+                                <span> Công nợ </span>
+                            </NavLink>
                         </div>
 
                         <div class="nav-group">
                             <div class="nav-title">Báo cáo</div>
-                            <NavLink class="nav-link" href="/bao-cao/thu-cong-no">Thu & công nợ</NavLink>
-                            <NavLink class="nav-link" href="/bao-cao/thu-chi">Thu–chi</NavLink>
+                            <NavLink class="nav-link" href="/bao-cao/thu-cong-no">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/bar-chart.svg')"></span>
+                                <span> Thu & công nợ </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/bao-cao/thu-chi">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/pie-chart.svg')"></span>
+                                <span> Thu–chi </span>
+                            </NavLink>
                         </div>
                     </AuthorizeView>
 
                     <AuthorizeView Roles="BQT">
                         <div class="nav-group">
                             <div class="nav-title">Quản trị</div>
-                            <NavLink class="nav-link" href="/quan-tri/tai-khoan">Tài khoản & phân quyền</NavLink>
-                            <NavLink class="nav-link" href="/quan-tri/duyet-tai-khoan">Duyệt tài khoản</NavLink>
-                            <NavLink class="nav-link" href="/quan-tri/nhat-ky">Nhật ký</NavLink>
+                            <NavLink class="nav-link" href="/quan-tri/tai-khoan">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/lock-locked.svg')"></span>
+                                <span> Tài khoản & phân quyền </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/quan-tri/duyet-tai-khoan">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/check.svg')"></span>
+                                <span> Duyệt tài khoản </span>
+                            </NavLink>
+                            <NavLink class="nav-link" href="/quan-tri/nhat-ky">
+                                <span class="nav-icon" aria-hidden="true" style="--icon: url('/images/svg/book.svg')"></span>
+                                <span> Nhật ký </span>
+                            </NavLink>
                         </div>
                     </AuthorizeView>
                 </nav>

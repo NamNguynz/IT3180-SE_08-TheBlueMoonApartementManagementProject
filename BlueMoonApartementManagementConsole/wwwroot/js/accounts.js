@@ -4,6 +4,8 @@
 
     const el = (id) => document.getElementById(id);
     let accounts = [];
+    let accPage = 1;
+    let accPageSize = 10;
 
     const showAlert = (message, ok) => {
         const box = el('accAlert');
@@ -124,10 +126,28 @@
             (!status || (status === 'active' ? a.isActive : !a.isActive))
         );
 
+        // Đồng bộ với select trên DOM: sau enhanced navigation select SSR quay về mặc định 10.
+        const sizeSelect = el('accPageSize');
+        if (sizeSelect) accPageSize = Number(sizeSelect.value) || 10;
+
+        const totalPages = Math.max(1, Math.ceil(list.length / accPageSize));
+        accPage = Math.min(Math.max(1, accPage), totalPages);
+        const pageItems = list.slice((accPage - 1) * accPageSize, accPage * accPageSize);
+
         el('accLoading').hidden = true;
-        el('accBody').replaceChildren(...list.map((a) => renderRow(a, names.get(a.grantedById))));
+        el('accBody').replaceChildren(...pageItems.map((a) => renderRow(a, names.get(a.grantedById))));
         el('accEmpty').hidden = list.length > 0;
         el('accTable').hidden = list.length === 0;
+
+        el('accPager').hidden = list.length === 0;
+        el('accPageInfo').textContent = `Trang ${accPage} / ${totalPages} (${list.length} bản ghi)`;
+
+        const prev = el('accPrev');
+        const next = el('accNext');
+        prev.disabled = accPage <= 1;
+        prev.dataset.page = accPage - 1;
+        next.disabled = accPage >= totalPages;
+        next.dataset.page = accPage + 1;
     };
 
     const load = async () => {
@@ -197,6 +217,13 @@
     };
 
     const onClick = (e) => {
+        const pageBtn = e.target.closest?.('#accPrev, #accNext');
+        if (pageBtn && !pageBtn.disabled) {
+            accPage = Number(pageBtn.dataset.page);
+            render();
+            return;
+        }
+
         const actionBtn = e.target.closest?.('[data-action]');
         if (actionBtn) return onAction(actionBtn);
 
@@ -217,7 +244,18 @@
     };
 
     const onFilterChange = (e) => {
-        if (e.target.closest?.('#accFilter')) render();
+        if (e.target.id === 'accPageSize') {
+            // select vừa phát input vừa phát change: chỉ xử lý change để không render hai lần
+            if (e.type !== 'change') return;
+            accPageSize = Number(el('accPageSize').value) || 10;
+            accPage = 1;
+            render();
+            return;
+        }
+        if (e.target.closest?.('#accFilter')) {
+            accPage = 1;
+            render();
+        }
     };
 
     const init = () => {

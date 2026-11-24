@@ -8,7 +8,7 @@
 <PageTitle>Ghi nhận thu tiền - Bluemoon</PageTitle>
 
 <HeadContent>
-    <link rel="stylesheet" href="css/payments.css" />
+    <link rel="stylesheet" href="css/payments.css?v=1" />
 </HeadContent>
 
 @* PBI-016: xử lý ở wwwroot/js/payments.js, gọi api/thu-tien và api/ky-thu. Quy tắc ghi nhận nằm ở PaymentService;
@@ -66,6 +66,20 @@
             </table>
             <p id="pmHouseholdsEmpty" class="empty-state" hidden>Không có hộ phù hợp.</p>
         </div>
+
+        <nav id="pmPager" class="pager" aria-label="Phân trang hộ thu tiền" hidden>
+            <label class="page-size">Hiển thị
+                <select id="pmPageSize" aria-label="Số bản ghi mỗi trang">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                </select> bản ghi/trang
+            </label>
+            <button type="button" id="pmPrev" class="btn-link">← Trước</button>
+            <span id="pmPageInfo"></span>
+            <button type="button" id="pmNext" class="btn-link">Sau →</button>
+        </nav>
     </div>
 
     <div id="pmDialog" class="pm-dialog-backdrop" hidden>
@@ -121,6 +135,10 @@
                     <label class="pm-wide">Ghi chú
                         <input name="note" maxlength="500" />
                     </label>
+                    <label class="pm-wide">Ảnh minh chứng
+                        <input name="proofImage" type="file" accept="image/jpeg,image/png,image/webp" required />
+                        <span class="muted small">JPG, PNG hoặc WebP, tối đa 5 MB. Bắt buộc cho mọi lần nộp.</span>
+                    </label>
                 </div>
 
                 @* Bước xác nhận: Kế toán xem lại nội dung trước khi lưu, vì lần nộp đã ghi không sửa, không xóa *@
@@ -149,6 +167,7 @@
                             <th>Phương thức</th>
                             <th>Mã GD / nội dung</th>
                             <th>Người nộp</th>
+                            <th>Ảnh minh chứng</th>
                             <th>Người ghi nhận</th>
                         </tr>
                     </thead>

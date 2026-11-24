@@ -71,6 +71,19 @@
         </div>
         <div id="bpTargetList" class="bp-target-list"></div>
         <p id="bpTargetEmpty" class="muted small" hidden>Không có hộ phù hợp.</p>
+        <nav id="bpTargetPager" class="pager" aria-label="Phân trang danh sách hộ" hidden>
+            <label class="page-size">Hiển thị
+                <select id="bpTargetPageSize" aria-label="Số bản ghi mỗi trang">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                </select> bản ghi/trang
+            </label>
+            <button type="button" id="bpTargetPrev" class="btn-link">← Trước</button>
+            <span id="bpTargetPageInfo"></span>
+            <button type="button" id="bpTargetNext" class="btn-link">Sau →</button>
+        </nav>
         <div class="bp-target-foot">
             <span id="bpTargetCount" class="muted small"></span>
             <div class="filter-actions">
@@ -98,6 +111,20 @@
         </table>
         <p id="bpPeriodsEmpty" class="empty-state" hidden>Chưa có kỳ thu nào.</p>
     </div>
+
+    <nav id="bpPager" class="pager" aria-label="Phân trang kỳ thu" hidden>
+        <label class="page-size">Hiển thị
+            <select id="bpPageSize" aria-label="Số bản ghi mỗi trang">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+            </select> bản ghi/trang
+        </label>
+        <button type="button" id="bpPrev" class="btn-link">← Trước</button>
+        <span id="bpPageInfo"></span>
+        <button type="button" id="bpNext" class="btn-link">Sau →</button>
+    </nav>
 
     <section id="bpDetail" class="card-box bp-detail" hidden>
         <div class="bp-detail-head">
@@ -141,5 +168,18 @@
             </table>
         </div>
         <p id="bpBillsEmpty" class="empty-state" hidden>Không có hộ phù hợp.</p>
+        <nav id="bpBillPager" class="pager" aria-label="Phân trang bảng kê theo hộ" hidden>
+            <label class="page-size">Hiển thị
+                <select id="bpBillPageSize" aria-label="Số bản ghi mỗi trang">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                </select> bản ghi/trang
+            </label>
+            <button type="button" id="bpBillPrev" class="btn-link">← Trước</button>
+            <span id="bpBillPageInfo"></span>
+            <button type="button" id="bpBillNext" class="btn-link">Sau →</button>
+        </nav>
     </section>
 </section>

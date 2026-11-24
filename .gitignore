@@ -39,3 +39,6 @@ BlueMoonApartementManagementConsole/appsettings.json
 
 # AI Context files
 .claude/
+
+# Ảnh minh chứng các lần nộp tiền (dữ liệu sinh lúc chạy, không commit)
+BlueMoonApartementManagementConsole/App_Data/

@@ -5,6 +5,8 @@
     const printRootId = 'dbPrintRoot';
     let debtList = null;          // kết quả GET api/cong-no
     let selected = new Set();     // khóa "kỳ:hộ" của các dòng đã chọn
+    let page = 1;
+    let pageSize = 10;
     // Listener gắn trên document để không mất khi Blazor thay DOM; mountedRoot dùng để nhận ra lần mount mới.
     let bound = false;
     let mountedRoot = null;
@@ -143,6 +145,11 @@
                 row.householdNumber.toLocaleLowerCase('vi').includes(query)));
     };
 
+    const currentPageRows = () => {
+        const start = (page - 1) * pageSize;
+        return visibleRows().slice(start, start + pageSize);
+    };
+
     const render = () => {
         $('#dbHouseholds').textContent = debtList ? `${debtList.householdCount} hộ` : '–';
         $('#dbTotal').textContent = debtList ? `${formatMoney(debtList.totalRemaining)} đ` : '–';
@@ -151,10 +158,15 @@
             : '–';
 
         const rows = visibleRows();
-        // Chỉ giữ lựa chọn của các dòng đang hiện: đổi bộ lọc thì hộ bị ẩn không còn được nhắc ngoài ý muốn
-        const visibleKeys = new Set(rows.map(keyOf));
+        const total = rows.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        if (page > totalPages) page = totalPages;
+        const start = (page - 1) * pageSize;
+        const shown = rows.slice(start, start + pageSize);
+        // Chỉ giữ lựa chọn của các dòng đang hiện: đổi bộ lọc hoặc trang thì hộ bị ẩn không còn được nhắc ngoài ý muốn
+        const visibleKeys = new Set(shown.map(keyOf));
         selected = new Set([...selected].filter((key) => visibleKeys.has(key)));
-        $('#dbRows').replaceChildren(...rows.map((row) => {
+        $('#dbRows').replaceChildren(...shown.map((row) => {
             const tr = document.createElement('tr');
             tr.classList.toggle('is-overdue', row.isOverdue);
 
@@ -202,16 +214,25 @@
             return tr;
         }));
         // Tải lỗi (debtList null) thì không hiện "không có hộ nào còn nợ", tránh hiểu nhầm là đã thu đủ
-        $('#dbEmpty').hidden = rows.length > 0 || !debtList;
+        $('#dbEmpty').hidden = total > 0 || !debtList;
         $('#dbEmpty').textContent = debtList && debtList.rows.length > 0
             ? 'Không có hộ phù hợp bộ lọc.'
             : 'Không có hộ nào còn nợ.';
 
-        syncSelectAll(rows);
+        $('#dbPager').hidden = total === 0;
+        $('#dbPageInfo').textContent = `Trang ${page} / ${totalPages} (${total} bản ghi)`;
+        const prev = $('#dbPrev');
+        prev.disabled = page <= 1;
+        prev.dataset.page = String(page - 1);
+        const next = $('#dbNext');
+        next.disabled = page >= totalPages;
+        next.dataset.page = String(page + 1);
+
+        syncSelectAll(shown);
         updateSelection();
     };
 
-    const syncSelectAll = (rows = visibleRows()) => {
+    const syncSelectAll = (rows = currentPageRows()) => {
         $('#dbSelectAll').checked = rows.length > 0 && rows.every((row) => selected.has(keyOf(row)));
     };
 
@@ -339,6 +360,13 @@
     // ---- Sự kiện ----
 
     const onClick = async (event) => {
+        const pagerButton = event.target.closest('#dbPrev, #dbNext');
+        if (pagerButton && inRoot(pagerButton)) {
+            page = Number(pagerButton.dataset.page);
+            render();
+            return;
+        }
+
         const button = event.target.closest('[data-action]');
         if (!button || !inRoot(button)) return;
 
@@ -367,16 +395,22 @@
             else selected.delete(target.dataset.key);
             syncSelectAll();
             updateSelection();
+        } else if (target.id === 'dbPageSize') {
+            pageSize = Number(target.value);
+            page = 1;
+            render();
         } else if (target.id === 'dbSelectAll') {
-            for (const row of visibleRows()) {
+            for (const row of currentPageRows()) {
                 if (target.checked) selected.add(keyOf(row));
                 else selected.delete(keyOf(row));
             }
             for (const box of $('#dbRows').querySelectorAll('input[type="checkbox"]')) box.checked = target.checked;
             updateSelection();
         } else if (target.id === 'dbPeriod') {
+            page = 1;
             void loadDebts();
         } else if (target.id === 'dbStatus' || target.id === 'dbOverdue') {
+            page = 1;
             render();
         }
     };
@@ -389,7 +423,10 @@
     };
 
     const onSearchInput = (event) => {
-        if (event.target.getAttribute('id') === 'dbSearch' && inRoot(event.target)) render();
+        if (event.target.getAttribute('id') === 'dbSearch' && inRoot(event.target)) {
+            page = 1;
+            render();
+        }
     };
 
     // Từ báo cáo thu công nợ chuyển sang: giữ kỳ thu và tìm đúng hộ đã chọn.
@@ -408,6 +445,8 @@
             mountedRoot = root;
             debtList = null;
             selected = new Set();
+            page = 1;
+            pageSize = 10;
         }
         if (!bound) {
             document.addEventListener('click', onClick);

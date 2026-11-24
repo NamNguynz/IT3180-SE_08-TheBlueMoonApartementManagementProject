@@ -257,10 +257,10 @@ public class AuditLogQueryTests(BlueMoonAppFactory factory) : IClassFixture<Blue
         var small = await GetPageAsync(client, Url(username: _prefix, pageSize: 5));
         var zero = await GetPageAsync(client, Url(username: _prefix, page: 0, pageSize: 10));
 
-        Assert.Equal(100, big.PageSize);
-        Assert.Equal(expected, Ids(big));
-        Assert.Equal(10, small.PageSize);
-        Assert.Equal(expected[..10], Ids(small));
+        Assert.Equal(20, big.PageSize); // helper chỉ cho phép tối đa 20
+        Assert.Equal(expected[..20], Ids(big));
+        Assert.Equal(5, small.PageSize);
+        Assert.Equal(expected[..5], Ids(small));
         Assert.Equal(1, zero.Page);
         Assert.Equal(expected[..10], Ids(zero));
     }

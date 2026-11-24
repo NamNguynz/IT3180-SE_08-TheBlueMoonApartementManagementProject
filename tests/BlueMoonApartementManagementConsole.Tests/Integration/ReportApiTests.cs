@@ -248,17 +248,13 @@ public class ReportApiTests(BlueMoonAppFactory factory) : IClassFixture<BlueMoon
             .FirstOrDefaultAsync();
     }
 
-    private static Task<HttpResponseMessage> RecordPaymentAsync(
-        HttpClient admin, int periodId, int householdId, decimal amount) =>
-        admin.PostAsJsonAsync("/api/thu-tien", new RecordPaymentRequest
-        {
-            BillingPeriodId = periodId,
-            HouseholdId = householdId,
-            Amount = amount,
-            PaidAt = DateTimeOffset.Now.AddMinutes(-10),
-            Method = PaymentMethod.TienMat,
-            PayerName = "Người nộp test báo cáo"
-        }, Json);
+    private static async Task<HttpResponseMessage> RecordPaymentAsync(
+        HttpClient admin, int periodId, int householdId, decimal amount)
+    {
+        using var form = PaymentApiTestHelpers.PaymentForm(periodId, householdId, amount, PaymentMethod.TienMat,
+            payerName: "Người nộp test báo cáo");
+        return await admin.PostAsync("/api/thu-tien", form);
+    }
 
     /// <summary>Một khoản bắt buộc 10.000 đ/m², một hộ 10 m², kỳ thu tháng hiện tại.</summary>
     private async Task<(int PeriodId, int HouseholdId, string HouseholdNumber)> BillOneHouseholdAsync(HttpClient admin)

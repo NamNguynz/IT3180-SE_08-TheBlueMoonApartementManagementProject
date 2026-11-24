@@ -33,10 +33,29 @@ public sealed class PaymentController(IPaymentService payments) : ControllerBase
             : Ok(bill);
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Record([FromBody] RecordPaymentRequest request, CancellationToken ct)
+    /// <summary>Phục vụ ảnh minh chứng cho người có quyền tài chính. Không lộ đường dẫn file vật lý.</summary>
+    [HttpGet("{paymentId:int}/anh-minh-chung")]
+    public async Task<IActionResult> GetProofImage(int paymentId, CancellationToken ct)
     {
-        var result = await payments.RecordAsync(ActorId, ActorName, request, ct);
+        var proof = await payments.GetProofAsync(paymentId, ct);
+        if (proof is null)
+            return NotFound(new ApiError("NOT_FOUND", "Không tìm thấy ảnh minh chứng."));
+
+        Response.Headers.CacheControl = "private, no-store";
+        // FileStreamResult sẽ đóng stream sau khi ghi xong, không đóng ở đây.
+        return File(proof.Value.Stream, proof.Value.ContentType, enableRangeProcessing: true);
+    }
+
+    [HttpPost]
+    [RequestSizeLimit(6 * 1024 * 1024)] // ảnh tối đa 5 MB + phần form, chặn request quá sớm
+    public async Task<IActionResult> Record([FromForm] RecordPaymentRequest request, IFormFile? proofImage, CancellationToken ct)
+    {
+        await using var stream = proofImage?.OpenReadStream() ?? Stream.Null;
+        var proof = proofImage is null
+            ? null
+            : new PaymentProofUpload(proofImage.FileName, proofImage.ContentType, proofImage.Length, stream);
+
+        var result = await payments.RecordAsync(ActorId, ActorName, request, proof, ct);
         if (result.Status != FeeItemStatus.Success)
             return result.Status switch
             {

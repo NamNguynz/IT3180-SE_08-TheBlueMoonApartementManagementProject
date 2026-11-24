@@ -48,6 +48,13 @@ public class PaymentEntity
 
     public string? PayerName { get; set; }
     public string? Note { get; set; }
+
+    /// <summary>
+    /// Tên file ảnh minh chứng lưu ngoài wwwroot (tên ngẫu nhiên do hệ thống tạo, không phải đường dẫn người dùng nhập).
+    /// Null ở các lần nộp cũ trước khi có yêu cầu ảnh; mọi lần nộp mới đều bắt buộc có ảnh.
+    /// </summary>
+    public string? ProofImagePath { get; set; }
+
     public int RecordedById { get; set; }
     public AppUserEntity RecordedBy { get; set; } = null!;
 

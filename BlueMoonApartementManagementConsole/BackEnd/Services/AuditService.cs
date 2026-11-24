@@ -34,7 +34,7 @@ public class AuditService(IAuditRepository repo) : IAuditService
     public async Task<PagedResult<AuditLogDto>> QueryAsync(AuditQuery query, CancellationToken ct = default)
     {
         var page = Math.Max(1, query.Page);
-        var size = Math.Clamp(query.PageSize, 10, 100);
+        var size = ListPageSize.Normalize(query.PageSize);
 
         var (items, total) = await repo.QueryAsync(query with { Page = page, PageSize = size }, ct);
 

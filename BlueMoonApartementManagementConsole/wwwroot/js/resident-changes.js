@@ -9,6 +9,9 @@
     let mountedRoot = null;
     let rootObserver = null;
 
+    // Danh sách hộ chỉ hiển thị tối đa 5 kết quả; phía dưới vẫn giữ nguyên các thao tác biến động.
+    const HOUSEHOLD_LIST_LIMIT = 5;
+
     const inRoot = (node) => Boolean(node && document.getElementById(rootId)?.contains(node));
 
     // Cấu hình hiển thị theo loại biến động (nhãn ngày, ô nơi đi/đến, có ngày kết thúc, có khai báo nhân khẩu mới)
@@ -129,13 +132,18 @@
             household.building.toLocaleLowerCase('vi').includes(query) ||
             household.householdNumber.toLocaleLowerCase('vi').includes(query));
 
-        $('#rcCount').textContent = query
-            ? `${matching.length} / ${households.length} hộ`
-            : `${households.length} hộ`;
+        const shown = matching.slice(0, HOUSEHOLD_LIST_LIMIT);
+
+        $('#rcCount').textContent = matching.length > HOUSEHOLD_LIST_LIMIT
+            ? `Hiển thị ${HOUSEHOLD_LIST_LIMIT} / ${matching.length} hộ phù hợp`
+            : query
+                ? `${matching.length} / ${households.length} hộ`
+                : `${households.length} hộ`;
         $('#rcListLoading').hidden = true;
         $('#rcListEmpty').hidden = matching.length > 0;
+        $('#rcListHint').hidden = matching.length <= HOUSEHOLD_LIST_LIMIT;
 
-        $('#householdList').replaceChildren(...matching.map((household) => {
+        $('#householdList').replaceChildren(...shown.map((household) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'apartment-list-item';

@@ -6,6 +6,9 @@
     let collection = null;   // tình hình thu của kỳ đang chọn
     let bill = null;          // khoản phải thu của hộ đang mở hộp thoại
     let pendingBody = null;   // nội dung đã nhập, chờ Kế toán xác nhận
+    let pendingProof = null;  // ảnh minh chứng đã chọn, chờ Kế toán xác nhận
+    let page = 1;
+    let pageSize = 10;
     // Listener gắn trên document để không mất khi Blazor thay DOM; mountedRoot dùng để nhận ra lần mount mới.
     let bound = false;
     let mountedRoot = null;
@@ -51,14 +54,16 @@
     };
 
     const api = async (url, options = {}) => {
+        // FormData phải được gửi nguyên vẹn để trình duyệt tự đặt boundary cho multipart
+        const isFormData = options.body instanceof FormData;
         const response = await fetch(url, {
             method: options.method ?? 'GET',
             credentials: 'same-origin',
             headers: {
                 Accept: 'application/json',
-                ...(options.body ? { 'Content-Type': 'application/json' } : {})
+                ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {})
             },
-            body: options.body ? JSON.stringify(options.body) : undefined
+            body: options.body ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined
         });
 
         if (response.status === 401) {
@@ -152,7 +157,13 @@
                 household.building.toLocaleLowerCase('vi').includes(query) ||
                 household.householdNumber.toLocaleLowerCase('vi').includes(query)));
 
-        $('#pmHouseholds').replaceChildren(...households.map((household) => {
+        const total = households.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        if (page > totalPages) page = totalPages;
+        const start = (page - 1) * pageSize;
+        const shown = households.slice(start, start + pageSize);
+
+        $('#pmHouseholds').replaceChildren(...shown.map((household) => {
             const row = document.createElement('tr');
             const badge = document.createElement('span');
             badge.className = statusBadgeClass(household.status);
@@ -180,7 +191,16 @@
                 actions);
             return row;
         }));
-        $('#pmHouseholdsEmpty').hidden = households.length > 0;
+        $('#pmHouseholdsEmpty').hidden = total > 0;
+
+        $('#pmPager').hidden = total === 0;
+        $('#pmPageInfo').textContent = `Trang ${page} / ${totalPages} (${total} bản ghi)`;
+        const prev = $('#pmPrev');
+        prev.disabled = page <= 1;
+        prev.dataset.page = String(page - 1);
+        const next = $('#pmNext');
+        next.disabled = page >= totalPages;
+        next.dataset.page = String(page + 1);
     };
 
     // ---- Hộp thoại ghi nhận ----
@@ -220,6 +240,18 @@
 
         $('#pmPayments').replaceChildren(...bill.payments.map((payment) => {
             const row = document.createElement('tr');
+            const proofCell = document.createElement('td');
+            if (payment.proofImageUrl) {
+                const proofLink = document.createElement('a');
+                proofLink.href = payment.proofImageUrl;
+                proofLink.target = '_blank';
+                proofLink.rel = 'noopener noreferrer';
+                proofLink.className = 'pm-proof-link';
+                proofLink.textContent = 'Xem ảnh';
+                proofCell.append(proofLink);
+            } else {
+                proofCell.textContent = 'Không có ảnh';
+            }
             row.append(
                 cell(payment.receiptNumber),
                 cell(formatTime(payment.paidAt)),
@@ -227,6 +259,7 @@
                 cell(methodLabel(payment.method)),
                 cell(payment.reference ?? ''),
                 cell(payment.payerName ?? ''),
+                proofCell,
                 cell(`${payment.recordedBy} · ${formatTime(payment.recordedAt)}`));
             return row;
         }));
@@ -246,6 +279,11 @@
     const resetForm = () => {
         const form = $('#pmForm');
         form.reset();
+        // form.reset() đã xóa giá trị file nhưng không xóa custom validity
+        const proofInput = form.elements.namedItem('proofImage');
+        proofInput.value = '';
+        proofInput.setCustomValidity('');
+        pendingProof = null;
         const now = new Date();
         const amount = form.elements.namedItem('amount');
         amount.max = bill.remaining;
@@ -268,7 +306,22 @@
     const onFormSubmit = (form) => {
         // Giờ đã trôi từ lúc mở hộp thoại: cập nhật giới hạn "không sau hiện tại" trước khi kiểm (server cũng kiểm)
         form.elements.namedItem('paidAt').max = localDateTime(new Date());
+
+        const proofInput = form.elements.namedItem('proofImage');
+        proofInput.setCustomValidity('');
+        const file = proofInput.files[0];
+        if (file) {
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                proofInput.setCustomValidity('Ảnh minh chứng phải là JPG, PNG hoặc WebP.');
+            } else if (file.size > 5 * 1024 * 1024) {
+                proofInput.setCustomValidity('Ảnh minh chứng không được vượt quá 5 MB.');
+            }
+        }
+        // Không có file thì để thuộc tính required của input tự báo lỗi
         if (!form.reportValidity()) return;
+        pendingProof = file ?? null;
+
         const amount = Number(formValue(form, 'amount'));
         const method = formValue(form, 'method');
         pendingBody = {
@@ -286,6 +339,7 @@
         $('#pmConfirmText').textContent =
             `Ghi nhận ${formatMoney(amount)} đ (${methodLabel(method)}) cho hộ ${bill.householdNumber}, ` +
             `nhận lúc ${formatTime(pendingBody.paidAt)}. ` +
+            `Ảnh: ${file.name}. ` +
             (after > 0
                 ? `Sau lần này hộ còn thiếu ${formatMoney(after)} đ (nộp một phần).`
                 : 'Sau lần này hộ đã nộp đủ kỳ thu.') +
@@ -295,10 +349,15 @@
     };
 
     const onConfirm = async (button) => {
-        if (!pendingBody) return;
+        if (!pendingBody || !pendingProof) return;
         button.disabled = true;
         try {
-            const response = await api('/api/thu-tien', { method: 'POST', body: pendingBody });
+            const formData = new FormData();
+            for (const [key, value] of Object.entries(pendingBody)) {
+                formData.append(key, value ?? '');
+            }
+            formData.append('proofImage', pendingProof);
+            const response = await api('/api/thu-tien', { method: 'POST', body: formData });
             if (response.status === 401) return;
             if (!response.ok) {
                 setConfirming(false);
@@ -329,6 +388,13 @@
     };
 
     const onClick = async (event) => {
+        const pagerButton = event.target.closest('#pmPrev, #pmNext');
+        if (pagerButton && inRoot(pagerButton)) {
+            page = Number(pagerButton.dataset.page);
+            renderCollection();
+            return;
+        }
+
         const button = event.target.closest('[data-action]');
         if (!button || !inRoot(button)) return;
 
@@ -359,13 +425,33 @@
         const target = event.target;
         if (!inRoot(target)) return;
         const id = target.getAttribute('id');
-        if (id === 'pmPeriod') void loadCollection();
-        if (id === 'pmStatus' && collection) renderCollection();
+        if (id === 'pmPageSize') {
+            pageSize = Number(target.value);
+            page = 1;
+            if (collection) renderCollection();
+            return;
+        }
+        if (id === 'pmPeriod') {
+            page = 1;
+            void loadCollection();
+        }
+        if (id === 'pmStatus' && collection) {
+            page = 1;
+            renderCollection();
+        }
         if (target.form?.getAttribute('id') === 'pmForm' && target.name === 'method') toggleReference(target.form);
+        // Chọn lại ảnh thì xóa lỗi cũ để người dùng có thể thử lại
+        if (target.form?.getAttribute('id') === 'pmForm' && target.name === 'proofImage') target.setCustomValidity('');
     };
 
-    const onSearchInput = (event) => {
-        if (event.target.getAttribute('id') === 'pmSearch' && inRoot(event.target) && collection) renderCollection();
+    const onInput = (event) => {
+        if (event.target.getAttribute('id') === 'pmSearch' && inRoot(event.target) && collection) {
+            page = 1;
+            renderCollection();
+        }
+        if (event.target.form?.getAttribute('id') === 'pmForm' && event.target.name === 'proofImage') {
+            event.target.setCustomValidity('');
+        }
     };
 
     const init = () => {
@@ -377,12 +463,15 @@
             collection = null;
             bill = null;
             pendingBody = null;
+            pendingProof = null;
+            page = 1;
+            pageSize = 10;
         }
         if (!bound) {
             document.addEventListener('click', onClick);
             document.addEventListener('submit', onSubmit);
             document.addEventListener('change', onChange);
-            document.addEventListener('input', onSearchInput);
+            document.addEventListener('input', onInput);
             bound = true;
         }
         void loadPeriods();
