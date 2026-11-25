@@ -252,7 +252,7 @@ Lưu ý: nếu đã chạy C8 thì mật khẩu của `cudan_lg` lúc này là `
 
 | # | Mô tả | Test case |
 |---|---|---|
-| G3 | Ở trang đổi mật khẩu, nhập sai mật khẩu hiện tại bao nhiêu lần cũng không bị khóa | Không test tay (đã có unit test P5) |
+| G3 (#69) | Ở trang đổi mật khẩu, nhập sai mật khẩu hiện tại bao nhiêu lần cũng không bị khóa | Không test tay (đã có unit test P5) |
 | G4 | Tên đăng nhập phân biệt chữ hoa/thường. Đang chờ PO xác nhận | C10 |
 | — | Lần sai thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" thay vì "lần 5" | C4 bước 1 |
 

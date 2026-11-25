@@ -149,9 +149,9 @@ Các lỗi dưới đây đã được ghi nhận và sẽ sửa ở task riêng
 
 | # | Mô tả | Ảnh hưởng tới |
 |---|---|---|
-| 1 | `ADMIN_INIT_PWD` không bị kiểm tra độ dài tối thiểu 8 ký tự | Tài khoản `admin` có thể có mật khẩu ngắn |
+| 1 (#67) | `ADMIN_INIT_PWD` không bị kiểm tra độ dài tối thiểu 8 ký tự | Tài khoản `admin` có thể có mật khẩu ngắn |
 | 2 | **Đính chính (09/11/2026): không phải lỗi.** Hash tạo lại khi đăng nhập sai tư cách **vẫn được lưu**, vì lệnh ghi nhật ký lưu luôn thay đổi trên cùng kết nối DB. Test Q10 (`AuditLogQueryTests`) đã xác nhận | — |
-| 3 | Lần sai mật khẩu thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" thay vì "lần 5" | A2, A5 |
+| 3 (#68) | Lần sai mật khẩu thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" thay vì "lần 5" | A2, A5 |
 
 ## 6. Tổng hợp và nghiệm thu
 
