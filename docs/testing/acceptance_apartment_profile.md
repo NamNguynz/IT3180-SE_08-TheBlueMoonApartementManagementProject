@@ -23,8 +23,8 @@ Xác nhận **PBI-001 / US-001**:
 
 | Mục | Giá trị |
 |---|---|
-| Nhánh / commit được kiểm thử | |
-| Trình duyệt | |
+| Nhánh / commit được kiểm thử | Code app `1231392` (`main` sau PR #53). Test tự động chạy trên nhánh `docs/test-plan-report`; Y9 chạy tay trên nhánh `test/apartment-profile-acceptance` (code app giống nhau) |
+| Trình duyệt | Y9 chạy tay trên trình duyệt của người kiểm thử. Các case khác chạy tự động, không dùng trình duyệt |
 | URL app | `https://localhost:7127` |
 
 **Chuẩn bị:** chạy app trên database **mới** (cấu hình theo README), đăng nhập `admin`, Tư cách **Ban quản trị**,
@@ -57,7 +57,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `Y1_ValidApartment_IsSaved_AndCanBeLookedUp`, ngày 25/11/2026 | Pass | |
 
 ### Y2. Lưu hồ sơ hộ, gắn đúng căn hộ, chủ hộ và thành viên (AC-001)
 
@@ -71,7 +71,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `Y2_ValidHousehold_IsLinkedToApartment_HeadAndResidents_AndCanBeLookedUp`, ngày 25/11/2026: hộ gắn đúng căn, đúng số hộ khẩu, tên chủ hộ, 2 nhân khẩu | Pass | Chủ hộ mới là tên, chưa là một nhân khẩu; nhân khẩu chưa có quan hệ với chủ hộ (mục 5 dòng 2) |
 
 ### Y3. Cập nhật căn hộ và hồ sơ hộ (AC-001)
 
@@ -85,7 +85,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `Y3_UpdatedApartmentAndHousehold_AreSaved_AndUnsubmittedResidentsAreKept`, ngày 25/11/2026 | Pass | Nhân khẩu không gửi lên vẫn được giữ (mục 5 dòng 4) |
 
 ### Y4. Trùng mã căn hộ bị từ chối (AC-002)
 
@@ -98,7 +98,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `Y4_DuplicateApartmentCode_IsRejected_WhenCreatingOrUpdating`, ngày 25/11/2026 | Pass | |
 
 ### Y5. Trùng số hộ khẩu, hoặc căn hộ đã có hộ, bị từ chối (AC-002)
 
@@ -111,7 +111,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `Y5_DuplicateHouseholdNumber_OrSecondHouseholdForApartment_IsRejected`, ngày 25/11/2026 | Pass | |
 
 ### Y6. Trùng số CMND/CCCD bị từ chối (AC-002)
 
@@ -121,7 +121,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động E9 `SameCccdInAnotherHousehold_IsRejected`, ngày 25/11/2026 | Pass | |
 
 ### Y7. Thiếu trường bắt buộc bị từ chối, chỉ rõ trường (AC-002)
 
@@ -138,7 +138,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | Dòng 1 – 4 trả lỗi tiếng Anh, xem mục 5 |
+| Tự động `Y7_MissingRequiredField_IsRejected_NamesTheField_AndNothingIsSaved` (6 trường hợp), ngày 25/11/2026: bị từ chối, chỉ rõ trường, không lưu gì | Pass | Dòng 1 – 4 trả lỗi tiếng Anh, xem mục 5 (issue #54) |
 
 ### Y8. Giá trị sai bị từ chối, chỉ rõ trường (AC-002)
 
@@ -155,7 +155,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | Dòng 1 – 4 trả lỗi tiếng Anh, xem mục 5 |
+| Tự động `Y8_InvalidValue_IsRejected_NamesTheField_AndNothingIsSaved` (6 trường hợp), ngày 25/11/2026: bị từ chối, chỉ rõ trường, không lưu gì | Pass | Dòng 1 – 4 trả lỗi tiếng Anh, xem mục 5 (issue #54) |
 
 ### Y9. Báo lỗi trên giao diện (AC-001, AC-002)
 
@@ -187,7 +187,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `Y10_AccountantAndResident_CannotCreateOrUpdateProfiles`, ngày 25/11/2026: Kế toán và Cư dân đều bị 403 | Pass | |
 
 ---
 
@@ -195,7 +195,7 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | # | Nội dung |
 |---|---|
-| 1 | **Lỗi trả về bằng tiếng Anh (đã xác nhận khi chạy Y7, Y8):** thiếu Mã căn hộ, Số hộ khẩu, Họ tên chủ hộ, Họ tên nhân khẩu, hoặc Diện tích, Tầng, Số phòng ngủ ngoài giới hạn bị ASP.NET chặn trước khi vào code của nhóm. API trả lỗi mặc định, ví dụ `"errors": {"Area": ["The field Area must be between 0.01 and 100000."]}`. Lỗi có nêu tên trường nên vẫn đạt phần "chỉ rõ trường" của AC-002, nhưng bằng tiếng Anh và không theo dạng `{code, message}` như các lỗi khác (NFR-011, NFR-013). Trang Hồ sơ hiện nguyên câu này, ví dụ `Area: The field Area must be ...`. Trên giao diện, các ô đã có `required`, `min`, `max` nên trình duyệt chặn phần lớn trường hợp; chỉ gặp khi gõ toàn dấu cách (Y9 bước 5) hoặc gọi thẳng API |
+| 1 | **Lỗi trả về bằng tiếng Anh (đã xác nhận khi chạy Y7, Y8, Y9 bước 5; issue #54):** thiếu Mã căn hộ, Số hộ khẩu, Họ tên chủ hộ, Họ tên nhân khẩu, hoặc Diện tích, Tầng, Số phòng ngủ ngoài giới hạn bị ASP.NET chặn trước khi vào code của nhóm. API trả lỗi mặc định, ví dụ `"errors": {"Area": ["The field Area must be between 0.01 and 100000."]}`. Lỗi có nêu tên trường nên vẫn đạt phần "chỉ rõ trường" của AC-002, nhưng bằng tiếng Anh và không theo dạng `{code, message}` như các lỗi khác (NFR-011, NFR-013). Trang Hồ sơ hiện nguyên câu này, ví dụ `Area: The field Area must be ...`. Trên giao diện, các ô đã có `required`, `min`, `max` nên trình duyệt chặn phần lớn trường hợp; chỉ gặp khi gõ toàn dấu cách (Y9 bước 5) hoặc gọi thẳng API |
 | 2 | **AC-001 chưa đạt phần "quan hệ chủ hộ – thành viên":** chủ hộ hiện chỉ là tên (`HeadName`), nhân khẩu chưa có trường quan hệ với chủ hộ. Phần này thuộc PBI-004 (4.08), sẽ kiểm khi PBI-004 xong |
 | 3 | **Câu hỏi cho PO (đọc code, chưa chạy):** ngày sinh trong tương lai, hoặc ngày cấp giấy tờ trước ngày sinh, hiện vẫn được lưu; hệ thống chỉ chặn ngày bỏ trống. Có cần thêm quy tắc kiểm tra không? |
 | 4 | Sửa hồ sơ hộ mà không gửi một nhân khẩu cũ thì nhân khẩu đó vẫn giữ nguyên (Y3 bước 3). Đây là thiết kế hiện tại: chuyển đi phải qua Biến động nhân khẩu (PBI-007) |
@@ -205,20 +205,25 @@ vào **Hồ sơ căn hộ**. Mở bằng cửa sổ ẩn danh để trình duy�
 
 | Test case | Pass/Fail | Ghi chú |
 |---|---|---|
-| Y1. Lưu căn hộ hợp lệ, tra cứu lại | | |
-| Y2. Lưu hộ, gắn đúng quan hệ | | |
-| Y3. Cập nhật căn hộ và hộ | | |
-| Y4. Trùng mã căn hộ | | |
-| Y5. Trùng số hộ khẩu, căn đã có hộ | | |
-| Y6. Trùng CCCD (E9) | | |
-| Y7. Thiếu trường bắt buộc | | |
-| Y8. Giá trị sai | | |
+| Y1. Lưu căn hộ hợp lệ, tra cứu lại | Pass | |
+| Y2. Lưu hộ, gắn đúng quan hệ | Pass | Các bước của Y2 đạt; phần chủ hộ – thành viên của AC-001 chưa có (mục 5 dòng 2) |
+| Y3. Cập nhật căn hộ và hộ | Pass | |
+| Y4. Trùng mã căn hộ | Pass | |
+| Y5. Trùng số hộ khẩu, căn đã có hộ | Pass | |
+| Y6. Trùng CCCD (E9) | Pass | |
+| Y7. Thiếu trường bắt buộc | Pass | Lỗi tiếng Anh (issue #54) |
+| Y8. Giá trị sai | Pass | Lỗi tiếng Anh (issue #54) |
 | Y9. Báo lỗi trên giao diện | Pass | Chạy tay 25/11/2026. Bước 5 báo tiếng Anh (issue #54) |
-| Y10. Ngoài quyền bị từ chối | | |
+| Y10. Ngoài quyền bị từ chối | Pass | |
+
+Test tự động chạy ngày 25/11/2026: `dotnet test --filter "Acceptance~Y|TestId=E9"` 19 pass, 0 fail.
+**Lý do Không đạt:** AC-001 yêu cầu "gắn đúng quan hệ căn hộ – hộ – chủ hộ – thành viên", nhưng chủ hộ mới là tên (`HeadName`),
+chưa là một nhân khẩu, và nhân khẩu chưa có quan hệ với chủ hộ. Đang chờ PO: nếu phần này chuyển sang PBI-004 thì PBI-001 đạt,
+sửa lại kết luận và ngày ký.
 
 | | |
 |---|---|
-| Người kiểm thử | |
-| Ngày kiểm thử | |
-| Kết luận | ☐ Đạt  ☐ Không đạt |
-| Chữ ký | |
+| Người kiểm thử | Nguyễn Đỗ Hương Ly (Tester) |
+| Ngày kiểm thử | 25/11/2026 |
+| Kết luận | ☐ Đạt  ☒ Không đạt (AC-001: thiếu quan hệ chủ hộ – thành viên, chờ PO) |
+| Chữ ký | Nguyễn Đỗ Hương Ly |

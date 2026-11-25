@@ -46,3 +46,7 @@ jobs:
       
     - name: Run tests
       run: dotnet test --no-build --verbosity normal
+
+    # Test logic JS của các trang (wwwroot/js) trên DOM giả, dùng Node có sẵn trên máy CI, không cài thêm gói
+    - name: Run JS tests
+      run: node --test tests/js/*.test.mjs

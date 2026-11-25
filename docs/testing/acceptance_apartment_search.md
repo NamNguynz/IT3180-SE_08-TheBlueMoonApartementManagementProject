@@ -5,7 +5,9 @@
 > **Tự động hóa:** phần API có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`), file
 > `tests/.../Integration/Acceptance/ApartmentSearchAcceptanceTests.cs` (K2, K5, K7, K8). Chạy riêng: `dotnet test --filter "Acceptance=K8"`.
 > Nhãn loại hình và nhãn trạng thái phủ đủ mọi giá trị: unit test K6. Lưu, sửa loại hình, đổi trạng thái và luật nhân khẩu ở service: unit test trong `ApartmentProfileServiceTests` (K9).
-> **Việc lọc danh sách chạy bằng JavaScript trên trình duyệt**, nên K1 – K4 phải **chạy tay**.
+> **Việc lọc danh sách chạy bằng JavaScript trên trình duyệt** (`wwwroot/js/apartment-profiles.js`). K1 – K4 đã chạy tay đạt ngày 10/11/2026.
+> Chưa tự động: file này gắn với nhiều phần của trang (bảng trạng thái, kéo thả, tòa nhà, hộp thoại nhân khẩu) nên cần DOM giả đầy đủ hơn
+> `tests/js/dom-stub.mjs` hiện có. Việc tự động K1 – K4 bằng test JS đã ghi vào `docs/work_checklist.md`.
 
 ## 1. Mục đích và phạm vi
 
@@ -19,8 +21,8 @@ cư dân xem loại hình căn hộ của mình (PBI-003); đơn giá theo loạ
 
 | Mục | Giá trị |
 |---|---|
-| Nhánh / commit được kiểm thử | |
-| Trình duyệt | |
+| Nhánh / commit được kiểm thử | Test tự động và K8, K9 chạy tay: code app `1231392` (`main` sau PR #53). K1 – K4 chạy tay ngày 10/11/2026 trên code của PR #37 (`9780aae`) |
+| Trình duyệt | Phần chạy tay dùng trình duyệt của người kiểm thử. Phần tự động không dùng trình duyệt |
 | URL app | `https://localhost:7127` |
 
 **Chuẩn bị:** chạy app trên database **mới** (cấu hình theo README), đăng nhập `admin`, Tư cách **Ban quản trị**,
@@ -56,7 +58,7 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Chạy tay ngày 10/11/2026 (xác nhận ghi ở checklist 4.07) | Pass | Code lọc sau đó không đổi điều kiện, xem mục 6 |
 
 ### K2. Tra theo loại hình
 
@@ -72,7 +74,7 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `K2_ApartmentType_IsSaved_Returned_Updated_AndOfferedOnPage`, ngày 25/11/2026; phần lọc ở bước 2 – 5 chạy tay ngày 10/11/2026 | Pass | |
 
 ### K3. Tra theo diện tích chính xác
 
@@ -85,7 +87,7 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Chạy tay ngày 10/11/2026 (xác nhận ghi ở checklist 4.07) | Pass | |
 
 ### K4. Kết hợp các tiêu chí
 
@@ -99,7 +101,7 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Chạy tay ngày 10/11/2026 (xác nhận ghi ở checklist 4.07) | Pass | |
 
 ### K5. Thiếu hoặc sai loại hình bị từ chối
 
@@ -112,7 +114,7 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `K5_MissingOrInvalidType_IsRejected_AndNothingIsSaved` (thiếu `type`, `Villa`, số), ngày 25/11/2026: trả 400, không tạo căn | Pass | |
 
 Căn hộ tạo trước khi có loại hình được gán mặc định **Căn hộ ở** (test K7).
 
@@ -162,17 +164,22 @@ Căn hộ tạo trước khi có loại hình được gán mặc định **Căn
 
 | Test case | Pass/Fail | Ghi chú |
 |---|---|---|
-| K1. Tra theo mã | | |
-| K2. Tra theo loại hình | | |
-| K3. Tra theo diện tích | | |
-| K4. Kết hợp tiêu chí | | |
-| K5. Thiếu, sai loại hình bị từ chối | | |
+| K1. Tra theo mã | Pass | Chạy tay 10/11/2026 |
+| K2. Tra theo loại hình | Pass | Tự động 25/11/2026, phần lọc chạy tay 10/11/2026 |
+| K3. Tra theo diện tích | Pass | Chạy tay 10/11/2026 |
+| K4. Kết hợp tiêu chí | Pass | Chạy tay 10/11/2026 |
+| K5. Thiếu, sai loại hình bị từ chối | Pass | Tự động 25/11/2026 |
 | K8. Đổi trạng thái căn hộ | Pass | Chạy tay 25/11/2026 |
 | K9. Luật nhân khẩu & tối đa 5 kết quả | Pass | Chạy tay 25/11/2026 |
 
+Test tự động chạy ngày 25/11/2026: `dotnet test --filter "Acceptance~K|TestId~K"` 16 pass, 0 fail.
+**Về K1 – K4 chạy tay ngày 10/11/2026:** sau ngày đó, `apartment-profiles.js` được sửa ở PR #47, #48. Đối chiếu code: điều kiện lọc
+theo mã, tên tòa, diện tích, loại hình và dòng đếm `x / y căn hộ` không đổi (chỉ đổi tên trường `building` thành `buildingName` và tách thành hàm riêng).
+Phần mới thêm (giới hạn 5 kết quả) đã chạy tay ở K9 bước 4 ngày 25/11/2026.
+
 | | |
 |---|---|
-| Người kiểm thử | |
-| Ngày kiểm thử | |
-| Kết luận | ☐ Đạt  ☐ Không đạt |
-| Chữ ký | |
+| Người kiểm thử | Nguyễn Đỗ Hương Ly (Tester) |
+| Ngày kiểm thử | 25/11/2026 |
+| Kết luận | ☒ Đạt  ☐ Không đạt |
+| Chữ ký | Nguyễn Đỗ Hương Ly |

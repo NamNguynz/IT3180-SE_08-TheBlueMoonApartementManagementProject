@@ -3,11 +3,14 @@
 > Tài liệu dành cho **người kiểm thử độc lập** (không phải người viết code/test).
 > Người kiểm thử chạy từng test case trên app thật, ghi kết quả vào các ô trống rồi ký nghiệm thu ở cuối.
 >
-> **Tự động hóa (09/11/2026):** case ghi "Tự động" đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
-> file `tests/.../Integration/Acceptance/AuditLogAcceptanceTests.cs` và `tests/.../Integration/AuditLogQueryTests.cs`.
-> Chạy riêng một case: `dotnet test --filter "Acceptance=D1"`. Test kiểm dữ liệu mà trang nhận được từ server.
-> Người kiểm thử **chỉ cần chạy tay các bước ghi "Chạy tay"**: đó là phần hiển thị trên trình duyệt (nút bấm, chữ hiện ra).
-> Để có dữ liệu cho các bước chạy tay, vẫn làm D1 trên app thật như hướng dẫn.
+> **Tự động hóa (cập nhật 25/11/2026):** mọi test case D1 – D12 đều có test tự động, **không còn bước chạy tay bắt buộc**.
+> - Phần server: chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`), file `tests/.../Integration/Acceptance/AuditLogAcceptanceTests.cs`
+>   và `tests/.../Integration/AuditLogQueryTests.cs`. Chạy riêng một case: `dotnet test --filter "Acceptance=D1"`.
+> - Phần chạy trên trình duyệt (bộ lọc, nút Trước/Sau, cách hiện chữ và thời gian): `node --test tests/js/audit-log.test.mjs`.
+>   Test chạy chính file `wwwroot/js/audit-log.js` trên DOM giả, không cần trình duyệt, không cài thêm gói.
+> - Không tự động: phần chỉ mắt người thấy (màu nút bị tắt, bố cục bảng). Phần này không ảnh hưởng kết luận, không bắt buộc kiểm.
+>
+> Các bước bên dưới giữ nguyên để chạy lại trên app thật khi cần.
 
 ## 1. Mục đích và phạm vi
 
@@ -34,6 +37,8 @@ Xác nhận:
 | `tests/.../Services/AuditCoverageTests.cs` | N5: nội dung log của đăng ký, tạo tài khoản, mở khóa, cấp lại mật khẩu | Không |
 | `tests/.../Security/AuditImmutabilityTests.cs` | N6: API chỉ có GET, không có hàm sửa/xóa | Không |
 | `tests/.../Integration/AuditLogQueryTests.cs` | Q1 đến Q12: lọc, ranh giới thời gian, thứ tự, phân trang, đăng xuất, JSON, trigger chặn sửa/xóa | Có |
+| `tests/.../Integration/Acceptance/AuditLogAcceptanceTests.cs` | D1 – D6, D10 – D12: phần server của từng test case | Có |
+| `tests/js/audit-log.test.mjs` | Phần trình duyệt: D3 bước 5, D5, D6, D8, D9, J7, D11 bước 3, hết phiên thì về `/login`. Chạy: `node --test tests/js/*.test.mjs` | Không (cần Node) |
 
 Chạy ở gốc repo:
 ```bash
@@ -45,15 +50,23 @@ Không đặt biến này thì Q1 đến Q12 bị bỏ qua (Skipped). Riêng Q7 
 
 | Mục | Giá trị |
 |---|---|
-| Nhánh / commit được kiểm thử | |
-| Hệ điều hành | |
-| Trình duyệt chính / trình duyệt phụ (hoặc cửa sổ ẩn danh) | |
+| Nhánh / commit được kiểm thử | Code app `1231392` (`main` sau PR #53). Test chạy trên nhánh `docs/test-plan-report` |
+| Hệ điều hành | macOS (Darwin 27), .NET 10, PostgreSQL trên máy, Node v26 |
+| Trình duyệt chính / trình duyệt phụ (hoặc cửa sổ ẩn danh) | Không dùng ở lần nghiệm thu 25/11/2026: phần trình duyệt chạy bằng test JS trên DOM giả |
 | URL app | `https://localhost:7127` |
 
 **Chuẩn bị:**
 1. Dùng database **mới**. Trong thư mục `BlueMoonApartementManagementConsole/`, chạy:
    ```bash
    dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=BlueMoon_AT_AUDIT;Username=<user>;Password=<pass>"
+   ```
+   Lệnh trên ghi đè chuỗi kết nối đang lưu trong user-secrets (DB làm việc hằng ngày). Nếu không muốn đổi, bỏ bước 1, 2
+   và chạy app bằng biến môi trường, chỉ có tác dụng trong lần chạy đó:
+   ```bash
+   ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=BlueMoon_AT_AUDIT;Username=<user>;Password=<pass>" \
+   ADMIN_INIT_PWD="<mật khẩu admin>" \
+   PII_ENC_KEY="$(openssl rand -base64 32)" \
+   dotnet run --launch-profile https
    ```
 2. Chạy app: `dotnet run --launch-profile https`.
 3. **Trình duyệt chính:** dùng cho `admin` trong suốt quá trình test.
@@ -119,7 +132,7 @@ Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính 
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `D1_AllTwelveActions_AreLoggedWithActorTargetAndDetail`, ngày 25/11/2026: đủ 12 loại, đúng người thực hiện, đối tượng, chi tiết | Pass | Lần sai thứ 5 ghi `lần 0` (#3), ghi nhận |
 
 ### D2. Lọc theo hành động
 
@@ -135,13 +148,11 @@ Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính 
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `D2_FilterByAction`, ngày 25/11/2026 | Pass | |
 
 ### D3. Lọc theo tài khoản (J2)
 
-> **Tự động** (`Acceptance=D3`) trừ bước 5.
-> **Chạy tay bước 5:** gõ tên tài khoản có khoảng trắng ở hai đầu vào ô Tài khoản, bấm **Lọc**. Kết quả phải giống bước 1.
-> Việc cắt khoảng trắng do trình duyệt làm trước khi gửi, nên test tự động không kiểm được.
+> **Tự động** (`Acceptance=D3`). Bước 5 (JavaScript cắt khoảng trắng trước khi gửi): test JS "D3 bước 5" trong `tests/js/audit-log.test.mjs`.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -153,7 +164,7 @@ Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính 
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `D3_FilterByUsername_ActorOnly_PartialMatch_CaseSensitive`; bước 5: test JS "D3 bước 5". Ngày 25/11/2026 | Pass | Phân biệt hoa thường, chỉ lọc người thực hiện (J2), ghi nhận |
 
 ### D4. Lọc theo ngày (J4)
 
@@ -171,12 +182,11 @@ Ngày tính theo **giờ Việt Nam**. "Đến ngày" được tính **trọn ng
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `D4_FilterByVietnamDate_ToDateIsInclusive`; đổi ngày Việt Nam sang UTC ở trang: test JS "D5". Ngày 25/11/2026 | Pass | Từ ngày sau Đến ngày ra danh sách rỗng, không báo lỗi (J4), ghi nhận |
 
 ### D5. Kết hợp bộ lọc và nút Xóa lọc
 
-> **Tự động** (`Acceptance=D5`) trừ bước 2.
-> **Chạy tay bước 2:** sau khi lọc ở bước 1, bấm **Xóa lọc**. Mọi ô lọc phải về trống hoặc "Tất cả", danh sách hiện lại mọi dòng và về Trang 1.
+> **Tự động** (`Acceptance=D5`). Bước 2 (nút **Xóa lọc**): test JS "D5 bước 2" trong `tests/js/audit-log.test.mjs`.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -185,13 +195,13 @@ Ngày tính theo **giờ Việt Nam**. "Đến ngày" được tính **trọn ng
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `D5_CombinedFilters_AllMustMatch`; bước 2: test JS "D5 bước 2". Ngày 25/11/2026 | Pass | |
 
 ### D6. Phân trang
 
 > **Tự động** (`Acceptance=D6`) phần dữ liệu: mỗi trang 20 dòng, hai trang không trùng nhau, mới nhất lên trước (bước 2).
-> **Chạy tay bước 1, 3, 4, 5, 6:** bấm nút **Sau →**, **← Trước** và xem dòng "Trang X / Y (N bản ghi)",
-> nút có bị mờ đúng lúc không, lọc xong có về Trang 1 không.
+> Bước 1, 3, 4, 5, 6 (dòng "Trang X / Y (N bản ghi)", nút bị tắt đúng lúc, lọc xong về Trang 1): 2 test JS "D6" trong `tests/js/audit-log.test.mjs`.
+> Không tự động: màu mờ của nút bị tắt (do CSS, chỉ mắt người thấy). Test đã kiểm nút có thuộc tính `disabled` đúng lúc.
 
 **Tiền điều kiện:** tổng số bản ghi lớn hơn 20 (xem dòng "Trang 1 / X (N bản ghi)" dưới bảng).
 Nếu chưa đủ, ở trình duyệt phụ đăng nhập `khong_ton_tai` / `abc12345` nhiều lần cho đủ.
@@ -207,7 +217,7 @@ Nếu chưa đủ, ở trình duyệt phụ đăng nhập `khong_ton_tai` / `abc
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `D6_Paging_20PerPage_NewestFirst`; bước 1, 3 – 6: 2 test JS "D6" (45 bản ghi: 3 trang, trang cuối 5 dòng, nút tắt đúng lúc). Ngày 25/11/2026 | Pass | |
 
 ### D7. Chỉ đọc (J6)
 
@@ -230,11 +240,13 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động Q11 `NonGetMethods_AreRejected` (DELETE, PATCH, PUT trả 405; POST trả 400), Q12 `Database_BlocksUpdateAndDeleteOnAuditLogs`, D10. Ngày 25/11/2026 | Pass | POST trả 400 thay vì 405 (J6), ghi nhận |
 
 ### D8. Hiển thị an toàn
 
-> **Chạy tay toàn bộ.** Cần trình duyệt thật để xem chữ lạ có bị hiểu thành mã và bật hộp thoại hay không.
+> **Tự động** bằng test JS "D8" trong `tests/js/audit-log.test.mjs`: chữ lạ được ghi vào ô bằng `textContent` nên hiện nguyên văn,
+> trang chỉ tạo thẻ `tr`, `td`, `span`, không tạo thẻ `img` hay `script` (DOM giả báo lỗi nếu trang ghi bằng `innerHTML`).
+> Phần server (API trả nguyên văn tên đăng nhập): D3.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -245,11 +257,13 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động test JS "D8": `<img src=x onerror=alert(1)>` và `<script>alert(1)</script>` hiện nguyên văn, không tạo thẻ HTML. Ngày 25/11/2026 | Pass | |
 
 ### D9. Thời gian hiển thị (J7)
 
-> **Chạy tay toàn bộ.** Cách hiện ngày giờ do trình duyệt quyết định, nên phải xem trên trình duyệt thật.
+> **Tự động** bằng test JS "D9" và "J7" trong `tests/js/audit-log.test.mjs`: trang đổi giờ UTC sang giờ Việt Nam (`Asia/Ho_Chi_Minh`)
+> bằng `toLocaleString('vi-VN')`. Node dùng cùng bộ dữ liệu định dạng ngày giờ (ICU) với Chrome nên kết quả giống trình duyệt.
+> Phần server (thời gian lưu đến mili giây): D1, D4.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -259,7 +273,7 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động test JS "D9", "J7": `2026-11-25T07:05:09.123Z` hiện `14:05:09 25/11/2026.123`; 17:30 UTC hiện 00:30 ngày hôm sau. Ngày 25/11/2026 | Pass | Mili giây dính sau năm (J7), ghi nhận |
 
 ### D10. Mô tả trang khớp chức năng (J3 đã sửa)
 
@@ -272,22 +286,41 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `D10_Page_IsReadOnly_DescriptionRecorded`, ngày 25/11/2026 | Pass | |
 
 ### D11. Nhật ký thao tác hồ sơ căn hộ, hộ khẩu
 
 > **Tự động** phần ghi và lọc nhật ký, phần ô lọc có đủ nhãn (`Acceptance=D11`; nhãn phủ đủ mọi loại: unit test N7).
-> **Chạy tay bước 3**: chữ trong cột Hành động do JavaScript vẽ trên trình duyệt.
+> Bước 3 (chữ trong cột Hành động do JavaScript vẽ): test JS "D11 bước 3" trong `tests/js/audit-log.test.mjs`. Đã chạy tay đạt ngày 10/11/2026.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
 | 1 | Đăng nhập `admin`, vào **Hồ sơ căn hộ**: tạo căn `AT-NK-01`, sửa diện tích. Tạo hồ sơ hộ cho căn đó, rồi sửa tên chủ hộ (dữ liệu giả) | Lưu thành công |
 | 2 | Vào **Nhật ký**, mở ô **Hành động** | Có 4 lựa chọn **Tạo hồ sơ căn hộ**, **Cập nhật hồ sơ căn hộ**, **Tạo hồ sơ hộ khẩu**, **Cập nhật hồ sơ hộ khẩu** |
-| 3 | **Chạy tay.** Lần lượt chọn từng lựa chọn ở bước 2, bấm **Lọc** | Mỗi lần có ít nhất 1 dòng, cột Hành động hiện **đúng nhãn tiếng Việt** (không hiện tên tiếng Anh như `CreateApartmentProfile`), cột Đối tượng là Id căn hộ hoặc hộ vừa tạo |
+| 3 | Lần lượt chọn từng lựa chọn ở bước 2, bấm **Lọc** | Mỗi lần có ít nhất 1 dòng, cột Hành động hiện **đúng nhãn tiếng Việt** (không hiện tên tiếng Anh như `CreateApartmentProfile`), cột Đối tượng là Id căn hộ hoặc hộ vừa tạo |
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `D11_ProfileActions_AreLogged_Filterable_AndLabelledInVietnamese`; bước 3: test JS "D11 bước 3" và chạy tay đạt ngày 10/11/2026. Ngày 25/11/2026 | Pass | |
+
+### D12. Nhật ký đổi đơn giá và ghi nhận thu tiền (AC-017)
+
+> AC của PBI-029 yêu cầu ghi nhật ký khi **sửa đơn giá** và khi **ghi nhận hoặc điều chỉnh khoản thu**.
+> **Tự động** (`Acceptance=D12`): tạo khoản thu và đổi đơn giá qua API như trang Khoản thu, rồi kiểm 2 dòng nhật ký
+> (người thực hiện, đối tượng, nội dung có giá cũ và giá mới) và nhãn tiếng Việt trong ô lọc. Không cần chạy tay.
+> Phần ghi nhận thu tiền: `PaymentServiceTests.PartialPayments_AddUp_UpdateRemainingAndStatus_ThenFullyPaid` (unit test)
+> và `PaymentApiTests.PartialThenFullPayment_ThroughApi_AddsUp_AndRejectsInvalidPayments` (test tích hợp) kiểm mỗi lần thu tiền
+> có đúng một dòng **Ghi nhận thu tiền**.
+
+| # | Bước | Kết quả mong đợi |
+|---|---|---|
+| 1 | Trình duyệt chính (`admin`): vào **Khoản thu** (`/tai-chinh/khoan-thu`). Ở form **Thêm khoản thu** nhập: Mã `D12_TEST`, Tên `Phí test D12`, Loại **Bắt buộc**, Phạm vi **Toàn chung cư**, Chu kỳ **Hàng tháng**, Cơ sở tính **Cố định**, Đơn vị tính `hộ`, Cách đặt giá **Giá chung**, Đơn giá `10000`, Hiệu lực từ: hôm nay. Bấm **Tạo khoản thu** | Khoản thu `D12_TEST` có trong danh sách |
+| 2 | Ở dòng `D12_TEST`, bấm **Đổi đơn giá**. Cách đặt giá **Giá chung**, Đơn giá mới `12000`, Hiệu lực từ: ngày mai. Bấm **Lưu đơn giá** | Lưu thành công |
+| 3 | Vào **Nhật ký**, chọn Hành động **Tạo khoản thu**, bấm **Lọc**. Sau đó chọn **Điều chỉnh giá khoản thu**, bấm **Lọc** | Mỗi lần có 1 dòng của `admin`, cột Đối tượng là Id khoản thu, cột Chi tiết có mã `D12_TEST`. Dòng đổi giá có giá cũ, giá mới và ngày hiệu lực |
+
+| Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|
+| Tự động `D12_CreateFeeItemAndChangeRate_AreLogged_WithActorTargetAndDetail`; thu tiền: `PaymentServiceTests`, `PaymentApiTests` (2 test). Ngày 25/11/2026 | Pass | |
 
 ---
 
@@ -300,7 +333,7 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 | J3 | ~~Mô tả trang chỉ nhắc 4 loại thao tác, thực tế có 12 loại~~. **Đã sửa** (10/11/2026): mô tả nhắc đủ tài khoản, hồ sơ căn hộ và hộ khẩu, khoản thu và đơn giá | D10 | D10 |
 | J4 | Chọn "Từ ngày" sau "Đến ngày" thì chỉ ra danh sách rỗng, không báo lỗi | D4 bước 5 | Đọc code |
 | J6 | `POST /api/nhat-ky` trả 400 thay vì 405 như các method khác (request bị chạy lại tới trang `/not-found`). Request vẫn bị chặn, không ghi hay xóa gì | D7 bước 4 | Q11 |
-| J7 | *Nghi ngờ, chưa xác nhận:* giao diện ghép 3 số mili giây vào **cuối** chuỗi ngày giờ; nếu trình duyệt hiển thị giờ trước ngày (kiểu `14:05:09 08/11/2026`) thì mili giây sẽ dính sau năm (`...08/11/2026.123`) | D9 | Chờ D9 |
+| J7 | **Đã xác nhận (25/11/2026):** giao diện ghép 3 số mili giây vào **cuối** chuỗi ngày giờ, mà kiểu `vi-VN` hiện giờ trước ngày, nên mili giây dính sau năm: `14:05:09 25/11/2026.123` | D9 | Test JS "J7" (`tests/js/audit-log.test.mjs`) |
 | #3 | Lần sai mật khẩu thứ 5 ghi "lần 0" (đã ghi ở `acceptance_password_hashing.md`) | D1 bước 10 | Đọc code `AuthService.LoginAsync` |
 
 ## 5. Câu hỏi cho PO
@@ -314,21 +347,25 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 
 | Test case | Pass/Fail | Ghi chú |
 |---|---|---|
-| D1. Ghi đủ 12 loại thao tác | | |
-| D2. Lọc theo hành động | | |
-| D3. Lọc theo tài khoản | | |
-| D4. Lọc theo ngày | | |
-| D5. Kết hợp bộ lọc, Xóa lọc | | |
-| D6. Phân trang | | |
-| D7. Chỉ đọc | | |
-| D8. Hiển thị an toàn | | |
-| D9. Thời gian hiển thị | | |
-| D10. Mô tả trang | | |
-| D11. Nhật ký hồ sơ căn hộ, hộ khẩu | | |
+| D1. Ghi đủ 12 loại thao tác | Pass | #3 ghi nhận |
+| D2. Lọc theo hành động | Pass | |
+| D3. Lọc theo tài khoản | Pass | J2 ghi nhận |
+| D4. Lọc theo ngày | Pass | J4 ghi nhận |
+| D5. Kết hợp bộ lọc, Xóa lọc | Pass | |
+| D6. Phân trang | Pass | |
+| D7. Chỉ đọc | Pass | J6 ghi nhận |
+| D8. Hiển thị an toàn | Pass | |
+| D9. Thời gian hiển thị | Pass | J7 ghi nhận |
+| D10. Mô tả trang | Pass | |
+| D11. Nhật ký hồ sơ căn hộ, hộ khẩu | Pass | |
+| D12. Nhật ký đổi đơn giá, thu tiền | Pass | |
+
+Tất cả chạy tự động ngày 25/11/2026: `dotnet test` (có DB) 439 pass, 1 skip (Q7, chờ sửa J1), 0 fail; `node --test tests/js/*.test.mjs` 11 pass, 0 fail.
+Lỗi ghi nhận ở mục 4 không ảnh hưởng kết luận (đúng quy tắc của mục 4).
 
 | | |
 |---|---|
-| Người kiểm thử | |
-| Ngày kiểm thử | |
-| Kết luận | ☐ Đạt  ☐ Không đạt |
-| Chữ ký | |
+| Người kiểm thử | Nguyễn Đỗ Hương Ly (Tester) |
+| Ngày kiểm thử | 25/11/2026 |
+| Kết luận | ☒ Đạt  ☐ Không đạt |
+| Chữ ký | Nguyễn Đỗ Hương Ly |

@@ -27,9 +27,9 @@ Unit test tương ứng (chạy bằng `dotnet test`):
 
 | Mục | Giá trị |
 |---|---|
-| Nhánh / commit được kiểm thử | |
-| Hệ điều hành | |
-| Trình duyệt 1 / Trình duyệt 2 (hoặc cửa sổ ẩn danh) | |
+| Nhánh / commit được kiểm thử | Code app `1231392` (`main` sau PR #53). Test chạy trên nhánh `docs/test-plan-report` |
+| Hệ điều hành | macOS (Darwin 27), .NET 10, PostgreSQL trên máy |
+| Trình duyệt 1 / Trình duyệt 2 (hoặc cửa sổ ẩn danh) | Không dùng ở lần nghiệm thu 25/11/2026 (B1 – B9 tự động). B4, B9 đã xem thêm trên giao diện ngày 10/11/2026 |
 | URL app | `https://localhost:7127` |
 
 **Chuẩn bị:**
@@ -84,7 +84,7 @@ cudan_01 (Cư Dân)              tự đăng ký ở B1
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B1_OwnAccounts_DuplicateRejected_RoleShownAfterLogin`, ngày 25/11/2026 | Pass | |
 
 ### B2. Duyệt tài khoản theo vai trò
 
@@ -100,7 +100,7 @@ cudan_01 (Cư Dân)              tự đăng ký ở B1
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B2_SelfRegisteredAccountant_WaitsForApproval_ThenCanLogin`, ngày 25/11/2026 | Pass | |
 
 ### B3. Menu và trang chủ theo vai trò
 
@@ -116,7 +116,7 @@ cudan_01 (Cư Dân)              tự đăng ký ở B1
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B3_MenuGroups_DependOnRole`, ngày 25/11/2026 | Pass | |
 
 ### B4. Chặn truy cập trang quản trị bằng URL
 
@@ -133,7 +133,7 @@ Gõ thẳng từng địa chỉ vào thanh địa chỉ: `/quan-tri/tai-khoan`, 
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B4_AdminPages_BlockedByUrl_ForNonAdmin_AndAnonymous`, ngày 25/11/2026; xem thêm trên giao diện đạt ngày 10/11/2026 | Pass | |
 
 ### B5. Chặn gọi API trực tiếp
 
@@ -151,7 +151,7 @@ Xem **mã trạng thái** ở DevTools (F12) → tab **Network** → cột **Sta
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B5_AdminApis_Return403ForNonAdmin_401ForAnonymous_200ForAdmin`, ngày 25/11/2026 | Pass | |
 
 ### B6. Phạm vi quản lý theo cây người cấp
 
@@ -172,7 +172,7 @@ Thêm: kiểm tra cột **Người cấp** của `ketoan_a1` là `bqt_a`, của 
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B6_ManageScope_FollowsGrantTree`, ngày 25/11/2026 | Pass | |
 
 ### B7. Thu hồi quyền có hiệu lực ngay
 
@@ -189,7 +189,7 @@ Thêm: kiểm tra cột **Người cấp** của `ketoan_a1` là `bqt_a`, của 
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B7_DisableTakesEffectImmediately_EnableRestoresAccess`, ngày 25/11/2026 | Pass | |
 
 ### B8. Nhật ký ghi đúng người thực hiện
 
@@ -207,7 +207,7 @@ Thêm: kiểm tra cột **Người cấp** của `ketoan_a1` là `bqt_a`, của 
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B8_AuditLog_RecordsTheRealActor`, ngày 25/11/2026 | Pass | |
 
 ### B9. Mọi link trên trang chủ đều mở được, route tạm đã gỡ trả NotFound
 
@@ -230,7 +230,7 @@ Các link đã có trang thật nhưng vẫn phải giữ phân quyền như men
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `B9_EveryLinkOnHome_Opens_AndInDevelopmentPages_KeepRoleRules`, ngày 25/11/2026; xem thêm trên giao diện đạt ngày 10/11/2026 | Pass | |
 
 ---
 
@@ -250,19 +250,22 @@ Vấn đề **đã sửa** mà vẫn gặp lại thì đánh **Fail**. Vấn đ�
 
 | Test case | Pass/Fail | Ghi chú |
 |---|---|---|
-| B1. Tài khoản riêng | | |
-| B2. Duyệt tài khoản theo vai trò | | |
-| B3. Menu và trang chủ theo vai trò | | |
-| B4. Chặn trang quản trị bằng URL | | |
-| B5. Chặn gọi API trực tiếp | | |
-| B6. Phạm vi quản lý theo cây | | |
-| B7. Thu hồi quyền có hiệu lực ngay | | |
-| B8. Nhật ký ghi đúng người thực hiện | | |
-| B9. Mọi link mở được, trang tạm đúng quyền | | |
+| B1. Tài khoản riêng | Pass | |
+| B2. Duyệt tài khoản theo vai trò | Pass | F4 đã chốt PA1 |
+| B3. Menu và trang chủ theo vai trò | Pass | |
+| B4. Chặn trang quản trị bằng URL | Pass | F1 đã sửa |
+| B5. Chặn gọi API trực tiếp | Pass | |
+| B6. Phạm vi quản lý theo cây | Pass | |
+| B7. Thu hồi quyền có hiệu lực ngay | Pass | |
+| B8. Nhật ký ghi đúng người thực hiện | Pass | |
+| B9. Mọi link mở được, trang tạm đúng quyền | Pass | F3 đã xong |
+
+Test tự động chạy ngày 25/11/2026: `dotnet test --filter "Acceptance~B"` 9 pass, 0 fail.
+F2 (không sửa, có test R18 chặn trên CI) chỉ ghi chú, không ảnh hưởng kết luận (đúng quy tắc của mục 5).
 
 | | |
 |---|---|
-| Người kiểm thử | |
-| Ngày kiểm thử | |
-| Kết luận | ☐ Đạt  ☐ Không đạt |
-| Chữ ký | |
+| Người kiểm thử | Nguyễn Đỗ Hương Ly (Tester) |
+| Ngày kiểm thử | 25/11/2026 |
+| Kết luận | ☒ Đạt  ☐ Không đạt |
+| Chữ ký | Nguyễn Đỗ Hương Ly |
