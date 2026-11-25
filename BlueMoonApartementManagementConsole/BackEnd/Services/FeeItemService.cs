@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using BlueMoonApartementManagementConsole.BackEnd.Models;
 using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Repositories;
@@ -16,6 +17,7 @@ public interface IFeeItemService
     Task<FeeItemOperationResult<FeeItemResponse>> ChangeRateAsync(
         int actorId, string actorName, int id, ChangeRateRequest request, CancellationToken ct = default);
     Task<FeeRateLookupResponse?> GetRateOnDateAsync(int id, DateOnly? date, CancellationToken ct = default);
+    Task<FeeTypeRateLookupResponse?> GetTypeRatesOnDateAsync(int id, DateOnly? date, CancellationToken ct = default);
 }
 
 public sealed class FeeItemService(
@@ -51,7 +53,14 @@ public sealed class FeeItemService(
         var unit = request.Unit.Trim();
 
         var error = ValidateInfo(code, name, unit)
-                    ?? ValidateRate(feeType, request.Rate, request.EffectiveFrom, request.EffectiveTo);
+                    ?? ValidateMode(basis, request.RateMode, request.TypeRates);
+        if (error is not null)
+            return Invalid<FeeItemResponse>(error);
+
+        // Chế độ Chung giữ nguyên luồng cũ; chế độ TheoLoai chỉ có ba giá riêng, không tạo giá chung.
+        error = request.RateMode == RateMode.TheoLoai
+            ? ValidateTypeRates(feeType, request.TypeRates, request.EffectiveFrom, request.EffectiveTo)
+            : ValidateRate(feeType, request.Rate, request.EffectiveFrom, request.EffectiveTo);
         if (error is not null)
             return Invalid<FeeItemResponse>(error);
 
@@ -71,25 +80,30 @@ public sealed class FeeItemService(
             CalculationBasis = basis,
             Unit = unit,
             Note = NormalizeOptional(request.Note),
+            RateMode = request.RateMode,
             CreatedById = actorId,
             CreatedAt = clock.GetUtcNow(),
-            Rates =
-            [
-                new FeeRateEntity
-                {
-                    Rate = request.Rate,
-                    EffectiveFrom = request.EffectiveFrom,
-                    EffectiveTo = request.EffectiveTo
-                }
-            ]
+            Rates = request.RateMode == RateMode.Chung
+                ? [new FeeRateEntity
+                    {
+                        Rate = request.Rate,
+                        EffectiveFrom = request.EffectiveFrom,
+                        EffectiveTo = request.EffectiveTo
+                    }]
+                : [],
+            TypeRates = request.RateMode == RateMode.TheoLoai
+                ? request.TypeRates.Select(r => ToTypeRate(r, request.EffectiveFrom)).ToList()
+                : []
         };
 
         await repo.AddAsync(entity, ct);
         if (!await SaveAsync(ct))
-            return Conflict<FeeItemResponse>("Mã khoản thu đã tồn tại.");
+            return Conflict<FeeItemResponse>("Mã khoản thu đã tồn tại hoặc đã có đơn giá với thời điểm hiệu lực này.");
 
         await audit.LogAsync(AuditAction.CreateFeeItem, actorName, actorId,
-            entity.Id.ToString(), $"Tạo khoản thu {entity.Code} - {entity.Name}", ct);
+            entity.Id.ToString(),
+            $"Tạo khoản thu {entity.Code} - {entity.Name}" +
+            (entity.RateMode == RateMode.TheoLoai ? " (đơn giá theo loại căn hộ)" : ""), ct);
 
         return new(FeeItemStatus.Success, Map(entity));
     }
@@ -101,19 +115,62 @@ public sealed class FeeItemService(
         if (entity is null)
             return new(FeeItemStatus.NotFound, Message: "Không tìm thấy khoản thu.");
 
-        var error = ValidateRate(entity.FeeType, request.Rate, request.EffectiveFrom, null);
+        var error = ValidateMode(entity.CalculationBasis, request.RateMode, request.TypeRates);
         if (error is not null)
             return Invalid<FeeItemResponse>(error);
 
-        var current = entity.Rates.OrderByDescending(r => r.EffectiveFrom).FirstOrDefault();
-        if (current is not null && request.EffectiveFrom <= current.EffectiveFrom)
+        if (request.RateMode == RateMode.TheoLoai)
+        {
+            error = ValidateTypeRates(entity.FeeType, request.TypeRates, request.EffectiveFrom, null);
+            if (error is not null)
+                return Invalid<FeeItemResponse>(error);
+
+            var currentTypes = entity.TypeRates.OrderByDescending(r => r.EffectiveFrom).FirstOrDefault();
+            if (currentTypes is not null && request.EffectiveFrom <= currentTypes.EffectiveFrom)
+                return Conflict<FeeItemResponse>("Thời điểm hiệu lực phải sau thời điểm bắt đầu của đơn giá hiện tại.");
+
+            var changes = new List<string>();
+            foreach (var input in request.TypeRates)
+            {
+                var label = ApartmentTypeLabels.All.First(t => t.Type == input.ApartmentType).Label;
+                var current = entity.TypeRates
+                    .Where(r => r.ApartmentType == input.ApartmentType)
+                    .OrderByDescending(r => r.EffectiveFrom)
+                    .FirstOrDefault();
+                changes.Add($"{label}: {current?.Rate.ToString("N0") ?? "chưa có"} → {input.Rate:N0}");
+                // Không xóa dòng cũ, chỉ đóng hiệu lực để giữ lịch sử (AC-007).
+                if (current is not null && (current.EffectiveTo is null || current.EffectiveTo > request.EffectiveFrom))
+                    current.EffectiveTo = request.EffectiveFrom;
+            }
+            entity.TypeRates.AddRange(request.TypeRates.Select(r => new FeeTypeRateEntity
+            {
+                ApartmentType = r.ApartmentType,
+                Rate = r.Rate,
+                EffectiveFrom = request.EffectiveFrom,
+                EffectiveTo = null
+            }));
+            entity.RateMode = RateMode.TheoLoai;
+
+            if (!await SaveAsync(ct))
+                return Conflict<FeeItemResponse>("Đã có đơn giá với thời điểm hiệu lực này.");
+
+            await audit.LogAsync(AuditAction.ChangeRate, actorName, actorId, entity.Id.ToString(),
+                $"Đổi đơn giá {entity.Code} theo loại căn hộ ({string.Join(", ", changes)}) " +
+                $"từ {request.EffectiveFrom:dd/MM/yyyy}", ct);
+            return new(FeeItemStatus.Success, Map(entity));
+        }
+
+        error = ValidateRate(entity.FeeType, request.Rate, request.EffectiveFrom, null);
+        if (error is not null)
+            return Invalid<FeeItemResponse>(error);
+
+        var currentCommon = entity.Rates.OrderByDescending(r => r.EffectiveFrom).FirstOrDefault();
+        if (currentCommon is not null && request.EffectiveFrom <= currentCommon.EffectiveFrom)
             return Conflict<FeeItemResponse>("Thời điểm hiệu lực phải sau thời điểm bắt đầu của đơn giá hiện tại.");
 
-        var oldText = current?.Rate.ToString("N0") ?? "chưa có";
-
-        // Close the current rate at the new date. Do not delete it, so history is kept (AC-007).
-        if (current is not null && (current.EffectiveTo is null || current.EffectiveTo > request.EffectiveFrom))
-            current.EffectiveTo = request.EffectiveFrom;
+        var oldText = currentCommon?.Rate.ToString("N0") ?? "chưa có";
+        if (currentCommon is not null && (currentCommon.EffectiveTo is null || currentCommon.EffectiveTo > request.EffectiveFrom))
+            currentCommon.EffectiveTo = request.EffectiveFrom;
 
         entity.Rates.Add(new FeeRateEntity
         {
@@ -121,6 +178,7 @@ public sealed class FeeItemService(
             EffectiveFrom = request.EffectiveFrom,
             EffectiveTo = null
         });
+        entity.RateMode = RateMode.Chung;
 
         if (!await SaveAsync(ct))
             return Conflict<FeeItemResponse>("Đã có đơn giá với thời điểm hiệu lực này.");
@@ -147,6 +205,30 @@ public sealed class FeeItemService(
             entity.CalculationBasis, entity.Unit, day, rate.Rate, rate.EffectiveFrom, rate.EffectiveTo);
     }
 
+    /// <summary>
+    /// Ba giá theo loại căn hộ có hiệu lực vào ngày đã cho. Thiếu loại thì danh sách ngắn hơn ba phần tử,
+    /// để giao diện báo rõ chưa có giá (không fallback về giá chung).
+    /// </summary>
+    public async Task<FeeTypeRateLookupResponse?> GetTypeRatesOnDateAsync(
+        int id, DateOnly? date, CancellationToken ct = default)
+    {
+        var entity = await repo.GetByIdAsync(id, tracking: false, ct);
+        if (entity is null)
+            return null;
+
+        var day = date ?? Today();
+        var rates = ApartmentTypeLabels.All
+            .Select(t => FeeCalculator.RateOn(entity.Rates, entity.TypeRates, day, t.Type, RateMode.TheoLoai))
+            .Where(r => r is not null)
+            .Select(r => new FeeTypeRateResponse(
+                r!.SourceId, r.ApartmentType!.Value, r.Rate, r.EffectiveFrom,
+                entity.TypeRates.First(x => x.Id == r.SourceId).EffectiveTo))
+            .ToList();
+
+        return new FeeTypeRateLookupResponse(entity.Id, entity.Code, entity.Name,
+            entity.CalculationBasis, entity.Unit, entity.RateMode, day, rates);
+    }
+
     // ---- Validation rules (AC-006, AC-009) ----
 
     private static string? ValidateInfo(string code, string name, string unit)
@@ -157,6 +239,35 @@ public sealed class FeeItemService(
             return "Tên khoản thu là bắt buộc, tối đa 100 ký tự.";
         if (unit.Length == 0 || unit.Length > 20)
             return "Đơn vị tính là bắt buộc, tối đa 20 ký tự.";
+        return null;
+    }
+
+    /// <summary>Chế độ TheoLoai chỉ áp dụng cho khoản tính theo diện tích và cần đủ ba loại căn hộ.</summary>
+    private static string? ValidateMode(
+        CalculationBasis basis, RateMode mode, IReadOnlyList<FeeTypeRateRequest> typeRates)
+    {
+        if (mode == RateMode.Chung)
+            return null;
+        if (basis != CalculationBasis.DienTich)
+            return "Đơn giá theo loại căn hộ chỉ áp dụng cho khoản thu tính theo diện tích.";
+        if (typeRates.Count != ApartmentTypeLabels.All.Count
+            || typeRates.Select(r => r.ApartmentType).Distinct().Count() != ApartmentTypeLabels.All.Count
+            || ApartmentTypeLabels.All.Any(t => typeRates.All(r => r.ApartmentType != t.Type)))
+            return "Chế độ theo loại căn hộ cần khai báo đủ ba giá: Căn hộ ở, Kiot và Penthouse.";
+        return null;
+    }
+
+    private string? ValidateTypeRates(
+        FeeType feeType, IReadOnlyList<FeeTypeRateRequest> rates, DateOnly effectiveFrom, DateOnly? effectiveTo)
+    {
+        foreach (var rate in rates)
+        {
+            var label = ApartmentTypeLabels.All.FirstOrDefault(t => t.Type == rate.ApartmentType).Label
+                        ?? rate.ApartmentType.ToString();
+            var error = ValidateRate(feeType, rate.Rate, effectiveFrom, effectiveTo);
+            if (error is not null)
+                return $"{label}: {error}";
+        }
         return null;
     }
 
@@ -172,6 +283,14 @@ public sealed class FeeItemService(
             return "Ngày hết hiệu lực phải sau ngày hiệu lực.";
         return null;
     }
+
+    private static FeeTypeRateEntity ToTypeRate(FeeTypeRateRequest r, DateOnly effectiveFrom) => new()
+    {
+        ApartmentType = r.ApartmentType,
+        Rate = r.Rate,
+        EffectiveFrom = effectiveFrom,
+        EffectiveTo = null
+    };
 
     private DateOnly Today() => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
 
@@ -211,9 +330,14 @@ public sealed class FeeItemService(
 
     private static FeeItemResponse Map(FeeItemEntity f) =>
         new(f.Id, f.Code, f.Name, f.FeeType, f.FeeScope, f.FeeCycle, f.CalculationBasis,
-            f.Unit, f.Note,
+            f.RateMode, f.Unit, f.Note,
             f.Rates
                 .OrderByDescending(r => r.EffectiveFrom)
                 .Select(r => new FeeRateResponse(r.Id, r.Rate, r.EffectiveFrom, r.EffectiveTo))
+                .ToList(),
+            f.TypeRates
+                .OrderBy(r => r.ApartmentType)
+                .ThenByDescending(r => r.EffectiveFrom)
+                .Select(r => new FeeTypeRateResponse(r.Id, r.ApartmentType, r.Rate, r.EffectiveFrom, r.EffectiveTo))
                 .ToList());
 }

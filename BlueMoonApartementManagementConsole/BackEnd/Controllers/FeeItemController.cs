@@ -38,6 +38,17 @@ public sealed class FeeItemController(IFeeItemService service) : ControllerBase
             : Ok(result);
     }
 
+    /// <summary>Ba giá theo loại căn hộ có hiệu lực vào một ngày, để xem trước khi lập kỳ.</summary>
+    [HttpGet("{id:int}/don-gia-theo-loai")]
+    public async Task<ActionResult<FeeTypeRateLookupResponse>> GetTypeRatesOnDate(
+        int id, [FromQuery(Name = "ngay")] DateOnly? date, CancellationToken ct)
+    {
+        var result = await service.GetTypeRatesOnDateAsync(id, date, ct);
+        return result is null
+            ? NotFound(new ApiError("NOT_FOUND", "Không tìm thấy khoản thu."))
+            : Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Policy = "QuanTriHeThong")]
     public async Task<IActionResult> Create([FromBody] CreateFeeItemRequest request, CancellationToken ct)

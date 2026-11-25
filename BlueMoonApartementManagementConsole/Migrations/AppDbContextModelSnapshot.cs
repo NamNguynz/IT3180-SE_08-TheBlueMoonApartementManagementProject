@@ -264,12 +264,17 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.Property<int>("FeeItemId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("FeeRateId")
+                    b.Property<int?>("FeeRateId")
                         .HasColumnType("integer");
 
-                    b.Property<decimal>("Rate")
+                    b.Property<decimal?>("Rate")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("RateMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 
@@ -283,6 +288,49 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.ToTable("billing_period_items", null, t =>
                         {
                             t.HasCheckConstraint("ck_billing_period_items_rate", "\"Rate\" >= 0");
+
+                            t.HasCheckConstraint("ck_billing_period_items_rate_mode", "\"RateMode\" IN ('Chung','TheoLoai')");
+                        });
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BillingPeriodItemTypeRateEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApartmentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("BillingPeriodItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<int>("FeeTypeRateId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FeeTypeRateId");
+
+                    b.HasIndex("BillingPeriodItemId", "ApartmentType")
+                        .IsUnique();
+
+                    b.ToTable("billing_period_item_type_rates", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_bp_item_type_rates_apartment_type", "\"ApartmentType\" IN ('CanHo','Kiot','Penthouse')");
+
+                            t.HasCheckConstraint("ck_bp_item_type_rates_rate", "\"Rate\" >= 0");
                         });
                 });
 
@@ -407,6 +455,11 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("RateMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -428,6 +481,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
                             t.HasCheckConstraint("ck_fee_items_fee_scope", "\"FeeScope\" IN ('Chung','ChiDinh')");
 
                             t.HasCheckConstraint("ck_fee_items_fee_type", "\"FeeType\" IN ('BatBuoc','TuNguyen','BaoTriRieng')");
+
+                            t.HasCheckConstraint("ck_fee_items_rate_mode", "\"RateMode\" IN ('Chung','TheoLoai')");
                         });
                 });
 
@@ -462,6 +517,47 @@ namespace BlueMoonApartementManagementConsole.Migrations
                             t.HasCheckConstraint("ck_fee_rates_period", "\"EffectiveTo\" IS NULL OR \"EffectiveTo\" > \"EffectiveFrom\"");
 
                             t.HasCheckConstraint("ck_fee_rates_rate", "\"Rate\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeTypeRateEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApartmentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<int>("FeeItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FeeItemId", "ApartmentType", "EffectiveFrom")
+                        .IsUnique();
+
+                    b.ToTable("fee_type_rates", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_fee_type_rates_apartment_type", "\"ApartmentType\" IN ('CanHo','Kiot','Penthouse')");
+
+                            t.HasCheckConstraint("ck_fee_type_rates_period", "\"EffectiveTo\" IS NULL OR \"EffectiveTo\" > \"EffectiveFrom\"");
+
+                            t.HasCheckConstraint("ck_fee_type_rates_rate", "\"Rate\" >= 0");
                         });
                 });
 
@@ -593,6 +689,10 @@ namespace BlueMoonApartementManagementConsole.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)");
 
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("HouseholdId");
@@ -605,6 +705,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
                             t.HasCheckConstraint("ck_receivables_amount", "\"Amount\" >= 0");
 
                             t.HasCheckConstraint("ck_receivables_quantity", "\"Quantity\" > 0");
+
+                            t.HasCheckConstraint("ck_receivables_rate", "\"Rate\" >= 0");
                         });
                 });
 
@@ -805,14 +907,32 @@ namespace BlueMoonApartementManagementConsole.Migrations
                     b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeRateEntity", "FeeRate")
                         .WithMany()
                         .HasForeignKey("FeeRateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("BillingPeriod");
 
                     b.Navigation("FeeItem");
 
                     b.Navigation("FeeRate");
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BillingPeriodItemTypeRateEntity", b =>
+                {
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BillingPeriodItemEntity", "BillingPeriodItem")
+                        .WithMany("TypeRates")
+                        .HasForeignKey("BillingPeriodItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeTypeRateEntity", "FeeTypeRate")
+                        .WithMany()
+                        .HasForeignKey("FeeTypeRateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BillingPeriodItem");
+
+                    b.Navigation("FeeTypeRate");
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.DebtReminderEntity", b =>
@@ -855,6 +975,17 @@ namespace BlueMoonApartementManagementConsole.Migrations
                 {
                     b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeItemEntity", "FeeItem")
                         .WithMany("Rates")
+                        .HasForeignKey("FeeItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FeeItem");
+                });
+
+            modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeTypeRateEntity", b =>
+                {
+                    b.HasOne("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeItemEntity", "FeeItem")
+                        .WithMany("TypeRates")
                         .HasForeignKey("FeeItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -968,6 +1099,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BillingPeriodItemEntity", b =>
                 {
                     b.Navigation("Receivables");
+
+                    b.Navigation("TypeRates");
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.BuildingEntity", b =>
@@ -978,6 +1111,8 @@ namespace BlueMoonApartementManagementConsole.Migrations
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.FeeItemEntity", b =>
                 {
                     b.Navigation("Rates");
+
+                    b.Navigation("TypeRates");
                 });
 
             modelBuilder.Entity("BlueMoonApartementManagementConsole.BackEnd.Models.Enities.HouseholdEntity", b =>
