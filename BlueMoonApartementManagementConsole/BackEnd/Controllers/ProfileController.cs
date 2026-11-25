@@ -20,6 +20,13 @@ public class ProfileController(IAccountManagementService accounts, IAppUserRepo 
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var r = await accounts.ChangeOwnPasswordAsync(userId, req, ct);
+        if (r.Status == ManageStatus.Locked)
+        {
+            // Sai mật khẩu hiện tại quá số lần cho phép (G3, issue #69): tài khoản bị khóa tạm, mọi phiên bị đăng xuất,
+            // kể cả phiên đang gửi yêu cầu này
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return StatusCode(StatusCodes.Status423Locked, new ApiError("ACCOUNT_LOCKED", r.Message ?? "Tài khoản tạm bị khóa."));
+        }
         if (r.Status != ManageStatus.Success)
             return BadRequest(new ApiError("INVALID", r.Message ?? "Không đổi được mật khẩu."));
 

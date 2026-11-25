@@ -195,4 +195,42 @@ public class LoginChangePasswordAcceptanceTests(BlueMoonAppFactory factory)
         Assert.Equal(UiFlow.WrongCredentials,
             (await UiFlow.LoginAsync(NewBrowser(), resident.Username.ToUpperInvariant(), Pw, UserRole.CU_DAN)).Alert);
     }
+
+    /// <summary>
+    /// C12 (G3, issue #69): đổi mật khẩu sai mật khẩu hiện tại 5 lần thì tài khoản bị khóa tạm như đăng nhập sai,
+    /// mọi phiên bị đăng xuất; BQT mở khóa thì đăng nhập lại được bằng mật khẩu cũ (mật khẩu chưa bị đổi).
+    /// </summary>
+    [SkippableFact]
+    [Trait("Acceptance", "C12")]
+    public async Task C12_WrongCurrentPasswordFiveTimes_LocksAccount_EndsAllSessions_UntilAdminUnlocks()
+    {
+        SkipIfNoDatabase();
+        var resident = await Accounts.SeedAsync("cudan_g3", UserRole.CU_DAN);
+        var browser = await LoginAsync(resident.Username, UserRole.CU_DAN);
+        var otherDevice = await LoginAsync(resident.Username, UserRole.CU_DAN);
+
+        for (var i = 1; i <= 4; i++)
+        {
+            var wrong = await UiFlow.ChangePasswordAsync(browser, $"Sai@{i:D4}xx", "NewPass@02");
+            Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+            Assert.Equal(("INVALID", "Mật khẩu hiện tại không đúng."), await UiFlow.ReadErrorAsync(wrong));
+        }
+
+        var fifth = await UiFlow.ChangePasswordAsync(browser, "Sai@0005xx", "NewPass@02");
+        Assert.Equal(HttpStatusCode.Locked, fifth.StatusCode);
+        Assert.Equal(("ACCOUNT_LOCKED", "Tài khoản tạm bị khóa do nhập sai mật khẩu nhiều lần. Vui lòng đăng nhập lại sau 15 phút."),
+            await UiFlow.ReadErrorAsync(fifth));
+
+        // Mọi phiên đều bị đăng xuất, kể cả phiên ở máy khác
+        Assert.StartsWith("/login", (await UiFlow.GetAsync(browser, "/ho-so")).RedirectPath);
+        Assert.StartsWith("/login", (await UiFlow.GetAsync(otherDevice, "/ho-so")).RedirectPath);
+
+        // Đăng nhập bằng đúng mật khẩu cũ cũng bị báo khóa
+        Assert.Equal(UiFlow.LockedMessage, (await UiFlow.LoginAsync(NewBrowser(), resident.Username, Pw, UserRole.CU_DAN)).Alert);
+
+        // BQT mở khóa thì đăng nhập lại được bằng mật khẩu cũ
+        var admin = await AdminAsync();
+        Assert.Equal(HttpStatusCode.NoContent, (await UiFlow.PostAsync(admin, $"/api/tai-khoan/{resident.Id}/mo-khoa")).StatusCode);
+        await UiFlow.LoginOkAsync(NewBrowser(), resident.Username, Pw, UserRole.CU_DAN);
+    }
 }

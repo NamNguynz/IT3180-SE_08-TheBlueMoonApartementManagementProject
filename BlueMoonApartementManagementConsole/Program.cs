@@ -26,6 +26,12 @@ builder.Services.AddScoped<IAppUserRepo, AppUserRepo>();
 builder.Services.AddScoped<IApartmentProfileRepository, ApartmentProfileRepository>();
 builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+// Khóa tạm khi nhập sai mật khẩu nhiều lần (đăng nhập và đổi mật khẩu, issue #69). Mặc định 5 lần, 15 phút;
+// chỉnh bằng mục cấu hình "Lockout", ví dụ biến môi trường Lockout__Minutes=1 khi dev test bằng tay
+builder.Services.AddOptions<LoginLockoutOptions>()
+    .Bind(builder.Configuration.GetSection(LoginLockoutOptions.Section))
+    .Validate(o => o.MaxFailedAttempts >= 1 && o.Minutes >= 1, "Lockout: MaxFailedAttempts và Minutes phải từ 1 trở lên.")
+    .ValidateOnStart();
 builder.Services.AddScoped<IAccountManagementService, AccountManagementService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBuildingService, BuildingService>();
@@ -197,12 +203,8 @@ using (var scope = app.Services.CreateScope())
 
     if (!await db.Users.AnyAsync(u => u.Role == UserRole.BQT))
     {
-        var initPwd = app.Configuration["ADMIN_INIT_PWD"]
-            ?? throw new InvalidOperationException("Thiếu cấu hình ADMIN_INIT_PWD.");
-
-        var admin = new AppUserEntity { Username = "admin", Role = UserRole.BQT, Status = UserStatus.Approved};
-        admin.PasswordHash = hasher.HashPassword(admin, initPwd);
-        db.Users.Add(admin);
+        // Thiếu ADMIN_INIT_PWD, hoặc không dài 8 – 100 ký tự (issue #67), thì app dừng và báo lỗi cấu hình
+        db.Users.Add(AdminSeeder.CreateInitialAdmin(app.Configuration["ADMIN_INIT_PWD"], hasher));
         await db.SaveChangesAsync();
     }
 }

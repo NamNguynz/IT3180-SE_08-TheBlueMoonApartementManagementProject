@@ -36,3 +36,16 @@ test('T4 bước 5 (H3, ghi nhận, không đánh Fail): hết phiên khi bấm 
     assert.equal(page.alert.hidden, true, 'Không hiện thông báo lỗi trước khi chuyển trang');
     assert.equal(page.button.disabled, false, 'Nút Đổi mật khẩu được bật lại');
 });
+
+test('C12 (G3, issue #69): sai mật khẩu hiện tại lần thứ 5, API trả 423 thì trang hiện câu báo khóa của server', async () => {
+    const message = 'Tài khoản tạm bị khóa do nhập sai mật khẩu nhiều lần. Vui lòng đăng nhập lại sau 15 phút.';
+    const page = await openProfilePage(() => jsonResponse(423, { code: 'ACCOUNT_LOCKED', message }));
+
+    await page.submit();
+
+    assert.equal(page.alert.hidden, false);
+    assert.equal(page.alert.textContent, message);
+    assert.equal(page.alert.className, 'alert', 'Thông báo lỗi (đỏ), không phải thông báo thành công');
+    assert.deepEqual(page.location.assigned, [], 'Ở lại trang để người dùng đọc thông báo');
+    assert.equal(page.button.disabled, false);
+});

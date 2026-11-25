@@ -197,4 +197,22 @@ public class AuthServiceLoginTests
         Assert.Equal(0, user.FailedAttempts);
         Assert.Null(user.LockedUntil);
     }
+
+    // ===== L11: Nhật ký ghi đúng số lần sai, kể cả lần thứ 5 (lỗi #3, issue #68) =====
+
+    [Fact]
+    [Trait("TestId", "L11")]
+    public async Task Login_FiveWrongPasswords_LogsAttempts1To5_ThenLocks()
+    {
+        var user = SeedResident();
+
+        for (var i = 0; i < 5; i++)
+            Assert.Equal(LoginStatus.InvalidCredentials, (await LoginAsync("cudan01", WrongPassword)).Status);
+
+        Assert.Equal(
+            ["Sai mật khẩu, lần 1", "Sai mật khẩu, lần 2", "Sai mật khẩu, lần 3", "Sai mật khẩu, lần 4", "Sai mật khẩu, lần 5"],
+            _audit.Entries.Where(e => e.Action == AuditAction.LoginFailed).Select(e => e.Detail));
+        Assert.NotNull(user.LockedUntil);
+        Assert.Equal(0, user.FailedAttempts);
+    }
 }

@@ -108,9 +108,8 @@ public class AuditLogAcceptanceTests(BlueMoonAppFactory factory)
         Has(AuditAction.LoginFailed, f.Ghost, detail: "Tài khoản không tồn tại hoặc bị vô hiệu");
         Has(AuditAction.LoginSuccess, f.Cudan, f.CudanId);
         Has(AuditAction.Logout, f.Cudan, f.CudanId);
-        for (var i = 1; i <= 4; i++)
-            Has(AuditAction.LoginFailed, f.Cudan, f.CudanId, $"Sai mật khẩu, lần {i}");
-        Has(AuditAction.LoginFailed, f.Cudan, f.CudanId, "Sai mật khẩu, lần 0"); // lỗi #3 đã biết: lần thứ 5 ghi "lần 0"
+        for (var i = 1; i <= 5; i++)
+            Has(AuditAction.LoginFailed, f.Cudan, f.CudanId, $"Sai mật khẩu, lần {i}"); // lần 5 từng ghi "lần 0" (#3, issue #68, đã sửa)
         Assert.Contains(logs, l => l.Action == AuditAction.LoginLocked && l.Username == f.Cudan && l.Detail!.StartsWith("Khóa đến "));
         Has(AuditAction.UnlockAccount, "admin", f.CudanId, $"Mở khóa tài khoản {f.Cudan}");
         Has(AuditAction.ResetPassword, "admin", f.CudanId, $"Cấp lại mật khẩu cho {f.Cudan}");
