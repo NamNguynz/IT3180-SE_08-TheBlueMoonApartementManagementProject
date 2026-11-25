@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace BlueMoonApartementManagementConsole.Tests.Integration.Acceptance;
 
 /// <summary>
-/// Tự động hóa docs/testing/acceptance_audit_log.md: D1, D2, D4, D10, D11 và phần API của D3, D5, D6.
+/// Tự động hóa docs/testing/acceptance_audit_log.md: D1, D2, D4, D10, D11, D12 và phần API của D3, D5, D6.
 /// Bộ lọc của trang Nhật ký chỉ là JavaScript ghép tham số rồi gọi /api/nhat-ky, nên test gọi đúng API đó
 /// với cùng tham số. D7 đã có ở AuditLogQueryTests (Q11, Q12).
 /// Còn chạy tay: D3 bước 5, D5 bước 2, nút Trước/Sau của D6, D8, D9 (phần hiển thị trên trình duyệt).
@@ -311,6 +311,69 @@ public class AuditLogAcceptanceTests(BlueMoonAppFactory factory)
             await using var scope = Factory.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await db.Apartments.Where(a => a.Code == code).ExecuteDeleteAsync();
+        }
+    }
+
+    /// <summary>
+    /// D12 (AC-017, PBI-029): tạo khoản thu và đổi đơn giá đều có dòng nhật ký đúng người thực hiện, đối tượng, nội dung.
+    /// Phần ghi nhận thu tiền đã kiểm ở PaymentServiceTests và PaymentApiTests (mỗi lần thu tiền một dòng RecordPayment).
+    /// </summary>
+    [SkippableFact]
+    [Trait("Acceptance", "D12")]
+    public async Task D12_CreateFeeItemAndChangeRate_AreLogged_WithActorTargetAndDetail()
+    {
+        SkipIfNoDatabase();
+        var startedAt = DateTimeOffset.UtcNow;
+        var admin = await AdminAsync();
+        var code = "D12" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var tomorrow = today.AddDays(1);
+
+        try
+        {
+            // Bước 1: tạo khoản thu như form "Thêm khoản thu" (dữ liệu giả)
+            var fee = await ReadCreatedAsync<FeeItemResponse>(await admin.PostAsJsonAsync("/api/khoan-thu", new CreateFeeItemRequest
+            {
+                Code = code, Name = "Phí test D12", FeeType = FeeType.BatBuoc, FeeScope = FeeScope.Chung,
+                FeeCycle = FeeCycle.Thang, CalculationBasis = CalculationBasis.CoDinh, Unit = "hộ",
+                RateMode = RateMode.Chung, Rate = 10_000m, EffectiveFrom = today
+            }, UiFlow.Json));
+
+            // Bước 2: đổi đơn giá như nút "Đổi đơn giá", hiệu lực từ ngày mai
+            await UiFlow.ReadOkJsonAsync<FeeItemResponse>(await admin.PostAsJsonAsync($"/api/khoan-thu/{fee.Id}/don-gia",
+                new ChangeRateRequest { RateMode = RateMode.Chung, Rate = 12_000m, EffectiveFrom = tomorrow }, UiFlow.Json));
+
+            // Bước 3: lọc Nhật ký theo từng loại thao tác, mỗi loại có đúng một dòng cho khoản thu vừa tạo
+            var target = fee.Id.ToString(CultureInfo.InvariantCulture);
+            async Task<AuditLogDto> OnlyRowAsync(AuditAction action)
+            {
+                var result = await QueryAsync(admin,
+                    $"action={action}&username={TestAccounts.AdminUsername}&from={Iso(startedAt)}&pageSize=100");
+                Assert.All(result.Items, i => Assert.Equal(action.ToString(), i.Action));
+                return Assert.Single(result.Items, i => i.Target == target);
+            }
+
+            var created = await OnlyRowAsync(AuditAction.CreateFeeItem);
+            Assert.Equal(TestAccounts.AdminUsername, created.Username);
+            Assert.Equal($"Tạo khoản thu {code} - Phí test D12", created.Detail);
+
+            // App dùng InvariantCulture (Program.cs): số dạng 10,000, ngày dạng dd/MM/yyyy
+            var changed = await OnlyRowAsync(AuditAction.ChangeRate);
+            Assert.Equal(TestAccounts.AdminUsername, changed.Username);
+            Assert.Equal(string.Format(CultureInfo.InvariantCulture, "Đổi đơn giá {0}: {1:N0} → {2:N0} từ {3:dd/MM/yyyy}",
+                code, 10_000m, 12_000m, tomorrow), changed.Detail);
+
+            // Ô lọc Hành động có nhãn tiếng Việt cho 2 thao tác này (bảng trên trang dùng chính các nhãn này)
+            var page = await UiFlow.GetAsync(admin, "/quan-tri/nhat-ky");
+            Assert.Contains("<option value=\"CreateFeeItem\">Tạo khoản thu</option>", page.Html);
+            Assert.Contains("<option value=\"ChangeRate\">Điều chỉnh giá khoản thu</option>", page.Html);
+        }
+        finally
+        {
+            await using var scope = Factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.FeeRates.Where(r => r.FeeItem.Code == code).ExecuteDeleteAsync();
+            await db.FeeItems.Where(f => f.Code == code).ExecuteDeleteAsync();
         }
     }
 
