@@ -5,7 +5,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 
 <HeadContent>
-    <link rel="stylesheet" href="css/fee-items.css" />
+    <link rel="stylesheet" href="css/fee-items.css?v=1" />
 </HeadContent>
 
 <div id="fee-items-page" class="page">
@@ -108,23 +108,25 @@
     </div>
 
     <div class="card-box">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Mã</th>
-                    <th>Tên khoản thu</th>
-                    <th>Loại</th>
-                    <th>Phạm vi</th>
-                    <th>Chu kỳ</th>
-                    <th>Cơ sở tính</th>
-                    <th>Cách giá</th>
-                    <th>Đơn vị</th>
-                    <th>Đơn giá hiện hành</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody id="fee-items-body"></tbody>
-        </table>
+        <div class="fee-table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Tên khoản thu</th>
+                        <th>Loại</th>
+                        <th>Phạm vi</th>
+                        <th>Chu kỳ</th>
+                        <th>Cơ sở tính</th>
+                        <th>Cách giá</th>
+                        <th>Đơn vị</th>
+                        <th>Đơn giá hiện hành</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="fee-items-body"></tbody>
+            </table>
+        </div>
         <p id="fee-empty" class="muted" hidden>Chưa có khoản thu nào.</p>
     </div>
 
