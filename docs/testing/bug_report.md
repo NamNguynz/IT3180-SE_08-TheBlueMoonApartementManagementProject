@@ -1,7 +1,7 @@
 # Báo cáo lỗi (Bug report)
 
 > Danh sách mọi lỗi Tester đã phát hiện trong Sprint 1, kèm mức độ, trạng thái, issue và plan sửa.
-> Cập nhật: **25/11/2026**, code app `1231392` (`main` sau PR #53). Issue: tab **Issues** của repo trên GitHub.
+> Cập nhật: **26/11/2026** (#67, #68, #69 đã sửa trên nhánh `fix/password-checks`). Code app gốc `1231392` (`main` sau PR #53). Issue: tab **Issues** của repo trên GitHub.
 >
 > Cách đếm theo Product Checklist (dòng "Bug report"): số lỗi có issue / số lỗi đã phát hiện.
 > Không tính các điểm đang chờ PO quyết định (mục 5).
@@ -19,9 +19,9 @@
 | | Số lỗi |
 |---|---|
 | Đã phát hiện | 20 |
-| Đã sửa | 7 (F1, F3, #31, UI-1, NK-1, G2, J3) |
+| Đã sửa | 10 (F1, F3, #31, UI-1, NK-1, G2, J3, #1, #3, G3). #1, #3, G3 chờ thành viên khác nghiệm thu |
 | Không sửa, đã có test chặn | 1 (F2) |
-| Đang mở | 12 |
+| Đang mở | 9 |
 | Có issue | **19/20**: #25, #26, #27, #31, #33, #35 (NK-1 và J3), #54, #67 – #77 |
 | Sửa không qua issue | 1 (UI-1) |
 
@@ -40,9 +40,9 @@ Issue #59 – #66 được tạo trùng với #70 – #77 (H1 – J7), đóng v�
 | G2 | Đổi mật khẩu hoặc được cấp lại mật khẩu mà các phiên khác vẫn đăng nhập | PBI-027 | C8, C11 | Trung bình | Đã sửa (PR #34) | #33 | Ly |
 | J3 | Mô tả trang Nhật ký chỉ nhắc 4 loại thao tác | PBI-029 | D10 | Thấp | Đã sửa (PR #36) | #35 | Ly |
 | #54 | Lỗi kiểm tra dữ liệu ở tầng đầu vào trả tiếng Anh, không theo dạng `{code, message}` (mọi form) | PBI-001 (chung) | Y7, Y8, Y9 bước 5 | Trung bình | Đang mở | #54 | Minh |
-| #1 | `ADMIN_INIT_PWD` không bị kiểm tra độ dài tối thiểu 8 ký tự | PBI-030 | Đọc code | Trung bình | Đang mở | #67 | Ly (DEV-3) |
-| #3 | Lần sai mật khẩu thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" | PBI-027 | D1 bước 10, A2, A5 | Thấp | Đang mở | #68 | Ly (DEV-3) |
-| G3 | Đổi mật khẩu, nhập sai mật khẩu hiện tại bao nhiêu lần cũng không bị khóa | PBI-027 | P5 | Trung bình | Đang mở | #69 | Ly (DEV-3) |
+| #1 | `ADMIN_INIT_PWD` không bị kiểm tra độ dài tối thiểu 8 ký tự | PBI-030 | Đọc code | Trung bình | Đã sửa (26/11/2026, test P9, P10, A6), chờ nghiệm thu | #67 | Ly (DEV-3) |
+| #3 | Lần sai mật khẩu thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" | PBI-027 | D1 bước 10, A2, A5 | Thấp | Đã sửa (26/11/2026, test L11, D1), chờ nghiệm thu | #68 | Ly (DEV-3) |
+| G3 | Đổi mật khẩu, nhập sai mật khẩu hiện tại bao nhiêu lần cũng không bị khóa | PBI-027 | P5 | Trung bình | Đã sửa (26/11/2026, test P2, P5, P11 – P15, C12), chờ nghiệm thu | #69 | Ly (DEV-3) |
 | H1 | Phiên chỉ gia hạn khi thao tác sau phút thứ 5, có thể hết phiên 5 – 10 phút sau thao tác cuối | PBI-028 | T2 (Fail), S5 | Trung bình | Đang mở, chờ PO chốt NFR-008 | #70 | Tiến |
 | H2 | Gõ phím, điền form không giữ phiên, không cảnh báo trước khi hết phiên | PBI-028 | T4 | Thấp | Đang mở, cần PO đồng ý cách sửa | #71 | Tiến |
 | H3 | Hết phiên khi bấm nút thì về `/login` không nhớ trang đang dở | PBI-028 | T4 bước 5 | Thấp | Đang mở | #72 | Tiến |
@@ -57,11 +57,14 @@ sau khi Ly sửa, **thành viên khác** nghiệm thu lại.
 
 ## 4. Plan sửa các lỗi đang mở
 
+#1, #3, G3 đã làm theo plan dưới ngày 26/11/2026 (nhánh `fix/password-checks`). G3 làm thêm: đổi `SecurityStamp` khi khóa, trả 423 `ACCOUNT_LOCKED`,
+số lần sai và thời gian khóa chỉnh được bằng cấu hình `Lockout` (mặc định 5 lần, 15 phút).
+
 | Mã | Plan sửa | Test cần chạy lại hoặc sửa theo |
 |---|---|---|
 | #54 | Cấu hình `InvalidModelStateResponseFactory` trong `Program.cs` một lần cho mọi controller: trả `ApiError {code: "INVALID", message: "<tên trường tiếng Việt>: <lỗi>"}`; đặt `ErrorMessage` tiếng Việt cho các attribute | Y7, Y8, Y9 bước 5; test của các form khác |
 | #1 | Tạo `PasswordRules` (8 – 100 ký tự) dùng chung cho đăng ký, đổi mật khẩu và `ADMIN_INIT_PWD`; `Program.cs` dừng app và báo lỗi cấu hình nếu sai độ dài | Unit test mới cho `PasswordRules`; test đăng ký, đổi mật khẩu |
-| #3 | `AuthService.cs` dòng 66 – 71: ghi nhật ký với số lần sai **trước** khi đặt lại về 0 | D1 (đang mong đợi "lần 0"), A2, A5 |
+| #3 | `AuthService.cs` dòng 66 – 71: ghi nhật ký với số lần sai **trước** khi đặt lại về 0 | D1 (đã sửa mong đợi thành "lần 5"), L11, A2, A5 |
 | G3 | Dùng chung quy tắc khóa của đăng nhập (5 lần, 15 phút) cho `ChangeOwnPasswordAsync`; đang bị khóa thì từ chối; ghi nhật ký từng lần sai; đề xuất đổi `SecurityStamp` khi khóa để đăng xuất mọi phiên | Thay test P5 (`ChangePasswordTests.cs:130`) bằng test khóa sau 5 lần |
 | H1 | Trong `OnValidatePrincipal` (`Program.cs`), user hợp lệ thì đặt `ctx.ShouldRenew = true` để mọi thao tác đều gia hạn phiên | S5, T2 |
 | H2 | Script chung đếm thời gian từ request cuối, phút thứ 9 hiện cảnh báo có nút "Tiếp tục làm việc" (cần sửa H1 trước; cần PO đồng ý, liên quan RSK-011) | Test JS mới cho script này; T4 |

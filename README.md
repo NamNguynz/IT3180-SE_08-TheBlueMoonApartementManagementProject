@@ -53,6 +53,7 @@ BlueMoonApartementManagementConsole/
 dotnet user-secrets init
 dotnet user-secrets set "ADMIN_INIT_PWD" "<mật-khẩu-vừa-sinh>"
 ```
+- `ADMIN_INIT_PWD` phải dài 8 – 100 ký tự, giống quy tắc đăng ký và đổi mật khẩu. Sai thì app dừng khi tạo tài khoản `admin` lần đầu và báo lỗi cấu hình.
 - Khóa mã hóa dữ liệu cá nhân `PII_ENC_KEY` (PBI-030): chuỗi base64 của 32 byte ngẫu nhiên. Tạo và lưu bằng một trong hai cách:
 ```
 # macOS / Linux

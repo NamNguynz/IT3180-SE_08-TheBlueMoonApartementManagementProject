@@ -141,17 +141,34 @@ Các lệnh `psql` bên dưới dùng `-d BlueMoon_AT`. Nếu dùng tên databas
 |---|---|---|
 | | | |
 
+### A6. Mật khẩu admin ban đầu (`ADMIN_INIT_PWD`) phải dài 8 – 100 ký tự (lỗi #1, issue #67)
+
+> **Tự động** bước 1, 2 bằng unit test P9 (`PasswordRules`) và P10 (`AdminSeeder`, đúng hàm `Program.cs` gọi khi tạo `admin`)
+> trong `PasswordRulesTests.cs`. Bước 3: `Program.cs` chỉ tạo `admin` khi database chưa có Ban quản trị nào (điều kiện này không đổi),
+> kiểm bằng đọc code. Không cần chạy tay; muốn xem tận mắt thì làm theo các bước dưới.
+> PBI-030 do DEV-3 (Ly) sửa: **người kiểm thử phải là thành viên khác**.
+
+| # | Bước | Kết quả mong đợi |
+|---|---|---|
+| 1 | Chạy app trên database **mới** với `ADMIN_INIT_PWD="1234567"` (7 ký tự) | App dừng khi khởi động, báo "ADMIN_INIT_PWD phải từ 8 đến 100 ký tự." |
+| 2 | Chạy lại với `ADMIN_INIT_PWD` dài 8 ký tự trở lên | App chạy, đăng nhập được `admin` bằng mật khẩu đó |
+| 3 | Chạy app trên database **đã có** `admin` với `ADMIN_INIT_PWD` ngắn | App vẫn chạy (chỉ kiểm khi tạo `admin` lần đầu) |
+
+| Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|
+| | | |
+
 ---
 
 ## 5. Lỗi đã biết (không cần báo lại)
 
-Các lỗi dưới đây đã được ghi nhận và sẽ sửa ở task riêng. Gặp đúng các lỗi này thì ghi chú, **không** đánh Fail test case vì chúng:
+Các lỗi dưới đây đã được ghi nhận. Lỗi **chưa sửa** thì gặp đúng lỗi đó chỉ ghi chú, **không** đánh Fail. Lỗi **đã sửa** mà gặp lại thì đánh **Fail**.
 
 | # | Mô tả | Ảnh hưởng tới |
 |---|---|---|
-| 1 (#67) | `ADMIN_INIT_PWD` không bị kiểm tra độ dài tối thiểu 8 ký tự | Tài khoản `admin` có thể có mật khẩu ngắn |
+| 1 (#67) | ~~`ADMIN_INIT_PWD` không bị kiểm tra độ dài tối thiểu 8 ký tự~~. **Đã sửa** (26/11/2026): sai độ dài thì app dừng khi tạo `admin` lần đầu | A6 |
 | 2 | **Đính chính (09/11/2026): không phải lỗi.** Hash tạo lại khi đăng nhập sai tư cách **vẫn được lưu**, vì lệnh ghi nhật ký lưu luôn thay đổi trên cùng kết nối DB. Test Q10 (`AuditLogQueryTests`) đã xác nhận | — |
-| 3 (#68) | Lần sai mật khẩu thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" thay vì "lần 5" | A2, A5 |
+| 3 (#68) | ~~Lần sai mật khẩu thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" thay vì "lần 5"~~. **Đã sửa** (26/11/2026): ghi đúng "lần 5" (test L11, D1) | A2, A5 |
 
 ## 6. Tổng hợp và nghiệm thu
 
@@ -162,6 +179,7 @@ Các lỗi dưới đây đã được ghi nhận và sẽ sửa ở task riêng
 | A3. BQT cấp lại mật khẩu | | |
 | A4. Tự đổi mật khẩu | | |
 | A5. Nhật ký không chứa mật khẩu | | |
+| A6. Mật khẩu admin ban đầu 8 – 100 ký tự | | |
 
 | | |
 |---|---|

@@ -139,7 +139,7 @@ Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính 
 | 7 | Trình duyệt phụ: đăng nhập `khong_ton_tai` / `abc12345`, tư cách bất kỳ | `khong_ton_tai` | Đăng nhập thất bại | — | `Tài khoản không tồn tại hoặc bị vô hiệu` | |
 | 8 | Trình duyệt phụ: đăng nhập `cudan_nk` đúng mật khẩu, Tư cách **Cư dân** | `cudan_nk` | Đăng nhập thành công | Id của cudan_nk | — | |
 | 9 | Trình duyệt phụ: bấm **Đăng xuất** | `cudan_nk` | Đăng xuất | Id của cudan_nk | — | |
-| 10 | Trình duyệt phụ: đăng nhập `cudan_nk` **sai mật khẩu 5 lần** liên tiếp, Tư cách Cư dân | `cudan_nk` | 5 dòng Đăng nhập thất bại | Id của cudan_nk | `Sai mật khẩu, lần 1` đến `lần 4`, lần 5 xem ghi chú | |
+| 10 | Trình duyệt phụ: đăng nhập `cudan_nk` **sai mật khẩu 5 lần** liên tiếp, Tư cách Cư dân | `cudan_nk` | 5 dòng Đăng nhập thất bại | Id của cudan_nk | `Sai mật khẩu, lần 1` đến `lần 5` | |
 | 11 | Trình duyệt phụ: đăng nhập `cudan_nk` thêm 1 lần (mật khẩu bất kỳ) | `cudan_nk` | Bị khóa tạm thời | — | `Khóa đến <giờ> <ngày>` | |
 | 12 | Trình duyệt chính: vào **Tài khoản & phân quyền**, bấm **Mở khóa** ở dòng `cudan_nk` | `admin` | Mở khóa tài khoản | Id của cudan_nk | `Mở khóa tài khoản cudan_nk` | |
 | 13 | Trình duyệt chính: bấm **Cấp lại mật khẩu** ở dòng `cudan_nk`, bấm OK. **Ghi lại mật khẩu tạm** | `admin` | Reset mật khẩu | Id của cudan_nk | `Cấp lại mật khẩu cho cudan_nk` (**không** có mật khẩu tạm) | |
@@ -149,7 +149,7 @@ Làm lần lượt từng bước. Sau mỗi bước, ở trình duyệt chính 
 | 17 | Trình duyệt chính: bấm **Kích hoạt** ở dòng `cudan_nk` | `admin` | Kích hoạt tài khoản | Id của cudan_nk | `Tài khoản cudan_nk` | |
 | 18 | Ở trang Nhật ký, lần lượt chọn từng giá trị ở ô **Hành động** rồi bấm **Lọc** | — | Cả 12 loại đều có ít nhất 1 dòng | — | — | |
 
-**Ghi chú bước 10:** lần sai thứ 5 hiện ghi `Sai mật khẩu, lần 0` (lỗi đã biết #3 trong `acceptance_password_hashing.md`). Gặp đúng lỗi này thì ghi chú, không đánh Fail.
+**Ghi chú bước 10:** trước ngày 26/11/2026, lần sai thứ 5 ghi `Sai mật khẩu, lần 0` (lỗi #3, issue #68). Lỗi đã sửa: nay ghi `lần 5`. Gặp lại `lần 0` thì đánh **Fail**.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
@@ -355,7 +355,7 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 | J4 (#75) | Chọn "Từ ngày" sau "Đến ngày" thì chỉ ra danh sách rỗng, không báo lỗi | D4 bước 5 | Đọc code |
 | J6 (#76) | `POST /api/nhat-ky` trả 400 thay vì 405 như các method khác (request bị chạy lại tới trang `/not-found`). Request vẫn bị chặn, không ghi hay xóa gì | D7 bước 4 | Q11 |
 | J7 (#77) | **Đã xác nhận (25/11/2026):** giao diện ghép 3 số mili giây vào **cuối** chuỗi ngày giờ, mà kiểu `vi-VN` hiện giờ trước ngày, nên mili giây dính sau năm: `14:05:09 25/11/2026.123` | D9 | Test JS "J7" (`tests/js/audit-log.test.mjs`) |
-| #3 (#68) | Lần sai mật khẩu thứ 5 ghi "lần 0" (đã ghi ở `acceptance_password_hashing.md`) | D1 bước 10 | Đọc code `AuthService.LoginAsync` |
+| #3 (#68) | ~~Lần sai mật khẩu thứ 5 ghi "lần 0"~~. **Đã sửa** (26/11/2026): ghi đúng "lần 5". Gặp lại thì đánh Fail | D1 bước 10 | Test L11 (`AuthServiceLoginTests`), D1 |
 
 ## 5. Câu hỏi cho PO
 

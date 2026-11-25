@@ -237,6 +237,28 @@ Lưu ý: nếu đã chạy C8 thì mật khẩu của `cudan_lg` lúc này là `
 |---|---|---|
 | | | |
 
+### C12. Đổi mật khẩu sai mật khẩu hiện tại nhiều lần thì bị khóa (G3, issue #69)
+
+> **Tự động** (`Acceptance=C12`), unit test P2, P5, P11 – P15 (`ChangePasswordTests`) và test JS "C12" (`tests/js/profile.test.mjs`). Không cần chạy tay.
+> PBI-027 do DEV-3 (Ly) sửa: **người kiểm thử phải là thành viên khác**.
+
+| # | Bước | Kết quả mong đợi |
+|---|---|---|
+| 1 | **Trình duyệt 1** và **Trình duyệt 2:** cùng đăng nhập `cudan_lg` | Cả hai vào được |
+| 2 | **Trình duyệt 1:** vào `/ho-so`, đổi mật khẩu với Mật khẩu hiện tại sai (`Sai@0001xx`), mật khẩu mới `NewPass@02`. Làm 4 lần, mỗi lần một mật khẩu sai khác nhau | Mỗi lần báo đỏ "Mật khẩu hiện tại không đúng.", vẫn ở trang Hồ sơ |
+| 3 | Làm lần thứ 5 với mật khẩu sai | Báo đỏ "Tài khoản tạm bị khóa do nhập sai mật khẩu nhiều lần. Vui lòng đăng nhập lại sau 15 phút." (API trả 423, mã `ACCOUNT_LOCKED`) |
+| 4 | **Trình duyệt 1** và **Trình duyệt 2:** bấm F5 | Cả hai bị đăng xuất, về `/login` |
+| 5 | Đăng nhập `cudan_lg` bằng **đúng** mật khẩu cũ | Báo "Tài khoản tạm bị khóa do đăng nhập sai nhiều lần. Vui lòng thử lại sau 15 phút." |
+| 6 | `admin` vào **Tài khoản & phân quyền**, bấm **Mở khóa** ở dòng `cudan_lg`. Đăng nhập lại `cudan_lg` bằng mật khẩu cũ | Vào được; mật khẩu chưa bị đổi |
+| 7 | `admin` mở **Nhật ký** | Có 5 dòng "Đăng nhập thất bại" với chi tiết "Sai mật khẩu hiện tại khi đổi mật khẩu, lần 1" đến "lần 5", một dòng "Bị khóa tạm thời" có "đăng xuất mọi phiên", một dòng "Mở khóa tài khoản". Không dòng nào chứa mật khẩu đã gõ |
+
+Số lần sai được đếm chung với đăng nhập sai. Thời gian khóa mặc định 15 phút, chỉnh được bằng cấu hình `Lockout:Minutes`
+(ví dụ biến môi trường `Lockout__Minutes=1` khi chạy tay để không phải chờ lâu).
+
+| Kết quả thực tế | Pass/Fail | Ghi chú |
+|---|---|---|
+| | | |
+
 ---
 
 ## 5. Lỗi đã biết
@@ -247,14 +269,14 @@ Lưu ý: nếu đã chạy C8 thì mật khẩu của `cudan_lg` lúc này là `
 |---|---|---|
 | G1 | ~~`ReturnUrl` dạng `/\example.com` có thể đưa người dùng ra trang ngoài~~. **Không xảy ra** (test C2, 09/11/2026): server chuyển tới `https://localhost//example.com`, vẫn ở chính site | C2 |
 | G2 | ~~Đổi mật khẩu **không** đăng xuất các phiên đăng nhập khác của cùng tài khoản~~. **Đã sửa** (10/11/2026, issue #33): mỗi tài khoản có mã `SecurityStamp` ghi trong cookie, đổi hoặc được cấp lại mật khẩu thì đổi mã, phiên mang mã cũ bị đăng xuất. Sau khi cập nhật bản sửa, mọi người phải đăng nhập lại một lần | C8, C11 |
+| G3 (#69) | ~~Ở trang đổi mật khẩu, nhập sai mật khẩu hiện tại bao nhiêu lần cũng không bị khóa~~. **Đã sửa** (26/11/2026): sai 5 lần thì khóa 15 phút như đăng nhập, mọi phiên bị đăng xuất | C12 |
+| #3 (#68) | ~~Lần sai thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" thay vì "lần 5"~~. **Đã sửa** (26/11/2026): ghi đúng "lần 5" | C4 bước 1 |
 
 ### 5.2. Đã ghi nhận, không đánh Fail
 
 | # | Mô tả | Test case |
 |---|---|---|
-| G3 (#69) | Ở trang đổi mật khẩu, nhập sai mật khẩu hiện tại bao nhiêu lần cũng không bị khóa | Không test tay (đã có unit test P5) |
 | G4 | Tên đăng nhập phân biệt chữ hoa/thường. Đang chờ PO xác nhận | C10 |
-| — | Lần sai thứ 5, nhật ký ghi "Sai mật khẩu, lần 0" thay vì "lần 5" | C4 bước 1 |
 
 ## 6. Tổng hợp và nghiệm thu
 
@@ -271,6 +293,7 @@ Lưu ý: nếu đã chạy C8 thì mật khẩu của `cudan_lg` lúc này là `
 | C9. Chặn khi chưa đổi mật khẩu tạm | | |
 | C10. Tên đăng nhập | | |
 | C11. Cấp lại mật khẩu đăng xuất các phiên | | |
+| C12. Sai mật khẩu hiện tại nhiều lần thì bị khóa | | |
 
 | | |
 |---|---|
