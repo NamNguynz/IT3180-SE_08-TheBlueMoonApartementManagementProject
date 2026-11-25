@@ -29,8 +29,22 @@ public sealed record CreateBillingPeriodRequest
     /// </summary>
     public IReadOnlyList<TargetedFeeItemRequest> TargetedFeeItems { get; init; } = [];
 
+    /// <summary>
+    /// Chế độ đơn giá chọn ở trang kỳ thu cho từng khoản thu tính theo diện tích.
+    /// Thiếu một khoản thì mặc định Chung, để tương thích với client/API cũ.
+    /// </summary>
+    public IReadOnlyList<FeeRateChoiceRequest> RateChoices { get; init; } = [];
+
     [StringLength(500)]
     public string? Note { get; init; }
+}
+
+/// <summary>Chế độ đơn giá (Chung/TheoLoai) được chọn khi lập kỳ; không cho nhập số tiền ở đây.</summary>
+public sealed record FeeRateChoiceRequest
+{
+    public int FeeItemId { get; init; }
+
+    public RateMode Mode { get; init; } = RateMode.Chung;
 }
 
 /// <summary>Một khoản thu chỉ định hộ và các hộ được chọn để thu khoản đó trong kỳ (ít nhất một hộ).</summary>
@@ -72,7 +86,10 @@ public sealed record BillingPeriodResponse(
     IReadOnlyList<BillingPeriodItemResponse> Items,
     IReadOnlyList<HouseholdBillResponse> Households);
 
-/// <summary>Khoản thu trong kỳ. Rate, RateEffectiveFrom giải thích số tiền đã tính (AC-007).</summary>
+/// <summary>
+/// Khoản thu trong kỳ. Với chế độ Chung, Rate/RateEffectiveFrom giải thích số tiền đã tính;
+/// với chế độ TheoLoai, Rate/RateEffectiveFrom là null và TypeRates chứa ba giá đã chụp (AC-007).
+/// </summary>
 public sealed record BillingPeriodItemResponse(
     int FeeItemId,
     string Code,
@@ -80,9 +97,17 @@ public sealed record BillingPeriodItemResponse(
     FeeCycle FeeCycle,
     CalculationBasis CalculationBasis,
     string Unit,
-    decimal Rate,
-    DateOnly RateEffectiveFrom,
+    RateMode RateMode,
+    decimal? Rate,
+    DateOnly? RateEffectiveFrom,
+    IReadOnlyList<BillingPeriodItemTypeRateResponse> TypeRates,
     decimal TotalAmount);
+
+/// <summary>Một giá theo loại căn hộ đã chụp lại trong kỳ thu.</summary>
+public sealed record BillingPeriodItemTypeRateResponse(
+    ApartmentType ApartmentType,
+    decimal Rate,
+    DateOnly EffectiveFrom);
 
 /// <summary>Bảng kê của một hộ: các khoản bắt buộc gom thành một lần thu, TotalAmount là số phải nộp.</summary>
 public sealed record HouseholdBillResponse(
@@ -93,7 +118,7 @@ public sealed record HouseholdBillResponse(
     IReadOnlyList<ReceivableLineResponse> Lines,
     decimal TotalAmount);
 
-/// <summary>Amount = Rate × Quantity, làm tròn đến đồng.</summary>
+/// <summary>Amount = Rate × Quantity, làm tròn đến đồng. Rate là đơn giá thực tế đã áp dụng cho hộ này.</summary>
 public sealed record ReceivableLineResponse(
     int FeeItemId,
     decimal Quantity,
@@ -115,6 +140,8 @@ public sealed record FeeCalculationResponse(
     string ApartmentCode,
     DateOnly Date,
     decimal Quantity,
+    RateMode RateMode,
+    ApartmentType? ApartmentType,
     decimal Rate,
     DateOnly RateEffectiveFrom,
     decimal Amount);

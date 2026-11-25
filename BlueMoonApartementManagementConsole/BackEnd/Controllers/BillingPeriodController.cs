@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
+using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -35,20 +36,24 @@ public sealed class BillingPeriodController(IBillingPeriodService billingPeriods
 
     /// <summary>
     /// Tính thử (PBI-015): GET api/ky-thu/tinh-phi?khoanThu=1&amp;hoGiaDinh=2&amp;ngay=2026-11-12, không lưu gì.
-    /// Bỏ trống ngày thì tính theo hôm nay.
+    /// Bỏ trống ngày thì tính theo hôm nay; cheDo=TheoLoai dùng giá của loại căn hộ (mặc định Chung).
     /// </summary>
     [HttpGet("tinh-phi")]
     public async Task<IActionResult> Calculate(
         [FromQuery(Name = "khoanThu")] int? feeItemId,
         [FromQuery(Name = "hoGiaDinh")] int? householdId,
         [FromQuery(Name = "ngay")] DateOnly? date,
+        [FromQuery(Name = "cheDo")] string? cheDo,
         CancellationToken ct)
     {
         // Tự kiểm thay vì [BindRequired], để thông báo tiếng Việt và cùng dạng ApiError với các lỗi khác (AC-002)
         if (feeItemId is null || householdId is null)
             return BadRequest(new ApiError("INVALID", "Hãy chọn khoản thu (khoanThu) và hộ gia đình (hoGiaDinh) cần tính phí."));
 
-        var result = await billingPeriods.CalculateAsync(feeItemId.Value, householdId.Value, date, ct);
+        if (!TryParseRateMode(cheDo, out var mode))
+            return BadRequest(new ApiError("INVALID", "Chế độ đơn giá chỉ nhận Chung hoặc TheoLoai."));
+
+        var result = await billingPeriods.CalculateAsync(feeItemId.Value, householdId.Value, date, mode, ct);
         return result.Status == FeeItemStatus.Success
             ? Ok(result.Data)
             : ToError(result.Status, result.Message);
@@ -62,6 +67,16 @@ public sealed class BillingPeriodController(IBillingPeriodService billingPeriods
             return ToError(result.Status, result.Message);
 
         return CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result.Data);
+    }
+
+    private static bool TryParseRateMode(string? value, out RateMode mode)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            mode = RateMode.Chung;
+            return true;
+        }
+        return Enum.TryParse(value, ignoreCase: true, out mode) && Enum.IsDefined(mode);
     }
 
     private IActionResult ToError(FeeItemStatus status, string? message) => status switch

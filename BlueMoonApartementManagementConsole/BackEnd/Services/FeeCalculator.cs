@@ -18,6 +18,14 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services;
 ///        phí quản lý 2.505 đ/m², căn 72,5 m² → 181.612,5 → 181.613 đ.
 /// Cơ sở tính điện, nước, internet thuộc v2.0 (FEA-033), chưa có trong v1.0.
 /// </summary>
+/// <summary>Đơn giá có hiệu lực, kèm nguồn để chụp lại vào kỳ thu và giải thích số tiền.</summary>
+public sealed record EffectiveRate(
+    decimal Rate,
+    DateOnly EffectiveFrom,
+    RateMode RateMode,
+    ApartmentType? ApartmentType,
+    int SourceId);
+
 public static class FeeCalculator
 {
     /// <summary>Bước 1: đơn giá có hiệu lực vào ngày <paramref name="day"/>, hoặc null nếu không có.</summary>
@@ -26,6 +34,36 @@ public static class FeeCalculator
             .Where(r => r.EffectiveFrom <= day && (r.EffectiveTo is null || r.EffectiveTo > day))
             .OrderByDescending(r => r.EffectiveFrom) // phòng dữ liệu cũ có hai khoảng chồng nhau: lấy đơn giá mới nhất
             .FirstOrDefault();
+
+    /// <summary>
+    /// Chọn đơn giá theo chế độ đã định cho kỳ thu. Chung dùng fee_rates như cũ; TheoLoai dùng đúng giá
+    /// của loại căn hộ, không fallback về giá chung để tránh thu nhầm (đã chốt khi triển khai).
+    /// </summary>
+    public static EffectiveRate? RateOn(
+        IEnumerable<FeeRateEntity> commonRates,
+        IEnumerable<FeeTypeRateEntity> typeRates,
+        DateOnly day,
+        ApartmentType apartmentType,
+        RateMode mode)
+    {
+        if (mode == RateMode.Chung)
+        {
+            var common = RateOn(commonRates, day);
+            return common is null
+                ? null
+                : new EffectiveRate(common.Rate, common.EffectiveFrom, RateMode.Chung, null, common.Id);
+        }
+
+        var typed = typeRates
+            .Where(r => r.ApartmentType == apartmentType
+                        && r.EffectiveFrom <= day
+                        && (r.EffectiveTo is null || r.EffectiveTo > day))
+            .OrderByDescending(r => r.EffectiveFrom) // phòng dữ liệu cũ có hai khoảng chồng nhau: lấy đơn giá mới nhất
+            .FirstOrDefault();
+        return typed is null
+            ? null
+            : new EffectiveRate(typed.Rate, typed.EffectiveFrom, RateMode.TheoLoai, typed.ApartmentType, typed.Id);
+    }
 
     /// <summary>Bước 2: cơ sở tính của hộ cho loại cơ sở tính của khoản thu.</summary>
     public static decimal QuantityFor(CalculationBasis basis, HouseholdBillingBasis household) => basis switch

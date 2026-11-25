@@ -30,8 +30,9 @@ public class BillingPeriodEntity
 }
 
 /// <summary>
-/// Một khoản thu trong kỳ, kèm đơn giá đã áp dụng. Rate là bản chụp lúc lập kỳ: đổi đơn giá về sau
-/// không làm thay đổi số đã tính, và vẫn giải thích được số tiền của kỳ cũ (AC-007, OBS-001).
+/// Một khoản thu trong kỳ, kèm đơn giá đã áp dụng. Rate/FeeRateId chỉ có giá trị với chế độ Chung;
+/// chế độ TheoLoai lưu ba giá đã chụp ở TypeRates và giá thực tế của từng hộ ở Receivable.Rate.
+/// Đổi đơn giá về sau không làm thay đổi số đã tính, và vẫn giải thích được số tiền của kỳ cũ (AC-007, OBS-001).
 /// </summary>
 public class BillingPeriodItemEntity
 {
@@ -41,17 +42,41 @@ public class BillingPeriodItemEntity
     public int FeeItemId { get; set; }
     public FeeItemEntity FeeItem { get; set; } = null!;
 
-    /// <summary>Dòng đơn giá đã dùng, để biết đơn giá này có hiệu lực từ ngày nào.</summary>
-    public int FeeRateId { get; set; }
-    public FeeRateEntity FeeRate { get; set; } = null!;
+    /// <summary>Chế độ đơn giá đã dùng khi lập kỳ (bản chụp).</summary>
+    public RateMode RateMode { get; set; } = RateMode.Chung;
 
-    public decimal Rate { get; set; }
+    /// <summary>Dòng đơn giá chung đã dùng, để biết đơn giá này có hiệu lực từ ngày nào.</summary>
+    public int? FeeRateId { get; set; }
+    public FeeRateEntity? FeeRate { get; set; }
+
+    /// <summary>Đơn giá chung đã chụp; null khi dùng chế độ TheoLoai.</summary>
+    public decimal? Rate { get; set; }
+
+    /// <summary>Ba giá theo loại căn hộ đã chụp; chỉ có dòng khi dùng chế độ TheoLoai.</summary>
+    public List<BillingPeriodItemTypeRateEntity> TypeRates { get; set; } = [];
     public List<ReceivableEntity> Receivables { get; set; } = [];
+}
+
+/// <summary>
+/// Giá theo từng loại căn hộ đã chụp lại trong một khoản thu của kỳ (chế độ TheoLoai).
+/// Giữ lại để bảng chi tiết giải thích được ba giá dù sau này danh mục có đổi.
+/// </summary>
+public class BillingPeriodItemTypeRateEntity
+{
+    public int Id { get; set; }
+    public int BillingPeriodItemId { get; set; }
+    public BillingPeriodItemEntity BillingPeriodItem { get; set; } = null!;
+    public ApartmentType ApartmentType { get; set; }
+    public decimal Rate { get; set; }
+    public int FeeTypeRateId { get; set; }
+    public FeeTypeRateEntity FeeTypeRate { get; set; } = null!;
+    public DateOnly EffectiveFrom { get; set; }
 }
 
 /// <summary>
 /// Số tiền một hộ phải nộp cho một khoản thu trong kỳ: Amount = Rate × Quantity, làm tròn đến đồng.
 /// Quantity là cơ sở tính chụp lúc lập kỳ (diện tích căn hộ, số nhân khẩu, hoặc 1 với khoản theo hộ, cố định).
+/// Rate là đơn giá thực tế đã áp dụng cho hộ này (giá chung, hoặc giá của loại căn hộ).
 /// </summary>
 public class ReceivableEntity
 {
@@ -61,5 +86,6 @@ public class ReceivableEntity
     public int HouseholdId { get; set; }
     public HouseholdEntity Household { get; set; } = null!;
     public decimal Quantity { get; set; }
+    public decimal Rate { get; set; }
     public decimal Amount { get; set; }
 }

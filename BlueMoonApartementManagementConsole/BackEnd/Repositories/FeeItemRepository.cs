@@ -18,13 +18,14 @@ public sealed class FeeItemRepository(AppDbContext db) : IFeeItemRepository
     public Task<List<FeeItemEntity>> GetAllAsync(CancellationToken ct = default) =>
         db.FeeItems.AsNoTracking()
             .Include(f => f.Rates)
+            .Include(f => f.TypeRates)
             .OrderBy(f => f.FeeType)
             .ThenBy(f => f.Code)
             .ToListAsync(ct);
 
     public Task<FeeItemEntity?> GetByIdAsync(int id, bool tracking, CancellationToken ct = default)
     {
-        IQueryable<FeeItemEntity> query = db.FeeItems.Include(f => f.Rates);
+        IQueryable<FeeItemEntity> query = db.FeeItems.Include(f => f.Rates).Include(f => f.TypeRates);
         if (!tracking)
             query = query.AsNoTracking();
         return query.FirstOrDefaultAsync(f => f.Id == id, ct);

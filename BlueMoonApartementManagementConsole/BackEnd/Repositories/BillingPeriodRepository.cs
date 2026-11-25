@@ -15,10 +15,11 @@ public sealed record BilledFeeItemRow(int FeeItemId, int BillingPeriodId, int Ye
 
 /// <summary>
 /// Cơ sở tính của một hộ tại thời điểm tính phí: diện tích căn hộ và số nhân khẩu chưa chuyển đi.
-/// Số hộ khẩu, mã căn chỉ để hiển thị và báo lỗi.
+/// Số hộ khẩu, mã căn chỉ để hiển thị và báo lỗi. Loại căn dùng để chọn đơn giá theo loại căn hộ.
 /// </summary>
 public sealed record HouseholdBillingBasis(
-    int HouseholdId, string HouseholdNumber, string ApartmentCode, decimal Area, int ResidentCount);
+    int HouseholdId, string HouseholdNumber, string ApartmentCode,
+    ApartmentType ApartmentType, decimal Area, int ResidentCount);
 
 public interface IBillingPeriodRepository
 {
@@ -63,6 +64,7 @@ public sealed class BillingPeriodRepository(AppDbContext db) : IBillingPeriodRep
             .Include(p => p.CreatedBy)
             .Include(p => p.Items).ThenInclude(i => i.FeeItem)
             .Include(p => p.Items).ThenInclude(i => i.FeeRate)
+            .Include(p => p.Items).ThenInclude(i => i.TypeRates)
             .Include(p => p.Items).ThenInclude(i => i.Receivables).ThenInclude(r => r.Household).ThenInclude(h => h.Apartment).ThenInclude(a => a.Building)
             .AsSplitQuery() // tránh nhân bản dòng khi Include nhiều nhánh
             .FirstOrDefaultAsync(p => p.Id == id, ct);
@@ -70,6 +72,7 @@ public sealed class BillingPeriodRepository(AppDbContext db) : IBillingPeriodRep
     public Task<List<FeeItemEntity>> GetFeeItemsAsync(IReadOnlyCollection<int> ids, CancellationToken ct = default) =>
         db.FeeItems.AsNoTracking()
             .Include(f => f.Rates)
+            .Include(f => f.TypeRates)
             .Where(f => ids.Contains(f.Id))
             .ToListAsync(ct);
 
@@ -85,6 +88,7 @@ public sealed class BillingPeriodRepository(AppDbContext db) : IBillingPeriodRep
             h.Id,
             h.HouseholdNumber,
             h.Apartment.Code,
+            h.Apartment.Type,
             h.Apartment.Area,
             h.Residents.Count(r => r.ResidenceStatus != ResidenceStatus.DaChuyenDi));
 

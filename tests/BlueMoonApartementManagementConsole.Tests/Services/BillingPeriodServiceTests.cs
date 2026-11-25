@@ -267,13 +267,13 @@ public sealed class BillingPeriodServiceTests
 
         foreach (var fee in new[] { service, hygiene })
         {
-            var calculated = await _service.CalculateAsync(fee.Id, household, Today);
+            var calculated = await _service.CalculateAsync(fee.Id, household, Today, RateMode.Chung);
             Assert.Equal(FeeItemStatus.Success, calculated.Status);
             Assert.Equal(bill.Lines.Single(l => l.FeeItemId == fee.Id).Amount, calculated.Data!.Amount);
         }
 
         // 72,5 m² × 2.505 = 181.612,5 → 181.613; giải thích được số tiền (AC-007)
-        var detail = (await _service.CalculateAsync(service.Id, household, Today)).Data!;
+        var detail = (await _service.CalculateAsync(service.Id, household, Today, RateMode.Chung)).Data!;
         Assert.Equal((72.5m, 2_505m, MonthStart, 181_613m), (detail.Quantity, detail.Rate, detail.RateEffectiveFrom, detail.Amount));
         Assert.Equal(("HK-0501", "A-501", Today), (detail.HouseholdNumber, detail.ApartmentCode, detail.Date));
     }
@@ -286,17 +286,17 @@ public sealed class BillingPeriodServiceTests
         _repo.SeedHousehold("HK-1", "A-101", area: 50m, residents: 1);
         _repo.SeedHousehold("HK-2", "A-102", area: 0m, residents: 1);
 
-        var today = await _service.CalculateAsync(fee.Id, 1, null);
+        var today = await _service.CalculateAsync(fee.Id, 1, null, RateMode.Chung);
         Assert.Equal((Today, 350_000m), (today.Data!.Date, today.Data.Amount));
 
-        Assert.Equal(FeeItemStatus.NotFound, (await _service.CalculateAsync(404, 1, null)).Status);
-        Assert.Equal(FeeItemStatus.NotFound, (await _service.CalculateAsync(fee.Id, 404, null)).Status);
+        Assert.Equal(FeeItemStatus.NotFound, (await _service.CalculateAsync(404, 1, null, RateMode.Chung)).Status);
+        Assert.Equal(FeeItemStatus.NotFound, (await _service.CalculateAsync(fee.Id, 404, null, RateMode.Chung)).Status);
 
-        var beforeRate = await _service.CalculateAsync(fee.Id, 1, new DateOnly(2026, 10, 31));
+        var beforeRate = await _service.CalculateAsync(fee.Id, 1, new DateOnly(2026, 10, 31), RateMode.Chung);
         Assert.Equal(FeeItemStatus.Invalid, beforeRate.Status);
         Assert.Equal("Khoản thu PHI_DV chưa có đơn giá hiệu lực vào ngày 31/10/2026.", beforeRate.Message);
 
-        var noArea = await _service.CalculateAsync(fee.Id, 2, null);
+        var noArea = await _service.CalculateAsync(fee.Id, 2, null, RateMode.Chung);
         Assert.Equal(FeeItemStatus.Invalid, noArea.Status);
         Assert.StartsWith("Căn hộ A-102 chưa có diện tích hợp lệ", noArea.Message);
         Assert.Empty(_repo.Periods); // tính thử không lưu gì
@@ -312,7 +312,7 @@ public sealed class BillingPeriodServiceTests
 
         foreach (var fee in new[] { donation, maintenance })
         {
-            var calculated = await _service.CalculateAsync(fee.Id, 1, Today);
+            var calculated = await _service.CalculateAsync(fee.Id, 1, Today, RateMode.Chung);
             var billed = await CreateAsync(fee.Id);
 
             Assert.Equal(FeeItemStatus.Invalid, calculated.Status);
@@ -377,7 +377,7 @@ public sealed class BillingPeriodServiceTests
         Assert.Equal(420_000m, period.Households.Single(h => h.ApartmentCode == "A-102").TotalAmount);
 
         // Tính thử khoản chỉ định cho một hộ ra đúng số trên bảng kê
-        var calculated = await _service.CalculateAsync(repair.Id, 1, Today);
+        var calculated = await _service.CalculateAsync(repair.Id, 1, Today, RateMode.Chung);
         Assert.Equal((FeeItemStatus.Success, 300_000m), (calculated.Status, calculated.Data!.Amount));
     }
 
@@ -559,7 +559,8 @@ public sealed class BillingPeriodServiceTests
             return feeItem;
         }
 
-        public void SeedHousehold(string number, string apartmentCode, decimal area, int residents)
+        public void SeedHousehold(string number, string apartmentCode, decimal area, int residents,
+            ApartmentType type = ApartmentType.CanHo)
         {
             var id = _households.Count + 1;
             _households.Add(new HouseholdEntity
@@ -571,6 +572,7 @@ public sealed class BillingPeriodServiceTests
                     Code = apartmentCode,
                     BuildingId = 1,
                     Building = new BuildingEntity { Id = 1, Name = "Tòa " + apartmentCode[0] },
+                    Type = type,
                     Area = area
                 }
             });
@@ -599,7 +601,7 @@ public sealed class BillingPeriodServiceTests
             Task.FromResult(_households.Where(h => h.Id == householdId).Select(ToBasis).FirstOrDefault());
 
         private HouseholdBillingBasis ToBasis(HouseholdEntity h) =>
-            new(h.Id, h.HouseholdNumber, h.Apartment.Code, h.Apartment.Area, _residentCounts[h.Id]);
+            new(h.Id, h.HouseholdNumber, h.Apartment.Code, h.Apartment.Type, h.Apartment.Area, _residentCounts[h.Id]);
 
         public Task AddAsync(BillingPeriodEntity period, CancellationToken ct = default)
         {

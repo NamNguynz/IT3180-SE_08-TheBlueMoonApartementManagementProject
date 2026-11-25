@@ -23,7 +23,7 @@ public sealed class FeeCalculatorTests
     private static readonly FeeRateEntity[] History = [NewRate, OldRate];
 
     private static HouseholdBillingBasis Household(decimal area = 72.5m, int residents = 3) =>
-        new(1, "HK-0501", "A-501", area, residents);
+        new(1, "HK-0501", "A-501", ApartmentType.CanHo, area, residents);
 
     // ===== Bước 1: đơn giá theo ngày =====
 

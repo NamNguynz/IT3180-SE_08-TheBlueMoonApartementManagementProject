@@ -15,8 +15,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
     public DbSet<ResidentChangeEntity> ResidentChanges => Set<ResidentChangeEntity>();
     public DbSet<FeeItemEntity> FeeItems => Set<FeeItemEntity>();
     public DbSet<FeeRateEntity> FeeRates => Set<FeeRateEntity>();
+    public DbSet<FeeTypeRateEntity> FeeTypeRates => Set<FeeTypeRateEntity>();
     public DbSet<BillingPeriodEntity> BillingPeriods => Set<BillingPeriodEntity>();
     public DbSet<BillingPeriodItemEntity> BillingPeriodItems => Set<BillingPeriodItemEntity>();
+    public DbSet<BillingPeriodItemTypeRateEntity> BillingPeriodItemTypeRates => Set<BillingPeriodItemTypeRateEntity>();
     public DbSet<ReceivableEntity> Receivables => Set<ReceivableEntity>();
     public DbSet<PaymentEntity> Payments => Set<PaymentEntity>();
     public DbSet<DebtReminderEntity> DebtReminders => Set<DebtReminderEntity>();
@@ -210,6 +212,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
                 t.HasCheckConstraint("ck_fee_items_fee_scope", "\"FeeScope\" IN ('Chung','ChiDinh')");
                 t.HasCheckConstraint("ck_fee_items_fee_cycle", "\"FeeCycle\" IN ('MotLan','Thang','Nam')");
                 t.HasCheckConstraint("ck_fee_items_calculation_basis", "\"CalculationBasis\" IN ('DienTich','NhanKhau','Ho','CoDinh')");
+                t.HasCheckConstraint("ck_fee_items_rate_mode", "\"RateMode\" IN ('Chung','TheoLoai')");
             });
             e.HasKey(f => f.Id);
             e.Property(f => f.Code).HasMaxLength(30).IsRequired();
@@ -219,6 +222,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.Property(f => f.FeeScope).HasConversion<string>().HasMaxLength(20);
             e.Property(f => f.FeeCycle).HasConversion<string>().HasMaxLength(20);
             e.Property(f => f.CalculationBasis).HasConversion<string>().HasMaxLength(20);
+            e.Property(f => f.RateMode).HasConversion<string>().HasMaxLength(20).IsRequired();
             e.Property(f => f.Unit).HasMaxLength(20).IsRequired();
             e.Property(f => f.Note).HasMaxLength(500);
             e.HasOne<AppUserEntity>().WithMany()
@@ -240,6 +244,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             // One rate starts per fee item per day.
             e.HasIndex(r => new { r.FeeItemId, r.EffectiveFrom }).IsUnique();
             e.HasOne(r => r.FeeItem).WithMany(f => f.Rates)
+             .HasForeignKey(r => r.FeeItemId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<FeeTypeRateEntity>(e =>
+        {
+            e.ToTable("fee_type_rates", t =>
+            {
+                t.HasCheckConstraint("ck_fee_type_rates_rate", "\"Rate\" >= 0");
+                t.HasCheckConstraint("ck_fee_type_rates_period", "\"EffectiveTo\" IS NULL OR \"EffectiveTo\" > \"EffectiveFrom\"");
+                t.HasCheckConstraint("ck_fee_type_rates_apartment_type", "\"ApartmentType\" IN ('CanHo','Kiot','Penthouse')");
+            });
+            e.HasKey(r => r.Id);
+            e.Property(r => r.ApartmentType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            e.Property(r => r.Rate).HasPrecision(18, 2);
+            e.Property(r => r.EffectiveFrom).HasColumnType("date").IsRequired();
+            e.Property(r => r.EffectiveTo).HasColumnType("date");
+            // Một giá theo loại căn hộ bắt đầu mỗi ngày cho mỗi khoản thu.
+            e.HasIndex(r => new { r.FeeItemId, r.ApartmentType, r.EffectiveFrom }).IsUnique();
+            e.HasOne(r => r.FeeItem).WithMany(f => f.TypeRates)
              .HasForeignKey(r => r.FeeItemId)
              .OnDelete(DeleteBehavior.Restrict);
         });
@@ -268,8 +292,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
         modelBuilder.Entity<BillingPeriodItemEntity>(e =>
         {
             e.ToTable("billing_period_items", t =>
-                t.HasCheckConstraint("ck_billing_period_items_rate", "\"Rate\" >= 0"));
+            {
+                t.HasCheckConstraint("ck_billing_period_items_rate", "\"Rate\" >= 0");
+                t.HasCheckConstraint("ck_billing_period_items_rate_mode", "\"RateMode\" IN ('Chung','TheoLoai')");
+            });
             e.HasKey(i => i.Id);
+            e.Property(i => i.RateMode).HasConversion<string>().HasMaxLength(20).IsRequired();
             e.Property(i => i.Rate).HasPrecision(18, 2);
             // Một khoản thu chỉ xuất hiện một lần trong một kỳ
             e.HasIndex(i => new { i.BillingPeriodId, i.FeeItemId }).IsUnique();
@@ -279,8 +307,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.HasOne(i => i.FeeItem).WithMany()
              .HasForeignKey(i => i.FeeItemId)
              .OnDelete(DeleteBehavior.Restrict);
+            // Chế độ TheoLoai không có một dòng đơn giá chung để trỏ tới
             e.HasOne(i => i.FeeRate).WithMany()
              .HasForeignKey(i => i.FeeRateId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<BillingPeriodItemTypeRateEntity>(e =>
+        {
+            e.ToTable("billing_period_item_type_rates", t =>
+            {
+                t.HasCheckConstraint("ck_bp_item_type_rates_rate", "\"Rate\" >= 0");
+                t.HasCheckConstraint("ck_bp_item_type_rates_apartment_type", "\"ApartmentType\" IN ('CanHo','Kiot','Penthouse')");
+            });
+            e.HasKey(r => r.Id);
+            e.Property(r => r.ApartmentType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            e.Property(r => r.Rate).HasPrecision(18, 2);
+            e.Property(r => r.EffectiveFrom).HasColumnType("date").IsRequired();
+            // Mỗi loại căn hộ chỉ có một giá đã chụp cho một khoản thu trong kỳ
+            e.HasIndex(r => new { r.BillingPeriodItemId, r.ApartmentType }).IsUnique();
+            e.HasOne(r => r.BillingPeriodItem).WithMany(i => i.TypeRates)
+             .HasForeignKey(r => r.BillingPeriodItemId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.FeeTypeRate).WithMany()
+             .HasForeignKey(r => r.FeeTypeRateId)
              .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -289,10 +339,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, IPersonalDataE
             e.ToTable("receivables", t =>
             {
                 t.HasCheckConstraint("ck_receivables_quantity", "\"Quantity\" > 0");
+                t.HasCheckConstraint("ck_receivables_rate", "\"Rate\" >= 0");
                 t.HasCheckConstraint("ck_receivables_amount", "\"Amount\" >= 0");
             });
             e.HasKey(r => r.Id);
             e.Property(r => r.Quantity).HasPrecision(10, 2);
+            e.Property(r => r.Rate).HasPrecision(18, 2);
             e.Property(r => r.Amount).HasPrecision(18, 2);
             // Một hộ chỉ có một dòng phải thu cho mỗi khoản trong kỳ
             e.HasIndex(r => new { r.BillingPeriodItemId, r.HouseholdId }).IsUnique();

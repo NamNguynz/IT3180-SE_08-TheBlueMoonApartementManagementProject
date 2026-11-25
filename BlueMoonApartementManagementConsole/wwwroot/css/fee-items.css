@@ -1,0 +1,69 @@
+/* Trang Khoản thu và đơn giá: phần riêng cho chế độ giá theo loại căn hộ. */
+
+#fee-items-page {
+    --field-border: #d1d5db;
+}
+
+#fee-items-page [hidden] {
+    display: none !important;
+}
+
+/* Khung ba giá theo loại: cùng màu viền/bo góc với ô input, và luôn xuống dòng riêng. */
+#fee-items-page .fee-type-rate-group {
+    display: flex;
+    flex: 0 0 100%;
+    width: 100%;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 14px;
+    margin: 2px 0 0;
+    padding: 10px 14px 12px;
+    background: #fff;
+    border: 1px solid var(--field-border);
+    border-radius: 10px;
+}
+
+#fee-items-page .fee-type-rate-group legend {
+    padding: 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+#fee-items-page .fee-type-rate-group label,
+#fee-items-page .fee-common-rate-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+}
+
+#fee-items-page .fee-type-rate-group label {
+    flex: 1 1 150px;
+}
+
+#fee-items-page .fee-type-rate-group input {
+    width: 100%;
+    min-width: 150px;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px solid var(--field-border);
+    border-radius: 8px;
+}
+
+#fee-items-page .fee-type-rate-group input:focus {
+    border-color: #1861ac;
+    outline: none;
+}
+
+#fee-items-page .fee-type-rate-group .muted {
+    flex: 0 0 100%;
+    margin: 0;
+    font-size: 12px;
+}
+
+#fee-items-page .rate-history ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+}
