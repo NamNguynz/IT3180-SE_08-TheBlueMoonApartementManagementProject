@@ -128,7 +128,7 @@ Căn hộ tạo trước khi có loại hình được gán mặc định **Căn
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Chạy tay ngày 25/11/2026 bước 1, 2: ô Trạng thái và kéo thả đều lưu đúng, F5 giữ giá trị, Nhật ký có dòng đổi trạng thái. Bước 3 chạy tự động | Pass | |
 
 ### K9. Căn hộ có nhân khẩu và giới hạn 5 kết quả
 
@@ -146,7 +146,7 @@ Căn hộ tạo trước khi có loại hình được gán mặc định **Căn
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Chạy tay ngày 25/11/2026: thẻ căn còn nhân khẩu không kéo được, chỉ đổi được sang Đã cho thuê; sau khi nhân khẩu chuyển đi thì đổi được; tìm kiếm hiện tối đa 5 căn kèm dòng đếm | Pass | Luật ở service có 3 unit test |
 
 ---
 
@@ -167,8 +167,8 @@ Căn hộ tạo trước khi có loại hình được gán mặc định **Căn
 | K3. Tra theo diện tích | | |
 | K4. Kết hợp tiêu chí | | |
 | K5. Thiếu, sai loại hình bị từ chối | | |
-| K8. Đổi trạng thái căn hộ | | |
-| K9. Luật nhân khẩu & tối đa 5 kết quả | | |
+| K8. Đổi trạng thái căn hộ | Pass | Chạy tay 25/11/2026 |
+| K9. Luật nhân khẩu & tối đa 5 kết quả | Pass | Chạy tay 25/11/2026 |
 
 | | |
 |---|---|
