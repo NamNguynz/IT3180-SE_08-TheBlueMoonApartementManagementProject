@@ -6,7 +6,9 @@
 > **Tự động hóa (09/11/2026):** case ghi "Tự động" đã có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`),
 > dùng đồng hồ giả nên không phải chờ 10 phút. File `tests/.../Integration/Acceptance/SessionTimeoutAcceptanceTests.cs`
 > và `tests/.../Integration/SessionTimeoutTests.cs`. Chạy riêng một case: `dotnet test --filter "Acceptance=T1"`.
-> Người kiểm thử **chỉ cần chạy tay T4 bước 5** (mất khoảng 12 phút), rồi ký nghiệm thu ở cuối. Lịch chạy song song ở mục 3 không còn cần.
+> **Cập nhật 25/11/2026:** T4 bước 5 (trang Hồ sơ chuyển về đâu khi hết phiên) đã tự động bằng test JS
+> `tests/js/profile.test.mjs`, chạy chính file `wwwroot/js/profile.js` trên DOM giả: `node --test tests/js/*.test.mjs`.
+> **Không còn bước chạy tay bắt buộc.** Lịch chạy song song ở mục 3 chỉ dùng khi muốn chạy lại trên trình duyệt thật.
 
 ## 1. Mục đích và phạm vi
 
@@ -35,9 +37,9 @@ Không đặt biến này thì các test S1 đến S7 bị bỏ qua (Skipped).
 
 | Mục | Giá trị |
 |---|---|
-| Nhánh / commit được kiểm thử | |
-| Hệ điều hành | |
-| Trình duyệt 1 / 2 / 3 (có thể là cửa sổ ẩn danh) | |
+| Nhánh / commit được kiểm thử | Code app `1231392` (`main` sau PR #53). Test chạy trên nhánh `docs/test-plan-report` |
+| Hệ điều hành | macOS (Darwin 27), .NET 10, PostgreSQL trên máy, Node v26 |
+| Trình duyệt 1 / 2 / 3 (có thể là cửa sổ ẩn danh) | Không dùng ở lần nghiệm thu 25/11/2026: test dùng đồng hồ giả và DOM giả |
 | URL app | `https://localhost:7127` |
 | Đồng hồ dùng để bấm giờ | |
 
@@ -79,7 +81,7 @@ Mỗi trình duyệt là một phiên riêng nên chạy song song được. **K
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `T1_Idle10Minutes_SessionEnds_AndLoginReturnsToSamePage`, S1 (cookie hết hạn sau 10 phút), S2 (9:59 còn phiên), S3 (10:01 hết phiên), ngày 25/11/2026 | Pass | |
 
 ### T2. Thao tác sớm rồi để yên (kiểm chứng H1)
 
@@ -95,7 +97,7 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động S5 `ActivityBeforeHalfway_DoesNotRenew_SessionEndsOnly6mAfterThatActivity`, ngày 25/11/2026: thao tác ở phút 4 không gia hạn, phiên hết 6 phút sau thao tác cuối | **Fail** | Xác nhận H1 |
 
 ### T3. Hết phiên rồi không thực hiện được thao tác
 
@@ -110,13 +112,13 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `T3_ActionAfterSessionExpired_IsNotPerformed_NorLogged`, S6 (cookie hết hạn gửi lại bị từ chối), ngày 25/11/2026 | Pass | |
 
 ### T4. Điền form lâu hơn 10 phút (H2, H3)
 
 > **Tự động** (`Acceptance=T4`) phần server: hết phiên thì đổi mật khẩu bị từ chối và mật khẩu cũ vẫn dùng được.
-> **Chạy tay bước 5:** làm bước 1 – 4 trên trình duyệt thật, rồi ghi lại sau khi đăng nhập lại app đưa về trang nào.
-> Việc chuyển trang này do JavaScript của trang Hồ sơ quyết định, nên test tự động không kiểm được (lỗi H3).
+> Bước 5 (trang được đưa về sau khi đăng nhập lại, lỗi H3): test JS trong `tests/js/profile.test.mjs`. Khi API trả 401,
+> `profile.js` gọi `location.assign('/login')` không kèm trang đang dở, nên đăng nhập lại sẽ về trang chủ.
 
 | # | Bước | Kết quả mong đợi | Giờ thực tế |
 |---|---|---|---|
@@ -128,7 +130,7 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động `T4_ChangePasswordAfterSessionExpired_IsRejected_PasswordUnchanged`; bước 5: test JS "T4 bước 5" (`profile.js` chuyển về `/login`, không kèm trang đang dở). Ngày 25/11/2026 | Pass | H2, H3 ghi nhận |
 
 ### T5. Nhiều tab trong cùng một trình duyệt
 
@@ -142,7 +144,7 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động S4 (thao tác sau nửa phiên thì gia hạn cùng một cookie dùng chung cho mọi tab), ngày 25/11/2026 | Pass | |
 
 ### T6. Đóng trình duyệt thì mất phiên
 
@@ -158,7 +160,7 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | | |
+| Tự động S7 `AuthCookie_IsSessionCookie_WithSecureAttributes`: cookie không có `Expires`/`Max-Age`, ngày 25/11/2026 | Pass | |
 
 ### T7. Nhật ký khi hết phiên (H4)
 
@@ -173,7 +175,7 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| | Không đánh giá, chờ PO (H4) | |
+| Tự động `T7_SessionExpiry_IsNotWrittenToAuditLog`, ngày 25/11/2026: hết phiên không có dòng nhật ký nào | Không đánh giá, chờ PO (H4) | |
 
 ---
 
@@ -183,7 +185,7 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | # | Mô tả | Test case |
 |---|---|---|
-| H1 | Phiên chỉ được gia hạn khi thao tác **sau phút thứ 5** của phiên hiện tại. Thao tác sớm hơn thì không được gia hạn, nên có thể bị đăng xuất chỉ **5 đến 10 phút** sau thao tác cuối, thay vì đúng 10 phút. Test tự động S5 đã xác nhận hành vi này trong code. Đang chờ PO chốt NFR-008 nghĩa là "tối đa 10 phút" hay "đúng 10 phút kể từ thao tác cuối" | T2 |
+| H1 | Phiên chỉ được gia hạn khi thao tác **sau phút thứ 5** của phiên hiện tại. Thao tác sớm hơn thì không được gia hạn, nên có thể bị đăng xuất chỉ **5 đến 10 phút** sau thao tác cuối, thay vì đúng 10 phút. Test tự động S5 đã xác nhận hành vi này trong code. Đang chờ PO chốt NFR-008 nghĩa là "tối đa 10 phút" hay "đúng 10 phút kể từ thao tác cuối". **Xác nhận lại ngày 25/11/2026, T2 đánh Fail** | T2 |
 
 ### 5.2. Đã ghi nhận, không đánh Fail
 
@@ -197,17 +199,21 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | Test case | Pass/Fail | Ghi chú |
 |---|---|---|
-| T1. Ranh giới 10 phút, quay về đúng trang | | |
-| T2. Thao tác sớm rồi để yên (H1) | | |
-| T3. Hết phiên rồi không thao tác được | | |
-| T4. Điền form lâu hơn 10 phút | | |
-| T5. Nhiều tab | | |
-| T6. Đóng trình duyệt | | |
-| T7. Nhật ký khi hết phiên | Không đánh giá | |
+| T1. Ranh giới 10 phút, quay về đúng trang | Pass | |
+| T2. Thao tác sớm rồi để yên (H1) | **Fail** | H1: thao tác ở phút 4 thì phiên hết sau 6 phút. Chờ PO chốt NFR-008 hoặc sửa code |
+| T3. Hết phiên rồi không thao tác được | Pass | |
+| T4. Điền form lâu hơn 10 phút | Pass | H2, H3 ghi nhận |
+| T5. Nhiều tab | Pass | |
+| T6. Đóng trình duyệt | Pass | |
+| T7. Nhật ký khi hết phiên | Không đánh giá | Chờ PO (H4) |
+
+Tất cả chạy tự động ngày 25/11/2026: `dotnet test --filter "Acceptance~T|TestId~S"` 13 pass, 0 fail;
+`node --test tests/js/*.test.mjs` 11 pass, 0 fail. T2 Fail theo quy tắc ở mục 5.1, không phải do test lỗi.
+Nếu PO chốt NFR-008 là "tối đa 10 phút", hoặc code được sửa để thao tác nào cũng gia hạn phiên, thì chạy lại T2 và sửa kết luận.
 
 | | |
 |---|---|
-| Người kiểm thử | |
-| Ngày kiểm thử | |
-| Kết luận | ☐ Đạt  ☐ Không đạt |
-| Chữ ký | |
+| Người kiểm thử | Nguyễn Đỗ Hương Ly (Tester) |
+| Ngày kiểm thử | 25/11/2026 |
+| Kết luận | ☐ Đạt  ☒ Không đạt (T2, lỗi H1) |
+| Chữ ký | Nguyễn Đỗ Hương Ly |
