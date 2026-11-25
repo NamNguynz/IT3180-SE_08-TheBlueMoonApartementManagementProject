@@ -16,7 +16,7 @@ namespace BlueMoonApartementManagementConsole.Tests.Integration.Acceptance;
 /// Tự động hóa docs/testing/acceptance_audit_log.md: D1, D2, D4, D10, D11, D12 và phần API của D3, D5, D6.
 /// Bộ lọc của trang Nhật ký chỉ là JavaScript ghép tham số rồi gọi /api/nhat-ky, nên test gọi đúng API đó
 /// với cùng tham số. D7 đã có ở AuditLogQueryTests (Q11, Q12).
-/// Còn chạy tay: D3 bước 5, D5 bước 2, nút Trước/Sau của D6, D8, D9 (phần hiển thị trên trình duyệt).
+/// Phần chạy trên trình duyệt (D3 bước 5, D5 bước 2, nút Trước/Sau của D6, D8, D9, D11 bước 3) ở tests/js/audit-log.test.mjs.
 /// </summary>
 [Collection(SequentialDatabaseCollection.Name)]
 public class AuditLogAcceptanceTests(BlueMoonAppFactory factory)
