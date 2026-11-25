@@ -96,6 +96,27 @@ Nhãn của ô lọc **Hành động** và của cột Hành động trong bản
 
 Cột **Đối tượng** là **Id** (số) của tài khoản bị tác động. Tên tài khoản bị tác động nằm ở cột **Chi tiết**.
 
+### 2.1. Dữ liệu test (dữ liệu giả)
+
+Chỉ dùng dữ liệu giả, không dùng tên, số giấy tờ hay số điện thoại thật (RSK-008).
+
+| Dữ liệu | Giá trị | Dùng ở |
+|---|---|---|
+| Ban quản trị có sẵn | `admin`, mật khẩu là giá trị `ADMIN_INIT_PWD` lúc chạy app | Mọi case |
+| Cư dân tự đăng ký | `cudan_nk` / `TestPass@01`, Tên người dùng "Cu Dan NK". Sau D1 bước 14 đổi thành `TestPass@02` | D1, D3, D5, D6 |
+| Kế toán tự đăng ký | `ketoan_nk` / `TestPass@01`, Tên người dùng "Ke Toan NK" (chờ BQT duyệt) | D1, D3, D9 |
+| BQT do admin tạo | `bqt_nk`, Tên người dùng "BQT NK", mật khẩu tạm do hệ thống cấp | D1 |
+| Tài khoản không tồn tại | `khong_ton_tai` / `abc12345` | D1, D6 (tạo thêm bản ghi) |
+| Mật khẩu sai | `SaiMatKhau@1` (hoặc bất kỳ) | D1 bước 10 |
+| Chuỗi có mã HTML | `<img src=x onerror=alert(1)>` (tên đăng nhập), `<script>alert(1)</script>` (chi tiết, chỉ ở test JS) | D8 |
+| Hồ sơ căn hộ | Căn `AT-NK-01`, hộ khẩu cùng mã, chủ hộ "Nguyễn Văn Thử" | D11 |
+| Khoản thu | `D12_TEST` "Phí test D12", Bắt buộc, Cố định, đơn giá 10.000 đ rồi đổi thành 12.000 đ | D12 |
+
+**Test tự động:**
+- Tên tài khoản có tiền tố riêng cho mỗi lần chạy (`at<8 ký tự>_cudan_nk`, xem `TestAccounts.cs`), mật khẩu `TestPass@01`. Tài khoản, căn hộ, khoản thu được xóa sau khi chạy.
+  Dòng nhật ký thì giữ lại, vì bảng `audit_logs` chặn xóa (đúng thiết kế).
+- Test JS (`tests/js/audit-log.test.mjs`) dùng dữ liệu giả viết ngay trong file test, không gọi server.
+
 ---
 
 ## 3. Test case
@@ -328,13 +349,13 @@ psql -U <user> -d BlueMoon_AT_AUDIT -c "UPDATE audit_logs SET \"Detail\" = 'x' W
 
 | # | Mô tả | Test case | Đã xác nhận bằng |
 |---|---|---|---|
-| J1 | Gọi thẳng API với thời gian **không theo UTC** (vd `from=2026-01-01T07%3A00%3A00%2B07%3A00`, tức `2026-01-01T07:00:00+07:00`) thì server lỗi 500, vì Npgsql chỉ ghi được thời gian UTC. Giao diện **không** bị ảnh hưởng vì luôn gửi UTC | Không có (chỉ gọi API trực tiếp) | Test tự động Q7 (đang Skip, chờ fix) |
-| J2 | Lọc tài khoản phân biệt chữ hoa, chữ thường. API không cắt khoảng trắng (chỉ giao diện cắt). Chỉ lọc theo **người thực hiện**, không lọc được theo tài khoản bị tác động | D3 | Q2 |
-| J3 | ~~Mô tả trang chỉ nhắc 4 loại thao tác, thực tế có 12 loại~~. **Đã sửa** (10/11/2026): mô tả nhắc đủ tài khoản, hồ sơ căn hộ và hộ khẩu, khoản thu và đơn giá | D10 | D10 |
-| J4 | Chọn "Từ ngày" sau "Đến ngày" thì chỉ ra danh sách rỗng, không báo lỗi | D4 bước 5 | Đọc code |
-| J6 | `POST /api/nhat-ky` trả 400 thay vì 405 như các method khác (request bị chạy lại tới trang `/not-found`). Request vẫn bị chặn, không ghi hay xóa gì | D7 bước 4 | Q11 |
-| J7 | **Đã xác nhận (25/11/2026):** giao diện ghép 3 số mili giây vào **cuối** chuỗi ngày giờ, mà kiểu `vi-VN` hiện giờ trước ngày, nên mili giây dính sau năm: `14:05:09 25/11/2026.123` | D9 | Test JS "J7" (`tests/js/audit-log.test.mjs`) |
-| #3 | Lần sai mật khẩu thứ 5 ghi "lần 0" (đã ghi ở `acceptance_password_hashing.md`) | D1 bước 10 | Đọc code `AuthService.LoginAsync` |
+| J1 (#73) | Gọi thẳng API với thời gian **không theo UTC** (vd `from=2026-01-01T07%3A00%3A00%2B07%3A00`, tức `2026-01-01T07:00:00+07:00`) thì server lỗi 500, vì Npgsql chỉ ghi được thời gian UTC. Giao diện **không** bị ảnh hưởng vì luôn gửi UTC | Không có (chỉ gọi API trực tiếp) | Test tự động Q7 (đang Skip, chờ fix) |
+| J2 (#74) | Lọc tài khoản phân biệt chữ hoa, chữ thường. API không cắt khoảng trắng (chỉ giao diện cắt). Chỉ lọc theo **người thực hiện**, không lọc được theo tài khoản bị tác động | D3 | Q2 |
+| J3 (#35) | ~~Mô tả trang chỉ nhắc 4 loại thao tác, thực tế có 12 loại~~. **Đã sửa** (10/11/2026): mô tả nhắc đủ tài khoản, hồ sơ căn hộ và hộ khẩu, khoản thu và đơn giá | D10 | D10 |
+| J4 (#75) | Chọn "Từ ngày" sau "Đến ngày" thì chỉ ra danh sách rỗng, không báo lỗi | D4 bước 5 | Đọc code |
+| J6 (#76) | `POST /api/nhat-ky` trả 400 thay vì 405 như các method khác (request bị chạy lại tới trang `/not-found`). Request vẫn bị chặn, không ghi hay xóa gì | D7 bước 4 | Q11 |
+| J7 (#77) | **Đã xác nhận (25/11/2026):** giao diện ghép 3 số mili giây vào **cuối** chuỗi ngày giờ, mà kiểu `vi-VN` hiện giờ trước ngày, nên mili giây dính sau năm: `14:05:09 25/11/2026.123` | D9 | Test JS "J7" (`tests/js/audit-log.test.mjs`) |
+| #3 (#68) | Lần sai mật khẩu thứ 5 ghi "lần 0" (đã ghi ở `acceptance_password_hashing.md`) | D1 bước 10 | Đọc code `AuthService.LoginAsync` |
 
 ## 5. Câu hỏi cho PO
 

@@ -5,9 +5,11 @@
 > **Tự động hóa:** phần API có test chạy cùng `dotnet test` (cần biến `BLUEMOON_TEST_CONNECTION`), file
 > `tests/.../Integration/Acceptance/ApartmentSearchAcceptanceTests.cs` (K2, K5, K7, K8). Chạy riêng: `dotnet test --filter "Acceptance=K8"`.
 > Nhãn loại hình và nhãn trạng thái phủ đủ mọi giá trị: unit test K6. Lưu, sửa loại hình, đổi trạng thái và luật nhân khẩu ở service: unit test trong `ApartmentProfileServiceTests` (K9).
-> **Việc lọc danh sách chạy bằng JavaScript trên trình duyệt** (`wwwroot/js/apartment-profiles.js`). K1 – K4 đã chạy tay đạt ngày 10/11/2026.
-> Chưa tự động: file này gắn với nhiều phần của trang (bảng trạng thái, kéo thả, tòa nhà, hộp thoại nhân khẩu) nên cần DOM giả đầy đủ hơn
-> `tests/js/dom-stub.mjs` hiện có. Việc tự động K1 – K4 bằng test JS đã ghi vào `docs/work_checklist.md`.
+> **Việc lọc danh sách chạy bằng JavaScript trên trình duyệt** (`wwwroot/js/apartment-profiles.js`). Từ 25/11/2026, K1 – K4 và K9 bước 4
+> tự động bằng test JS `tests/js/apartment-search.test.mjs`: chạy chính file JS của trang trên DOM giả, API giả trả đúng 3 căn ở mục 3.
+> Chạy: `node --test tests/js/*.test.mjs`. K1 – K4 cũng đã chạy tay đạt ngày 10/11/2026.
+> Còn chạy tay: kéo thả bằng chuột (K8 bước 2) và phần giao diện của K9 bước 1 – 3 (viền gạch đứt, dòng nhắc vàng), vì cần thao tác chuột
+> và nhìn màu trên trình duyệt thật. Việc tự động phần logic của các bước này đã ghi vào `docs/work_checklist.md`.
 
 ## 1. Mục đích và phạm vi
 
@@ -21,7 +23,7 @@ cư dân xem loại hình căn hộ của mình (PBI-003); đơn giá theo loạ
 
 | Mục | Giá trị |
 |---|---|
-| Nhánh / commit được kiểm thử | Test tự động và K8, K9 chạy tay: code app `1231392` (`main` sau PR #53). K1 – K4 chạy tay ngày 10/11/2026 trên code của PR #37 (`9780aae`) |
+| Nhánh / commit được kiểm thử | Code app `1231392` (`main` sau PR #53): test tự động (cả test JS K1 – K4) và K8, K9 chạy tay. K1 – K4 chạy tay trước đó ngày 10/11/2026 trên code của PR #37 (`9780aae`) |
 | Trình duyệt | Phần chạy tay dùng trình duyệt của người kiểm thử. Phần tự động không dùng trình duyệt |
 | URL app | `https://localhost:7127` |
 
@@ -49,7 +51,7 @@ với body `{ "status": "DangSuaChua" }`.
 
 ### K1. Tra theo mã căn
 
-> **Chạy tay.**
+> **Tự động** bằng test JS "K1" trong `tests/js/apartment-search.test.mjs`. Đã chạy tay đạt ngày 10/11/2026.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -58,11 +60,11 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| Chạy tay ngày 10/11/2026 (xác nhận ghi ở checklist 4.07) | Pass | Code lọc sau đó không đổi điều kiện, xem mục 6 |
+| Tự động test JS "K1", ngày 25/11/2026: gõ `K-02` (cả `k-02`) chỉ còn `AT-K-02`, "1 / 3 căn hộ", bảng trạng thái lọc theo; xóa ô tìm thì "3 căn hộ". Chạy tay đạt ngày 10/11/2026 | Pass | |
 
 ### K2. Tra theo loại hình
 
-> **Tự động** phần lưu, trả về, sửa loại hình và các lựa chọn trên trang (`Acceptance=K2`). **Chạy tay** việc lọc.
+> **Tự động** phần lưu, trả về, sửa loại hình và các lựa chọn trên trang (`Acceptance=K2`). Việc lọc: test JS "K2", "K2 bước 4" và "Mở trang" trong `tests/js/apartment-search.test.mjs`.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -74,11 +76,11 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| Tự động `K2_ApartmentType_IsSaved_Returned_Updated_AndOfferedOnPage`, ngày 25/11/2026; phần lọc ở bước 2 – 5 chạy tay ngày 10/11/2026 | Pass | |
+| Tự động `K2_ApartmentType_IsSaved_Returned_Updated_AndOfferedOnPage` và test JS "K2", "K2 bước 4", "Mở trang" (dòng mô tả tòa · tầng · loại hình), ngày 25/11/2026. Chạy tay đạt ngày 10/11/2026 | Pass | |
 
 ### K3. Tra theo diện tích chính xác
 
-> **Chạy tay.**
+> **Tự động** bằng test JS "K3" trong `tests/js/apartment-search.test.mjs`. Đã chạy tay đạt ngày 10/11/2026.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -87,11 +89,11 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| Chạy tay ngày 10/11/2026 (xác nhận ghi ở checklist 4.07) | Pass | |
+| Tự động test JS "K3", ngày 25/11/2026: `250` còn `AT-K-03`; `68.5` hiện "Chưa có căn hộ phù hợp", "0 / 3 căn hộ". Chạy tay đạt ngày 10/11/2026 | Pass | |
 
 ### K4. Kết hợp các tiêu chí
 
-> **Chạy tay.**
+> **Tự động** bằng test JS "K4" trong `tests/js/apartment-search.test.mjs`. Đã chạy tay đạt ngày 10/11/2026.
 
 | # | Bước | Kết quả mong đợi |
 |---|---|---|
@@ -101,7 +103,7 @@ với body `{ "status": "DangSuaChua" }`.
 
 | Kết quả thực tế | Pass/Fail | Ghi chú |
 |---|---|---|
-| Chạy tay ngày 10/11/2026 (xác nhận ghi ở checklist 4.07) | Pass | |
+| Tự động test JS "K4", ngày 25/11/2026: `Tòa A` + Kiot còn `AT-K-02`; thêm diện tích `70` thì rỗng; xóa hết thì "3 căn hộ". Chạy tay đạt ngày 10/11/2026 | Pass | |
 
 ### K5. Thiếu hoặc sai loại hình bị từ chối
 
@@ -134,7 +136,8 @@ Căn hộ tạo trước khi có loại hình được gán mặc định **Căn
 
 ### K9. Căn hộ có nhân khẩu và giới hạn 5 kết quả
 
-> **Tự động** phần luật ở service (`TestId=K9`: 3 test trong `ApartmentProfileServiceTests`). **Chạy tay** phần giao diện.
+> **Tự động** phần luật ở service (`TestId=K9`: 3 test trong `ApartmentProfileServiceTests`). Bước 4 (tối đa 5 kết quả): test JS "K9 bước 4".
+> **Chạy tay** phần giao diện của bước 1 – 3 (viền gạch đứt, không kéo được, dòng nhắc vàng): cần nhìn trên trình duyệt thật.
 > Luật: căn hộ còn nhân khẩu chưa chuyển đi (tình trạng khác **Đã chuyển đi**) thì **không** được đổi sang
 > **Đang cho thuê** hoặc **Đang sửa chữa**; chỉ được giữ nguyên hoặc chuyển sang **Đã cho thuê**.
 > Áp dụng cho cả kéo thả (`PATCH`) lẫn ô **Trạng thái** trong form (`PUT`).
@@ -164,18 +167,18 @@ Căn hộ tạo trước khi có loại hình được gán mặc định **Căn
 
 | Test case | Pass/Fail | Ghi chú |
 |---|---|---|
-| K1. Tra theo mã | Pass | Chạy tay 10/11/2026 |
-| K2. Tra theo loại hình | Pass | Tự động 25/11/2026, phần lọc chạy tay 10/11/2026 |
-| K3. Tra theo diện tích | Pass | Chạy tay 10/11/2026 |
-| K4. Kết hợp tiêu chí | Pass | Chạy tay 10/11/2026 |
+| K1. Tra theo mã | Pass | Tự động (test JS) 25/11/2026 |
+| K2. Tra theo loại hình | Pass | Tự động (xUnit và test JS) 25/11/2026 |
+| K3. Tra theo diện tích | Pass | Tự động (test JS) 25/11/2026 |
+| K4. Kết hợp tiêu chí | Pass | Tự động (test JS) 25/11/2026 |
 | K5. Thiếu, sai loại hình bị từ chối | Pass | Tự động 25/11/2026 |
 | K8. Đổi trạng thái căn hộ | Pass | Chạy tay 25/11/2026 |
-| K9. Luật nhân khẩu & tối đa 5 kết quả | Pass | Chạy tay 25/11/2026 |
+| K9. Luật nhân khẩu & tối đa 5 kết quả | Pass | Chạy tay 25/11/2026, bước 4 có thêm test JS |
 
-Test tự động chạy ngày 25/11/2026: `dotnet test --filter "Acceptance~K|TestId~K"` 16 pass, 0 fail.
-**Về K1 – K4 chạy tay ngày 10/11/2026:** sau ngày đó, `apartment-profiles.js` được sửa ở PR #47, #48. Đối chiếu code: điều kiện lọc
-theo mã, tên tòa, diện tích, loại hình và dòng đếm `x / y căn hộ` không đổi (chỉ đổi tên trường `building` thành `buildingName` và tách thành hàm riêng).
-Phần mới thêm (giới hạn 5 kết quả) đã chạy tay ở K9 bước 4 ngày 25/11/2026.
+Test tự động chạy ngày 25/11/2026: `dotnet test --filter "Acceptance~K|TestId~K"` 16 pass, 0 fail;
+`node --test tests/js/apartment-search.test.mjs` 7 pass, 0 fail (K1 – K4, K9 bước 4 trên code app hiện tại).
+**Về K1 – K4 chạy tay ngày 10/11/2026:** sau ngày đó, `apartment-profiles.js` được sửa ở PR #47, #48 (điều kiện lọc không đổi,
+chỉ đổi tên trường `building` thành `buildingName` và tách thành hàm riêng). Test JS ngày 25/11/2026 đã kiểm lại trên code hiện tại.
 
 | | |
 |---|---|

@@ -53,6 +53,21 @@ Không đặt biến này thì các test S1 đến S7 bị bỏ qua (Skipped).
 4. **Không** để máy tính ngủ hoặc khóa màn hình trong lúc chờ.
 5. Ghi giờ **chính xác tới giây** ở mỗi bước có bấm giờ.
 
+### 2.1. Dữ liệu test (dữ liệu giả)
+
+Chỉ dùng dữ liệu giả (RSK-008).
+
+| Dữ liệu | Giá trị | Dùng ở |
+|---|---|---|
+| Ban quản trị có sẵn | `admin`, mật khẩu là giá trị `ADMIN_INIT_PWD` lúc chạy app | T1, T3, T7 |
+| Cư dân tự đăng ký | `cudan_tg` / `TestPass@01`, vai trò Cư dân | T2 – T6 |
+| Mật khẩu mới thử đổi | `NewPass@02` (không được lưu vì đã hết phiên) | T4 |
+
+**Test tự động:**
+- Dùng đồng hồ giả (`BlueMoonAppFactory.Clock`, bắt đầu lúc 01/01/2026 08:00 UTC) nên không phải chờ 10 phút thật.
+- Tài khoản có tiền tố riêng cho mỗi lần chạy (`TestAccounts.cs`), mật khẩu `TestPass@01`, được xóa sau khi chạy.
+- Test JS (`tests/js/profile.test.mjs`) điền sẵn `TestPass@01` / `NewPass@02` vào form giả, API giả trả 401.
+
 ## 3. Lịch chạy song song (khoảng 35 phút)
 
 Mỗi trình duyệt là một phiên riêng nên chạy song song được. **Không** dùng hai tab của **cùng một** trình duyệt cho hai test case khác nhau (trừ T5), vì các tab dùng chung phiên.
@@ -185,14 +200,14 @@ Nếu ở bước 3 bị chuyển về `/login` thì đánh **Fail** và ghi "x�
 
 | # | Mô tả | Test case |
 |---|---|---|
-| H1 | Phiên chỉ được gia hạn khi thao tác **sau phút thứ 5** của phiên hiện tại. Thao tác sớm hơn thì không được gia hạn, nên có thể bị đăng xuất chỉ **5 đến 10 phút** sau thao tác cuối, thay vì đúng 10 phút. Test tự động S5 đã xác nhận hành vi này trong code. Đang chờ PO chốt NFR-008 nghĩa là "tối đa 10 phút" hay "đúng 10 phút kể từ thao tác cuối". **Xác nhận lại ngày 25/11/2026, T2 đánh Fail** | T2 |
+| H1 (#70) | Phiên chỉ được gia hạn khi thao tác **sau phút thứ 5** của phiên hiện tại. Thao tác sớm hơn thì không được gia hạn, nên có thể bị đăng xuất chỉ **5 đến 10 phút** sau thao tác cuối, thay vì đúng 10 phút. Test tự động S5 đã xác nhận hành vi này trong code. Đang chờ PO chốt NFR-008 nghĩa là "tối đa 10 phút" hay "đúng 10 phút kể từ thao tác cuối". **Xác nhận lại ngày 25/11/2026, T2 đánh Fail** | T2 |
 
 ### 5.2. Đã ghi nhận, không đánh Fail
 
 | # | Mô tả | Test case |
 |---|---|---|
-| H2 | Gõ phím, cuộn trang, điền form **không** giữ phiên. App không cảnh báo trước khi hết phiên, nên điền form lâu có thể mất dữ liệu | T4 |
-| H3 | Khi hết phiên trong lúc bấm nút (API trả 401), app chuyển về `/login` mà không nhớ trang đang dở. Đăng nhập lại sẽ về trang chủ | T4 bước 5 |
+| H2 (#71) | Gõ phím, cuộn trang, điền form **không** giữ phiên. App không cảnh báo trước khi hết phiên, nên điền form lâu có thể mất dữ liệu | T4 |
+| H3 (#72) | Khi hết phiên trong lúc bấm nút (API trả 401), app chuyển về `/login` mà không nhớ trang đang dở. Đăng nhập lại sẽ về trang chủ | T4 bước 5 |
 | H4 | Hết phiên không được ghi vào nhật ký. Đang chờ PO quyết định có cần không | T7 |
 
 ## 6. Tổng hợp và nghiệm thu
