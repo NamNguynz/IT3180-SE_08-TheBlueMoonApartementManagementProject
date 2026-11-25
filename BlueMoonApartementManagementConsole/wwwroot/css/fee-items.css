@@ -8,6 +8,14 @@
     display: none !important;
 }
 
+/* Bảng danh sách khoản thu: cuộn ngang trong khung khi mã/tên quá dài. */
+#fee-items-page .fee-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+}
+
 /* Khung ba giá theo loại: cùng màu viền/bo góc với ô input, và luôn xuống dòng riêng. */
 #fee-items-page .fee-type-rate-group {
     display: flex;

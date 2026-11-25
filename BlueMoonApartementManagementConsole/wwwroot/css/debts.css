@@ -94,6 +94,14 @@
     cursor: pointer;
 }
 
+/* Ghi chú nhắc nợ có thể dài tới 500 ký tự: xuống dòng trong cột thay vì đẩy ngang lịch sử. */
+#debts .db-dialog .data-table td:nth-child(4) {
+    min-width: 160px;
+    max-width: 320px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .db-dialog-backdrop {
     position: fixed;
     inset: 0;

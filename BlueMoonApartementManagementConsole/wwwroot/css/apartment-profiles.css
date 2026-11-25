@@ -219,17 +219,30 @@
     flex-direction: column;
     gap: 8px;
     min-height: 80px;
+    max-height: 210px;
+    padding-right: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
 
 .ap-board-card {
     display: grid;
     gap: 3px;
+    min-width: 0;
     padding: 9px 10px;
     background: #fff;
     border: 1px solid var(--border);
     border-left: 3px solid var(--primary);
     border-radius: 8px;
     cursor: grab;
+}
+
+/* Mã căn/tên tòa dài không được đẩy rộng cột board. */
+.ap-board-card strong,
+.ap-board-card span {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .ap-board-card:hover,
@@ -260,6 +273,15 @@
 .ap-board-card:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px rgba(30, 79, 160, 0.2);
+}
+
+/* Lịch sử biến động: Nơi đi/đến và Lý do là văn bản tự do, cho xuống dòng thay vì đẩy ngang bảng. */
+#residentChanges .data-table td:nth-child(4),
+#residentChanges .data-table td:nth-child(5) {
+    min-width: 160px;
+    max-width: 320px;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .ap-detail-column {

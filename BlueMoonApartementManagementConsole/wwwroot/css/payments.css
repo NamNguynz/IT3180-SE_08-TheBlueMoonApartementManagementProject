@@ -88,6 +88,12 @@
     cursor: pointer;
 }
 
+.pm-bill {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .pm-bill tfoot td {
     font-weight: 700;
     background: #f9fafb;
