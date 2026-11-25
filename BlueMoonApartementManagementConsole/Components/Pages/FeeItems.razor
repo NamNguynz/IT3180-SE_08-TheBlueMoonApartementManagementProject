@@ -4,6 +4,10 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 
+<HeadContent>
+    <link rel="stylesheet" href="css/fee-items.css" />
+</HeadContent>
+
 <div id="fee-items-page" class="page">
     <header class="page-head">
         <h1>Khoản thu và đơn giá</h1>
@@ -54,9 +58,28 @@
                     <label>Đơn vị tính
                         <input name="unit" required maxlength="20" placeholder="VD: m², người, hộ" />
                     </label>
-                    <label>Đơn giá (đ)
+                    <label>Cách đặt giá
+                        <select name="rateMode" id="feeRateMode">
+                            <option value="Chung">Giá chung</option>
+                            <option value="TheoLoai">Theo loại căn hộ</option>
+                        </select>
+                    </label>
+                    <label id="feeCommonRateLabel" class="fee-common-rate-label">Đơn giá (đ)
                         <input name="rate" type="number" min="0" step="1" required />
                     </label>
+                    <fieldset id="feeTypeRates" class="fee-type-rate-group" hidden>
+                        <legend>Đơn giá theo loại căn hộ (đ)</legend>
+                        <label>Căn hộ ở
+                            <input name="rate_CanHo" type="number" min="0" step="1" />
+                        </label>
+                        <label>Kiot
+                            <input name="rate_Kiot" type="number" min="0" step="1" />
+                        </label>
+                        <label>Penthouse
+                            <input name="rate_Penthouse" type="number" min="0" step="1" />
+                        </label>
+                        <p class="muted">Chọn cơ sở tính "Diện tích căn hộ" và khai báo đủ ba giá.</p>
+                    </fieldset>
                     <label>Hiệu lực từ
                         <input name="effectiveFrom" type="date" required />
                     </label>
@@ -94,6 +117,7 @@
                     <th>Phạm vi</th>
                     <th>Chu kỳ</th>
                     <th>Cơ sở tính</th>
+                    <th>Cách giá</th>
                     <th>Đơn vị</th>
                     <th>Đơn giá hiện hành</th>
                     <th></th>

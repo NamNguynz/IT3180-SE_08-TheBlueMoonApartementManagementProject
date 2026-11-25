@@ -5,6 +5,9 @@
     var SCOPE_LABELS = { Chung: 'Toàn chung cư', ChiDinh: 'Chỉ định hộ' };
     var CYCLE_LABELS = { MotLan: 'Một lần', Thang: 'Hàng tháng', Nam: 'Hàng năm' };
     var BASIS_LABELS = { DienTich: 'Diện tích', NhanKhau: 'Nhân khẩu', Ho: 'Theo hộ', CoDinh: 'Cố định' };
+    var RATE_MODE_LABELS = { Chung: 'Chung', TheoLoai: 'Theo loại' };
+    var APT_TYPES = ['CanHo', 'Kiot', 'Penthouse'];
+    var APT_LABELS = { CanHo: 'Căn hộ ở', Kiot: 'Kiot', Penthouse: 'Penthouse' };
 
     var items = [];
     var canManage = false;
@@ -40,6 +43,38 @@
             if (r.effectiveFrom <= today && (!r.effectiveTo || r.effectiveTo > today)) return r;
         }
         return null;
+    }
+
+    // Giá theo loại căn đang có hiệu lực hôm nay (dùng để hiển thị danh sách và lịch sử).
+    function currentTypeRate(item, type) {
+        var today = todayIso();
+        var rates = item.typeRates || [];
+        for (var i = 0; i < rates.length; i++) {
+            var r = rates[i];
+            if (r.apartmentType === type && r.effectiveFrom <= today && (!r.effectiveTo || r.effectiveTo > today)) return r;
+        }
+        return null;
+    }
+
+    // Chỉ hiện ba ô giá khi khoản tính theo diện tích và chọn chế độ TheoLoai.
+    function syncRateModeFields(form) {
+        if (!form) return;
+        var modeEl = form.elements.namedItem('rateMode');
+        var basisEl = form.elements.namedItem('calculationBasis');
+        var mode = modeEl ? modeEl.value : 'Chung';
+        var basis = basisEl ? basisEl.value : (form.dataset.basis || 'DienTich');
+        var typed = mode === 'TheoLoai' && basis === 'DienTich';
+
+        var group = form.querySelector('.fee-type-rate-group') || byId('feeTypeRates');
+        if (group) group.hidden = !typed;
+        var commonLabel = form.querySelector('.fee-common-rate-label') || byId('feeCommonRateLabel');
+        if (commonLabel) commonLabel.hidden = typed;
+        var commonInput = form.elements.namedItem('rate');
+        if (commonInput) commonInput.required = !typed;
+        APT_TYPES.forEach(function (type) {
+            var input = form.elements.namedItem('rate_' + type);
+            if (input) input.required = typed;
+        });
     }
 
     async function api(path, options) {
@@ -170,8 +205,17 @@
         tr.appendChild(cell(SCOPE_LABELS[item.feeScope] || item.feeScope));
         tr.appendChild(cell(CYCLE_LABELS[item.feeCycle] || item.feeCycle));
         tr.appendChild(cell(BASIS_LABELS[item.calculationBasis] || item.calculationBasis));
+        tr.appendChild(cell(RATE_MODE_LABELS[item.rateMode] || item.rateMode || 'Chung'));
         tr.appendChild(cell(item.unit));
-        tr.appendChild(cell(rate ? formatMoney(rate.rate) + ' đ / ' + item.unit : 'Chưa có'));
+        if (item.rateMode === 'TheoLoai') {
+            var rates = APT_TYPES.map(function (type) {
+                var r = currentTypeRate(item, type);
+                return APT_LABELS[type] + ': ' + (r ? formatMoney(r.rate) : 'Chưa có');
+            }).join(' · ');
+            tr.appendChild(cell(rates + ' đ / ' + item.unit));
+        } else {
+            tr.appendChild(cell(rate ? formatMoney(rate.rate) + ' đ / ' + item.unit : 'Chưa có'));
+        }
 
         var actions = document.createElement('td');
         actions.className = 'row-actions';
@@ -189,7 +233,7 @@
         tr.hidden = true;
 
         var td = document.createElement('td');
-        td.colSpan = 9;
+        td.colSpan = 10;
         td.appendChild(buildHistory(item));
         if (canManage) td.appendChild(buildRateForm(item));
 
@@ -226,12 +270,27 @@
         wrap.appendChild(historyTitle);
 
         var ul = document.createElement('ul');
-        item.rates.forEach(function (r) {
+        var addHistory = function (label, r) {
             var li = document.createElement('li');
-            var end = r.effectiveTo ? formatDate(r.effectiveTo) : 'nay';
-            li.textContent = formatMoney(r.rate) + ' đ, từ ' + formatDate(r.effectiveFrom) + ' đến ' + end;
+            if (r) {
+                var end = r.effectiveTo ? formatDate(r.effectiveTo) : 'nay';
+                li.textContent = label + ': ' + formatMoney(r.rate) + ' đ, từ ' + formatDate(r.effectiveFrom) + ' đến ' + end;
+            } else {
+                li.textContent = label + ': Chưa có đơn giá';
+            }
             ul.appendChild(li);
-        });
+        };
+        if (item.rateMode === 'TheoLoai') {
+            APT_TYPES.forEach(function (type) {
+                (item.typeRates || []).filter(function (r) { return r.apartmentType === type; })
+                    .forEach(function (r) { addHistory(APT_LABELS[type], r); });
+                if (!(item.typeRates || []).some(function (r) { return r.apartmentType === type; })) {
+                    addHistory(APT_LABELS[type], null);
+                }
+            });
+        } else {
+            item.rates.forEach(function (r) { addHistory('Giá chung', r); });
+        }
         wrap.appendChild(ul);
         return wrap;
     }
@@ -251,13 +310,45 @@
         return el;
     }
 
+    function select(name, options, value) {
+        var el = document.createElement('select');
+        el.name = name;
+        options.forEach(function (o) {
+            var opt = document.createElement('option');
+            opt.value = o.value;
+            opt.textContent = o.label;
+            el.appendChild(opt);
+        });
+        el.value = value || options[0].value;
+        return el;
+    }
+
     function buildRateForm(item) {
         var form = document.createElement('form');
         form.className = 'pw-form rate-form';
         form.dataset.id = String(item.id);
+        form.dataset.basis = item.calculationBasis;
         form.hidden = true;
 
-        form.appendChild(labeled('Đơn giá mới (đ)', input('number', 'rate', { min: '0', step: '1', required: true })));
+        form.appendChild(labeled('Cách đặt giá', select('rateMode', [
+            { value: 'Chung', label: 'Giá chung' },
+            { value: 'TheoLoai', label: 'Theo loại căn hộ' }
+        ], item.rateMode || 'Chung')));
+
+        var commonLabel = labeled('Đơn giá mới (đ)', input('number', 'rate', { min: '0', step: '1', required: true }));
+        commonLabel.className = 'fee-common-rate-label';
+        form.appendChild(commonLabel);
+
+        var group = document.createElement('fieldset');
+        group.className = 'fee-type-rate-group';
+        var legend = document.createElement('legend');
+        legend.textContent = 'Đơn giá mới theo loại căn hộ (đ)';
+        group.appendChild(legend);
+        APT_TYPES.forEach(function (type) {
+            group.appendChild(labeled(APT_LABELS[type], input('number', 'rate_' + type, { min: '0', step: '1' })));
+        });
+        form.appendChild(group);
+
         form.appendChild(labeled('Hiệu lực từ', input('date', 'effectiveFrom', { min: todayIso(), required: true })));
 
         var submit = document.createElement('button');
@@ -266,6 +357,7 @@
         submit.textContent = 'Lưu đơn giá';
         form.appendChild(submit);
 
+        syncRateModeFields(form);
         return form;
     }
 
@@ -282,7 +374,13 @@
             calculationBasis: f.namedItem('calculationBasis').value,
             unit: f.namedItem('unit').value.trim(),
             note: f.namedItem('note').value.trim() || null,
+            rateMode: f.namedItem('rateMode').value,
             rate: Number(f.namedItem('rate').value),
+            typeRates: f.namedItem('rateMode').value === 'TheoLoai'
+                ? APT_TYPES.map(function (type) {
+                    return { apartmentType: type, rate: Number(f.namedItem('rate_' + type).value) };
+                })
+                : [],
             effectiveFrom: f.namedItem('effectiveFrom').value,
             effectiveTo: f.namedItem('effectiveTo').value || null
         };
@@ -297,6 +395,7 @@
                 return;
             }
             form.reset();
+            syncRateModeFields(form);
             showMessage('Đã tạo khoản thu ' + result.body.code + '.', 'success');
             await load();
         } finally {
@@ -309,7 +408,13 @@
         var id = form.dataset.id;
         var f = form.elements;
         var body = {
+            rateMode: f.namedItem('rateMode').value,
             rate: Number(f.namedItem('rate').value),
+            typeRates: f.namedItem('rateMode').value === 'TheoLoai'
+                ? APT_TYPES.map(function (type) {
+                    return { apartmentType: type, rate: Number(f.namedItem('rate_' + type).value) };
+                })
+                : [],
             effectiveFrom: f.namedItem('effectiveFrom').value
         };
 
@@ -343,16 +448,29 @@
             return;
         }
 
-        var result = await api('/api/khoan-thu/' + encodeURIComponent(id) + '/don-gia?ngay=' + encodeURIComponent(dateEl.value));
+        var item = items.find(function (x) { return String(x.id) === String(id); });
+        var typed = item && item.rateMode === 'TheoLoai';
+        var endpoint = typed ? '/don-gia-theo-loai' : '/don-gia';
+        var result = await api('/api/khoan-thu/' + encodeURIComponent(id) + endpoint + '?ngay=' + encodeURIComponent(dateEl.value));
         if (!result.ok) {
             out.textContent = errorText(result);
             return;
         }
 
         var d = result.body;
+        var prefix = 'Ngày ' + formatDate(d.date) + ': ';
+        var suffix = ' · Cơ sở tính: ' + (BASIS_LABELS[d.calculationBasis] || d.calculationBasis);
+        if (typed) {
+            var byType = {};
+            (d.rates || []).forEach(function (r) { byType[r.apartmentType] = r; });
+            out.textContent = prefix + APT_TYPES.map(function (type) {
+                var r = byType[type];
+                return APT_LABELS[type] + ': ' + (r ? formatMoney(r.rate) + ' đ' : 'Chưa có');
+            }).join(' · ') + ' / ' + d.unit + suffix;
+            return;
+        }
         var end = d.effectiveTo ? formatDate(d.effectiveTo) : 'nay';
-        out.textContent = 'Ngày ' + formatDate(d.date) + ': ' + formatMoney(d.rate) + ' đ / ' + d.unit
-            + ' · Cơ sở tính: ' + (BASIS_LABELS[d.calculationBasis] || d.calculationBasis)
+        out.textContent = prefix + formatMoney(d.rate) + ' đ / ' + d.unit + suffix
             + ' · Hiệu lực từ ' + formatDate(d.effectiveFrom) + ' đến ' + end;
     }
 
@@ -407,6 +525,12 @@
     }
 
     function onFilter(event) {
+        if (event.target.name === 'calculationBasis' || event.target.name === 'rateMode') {
+            var form = event.target.closest ? event.target.closest('form') : null;
+            if (form && (form.id === 'fee-create-form' || form.classList.contains('rate-form'))) {
+                syncRateModeFields(form);
+            }
+        }
         if (event.target.id === 'feePageSize') {
             pageSize = Number(event.target.value);
             page = 1;
@@ -433,6 +557,7 @@
     function init() {
         if (!pageRoot()) return;
         bindOnce();
+        syncRateModeFields(byId('fee-create-form'));
         load();
     }
 

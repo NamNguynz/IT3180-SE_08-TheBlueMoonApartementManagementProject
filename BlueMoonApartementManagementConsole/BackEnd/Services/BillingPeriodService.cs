@@ -1,3 +1,4 @@
+using BlueMoonApartementManagementConsole.BackEnd.Models;
 using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Repositories;
@@ -16,11 +17,10 @@ public interface IBillingPeriodService
 
     /// <summary>
     /// Tính thử số phải thu của một hộ cho một khoản thu vào một ngày (mặc định hôm nay), không lưu gì (PBI-015).
-    /// Cùng các bước kiểm, công thức và cơ sở tính với bảng kê: khoản bảng kê từ chối (tự nguyện, bảo trì riêng,
-    /// chưa có đơn giá) thì tính thử cũng từ chối với cùng thông báo; còn lại ra đúng số bảng kê sẽ lập.
+    /// Cùng các bước kiểm, công thức, chế độ đơn giá và cơ sở tính với bảng kê.
     /// </summary>
     Task<FeeItemOperationResult<FeeCalculationResponse>> CalculateAsync(
-        int feeItemId, int householdId, DateOnly? date, CancellationToken ct = default);
+        int feeItemId, int householdId, DateOnly? date, RateMode mode, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -30,18 +30,21 @@ public interface IBillingPeriodService
 ///   1. Kiểm tra tháng, ngày tính phí, hạn nộp. Lập được kỳ của các tháng đã qua, tháng này và tháng sau
 ///      (lập trước để kịp báo phí cho cư dân), không lập xa hơn. Ngày tính phí phải nằm trong tháng của kỳ,
 ///      để phí tháng nào lấy đơn giá của tháng đó.
-///   2. Kiểm tra từng khoản thu: phải là khoản bắt buộc, có đơn giá hiệu lực vào ngày tính phí.
-///      Đóng góp tự nguyện thu theo đợt riêng (PBI-012) nên không đưa vào kỳ thu.
+///   2. Kiểm tra từng khoản thu: phải là khoản bắt buộc, có đơn giá hiệu lực vào ngày tính phí theo chế độ đã chọn.
+///      Khoản tính theo diện tích có thể dùng giá chung hoặc ba giá theo loại căn hộ (Chung/TheoLoai);
+///      TheoLoai cần đủ ba giá, thiếu giá thì báo lỗi, không lập kỳ. Các khoản khác chỉ dùng giá chung.
 ///   3. Chặn thu trùng một khoản theo chu kỳ (tháng/năm/một lần), không phân biệt phạm vi áp dụng.
 ///      Một tháng chỉ có một kỳ thu: nếu tháng đó đã có kỳ thì bổ sung khoản mới vào kỳ đó thay vì lập kỳ trùng tên,
 ///      để báo cáo thu và công nợ tổng hợp được cả tháng (PBI-022/PBI-044).
 ///   4. Xác định hộ phải nộp từng khoản: khoản toàn chung cư là mọi hộ, khoản chỉ định hộ là các hộ được chọn
 ///      (ít nhất một hộ).
 ///   5. Với mỗi khoản thu và mỗi hộ phải nộp: số phải thu = đơn giá × cơ sở tính, làm tròn đến đồng, theo FeeCalculator
-///      (PBI-015). Căn hộ thiếu diện tích cho khoản theo diện tích thì từ chối cả kỳ (cơ sở tính chưa cấu hình).
+///      (PBI-015). Đơn giá thực tế (giá chung hoặc giá của loại căn) được chụp lại ở Receivable.Rate.
+///      Căn hộ thiếu diện tích cho khoản theo diện tích thì từ chối cả kỳ (cơ sở tính chưa cấu hình).
 ///      Hộ không phải nộp đồng nào (cơ sở tính bằng 0, hoặc số tiền làm tròn về 0) thì không có dòng, nên không hiện
 ///      ở trang thu tiền. Bảng kê không có dòng nào thì không lập/bổ sung kỳ.
 ///   6. Lưu kỳ thu (hoặc các khoản bổ sung) cùng đơn giá đã áp dụng và các dòng phải thu trong một lần lưu, rồi ghi nhật ký.
+///      Đổi đơn giá về sau không làm thay đổi số đã chụp của kỳ này.
 /// Các khoản bắt buộc của một hộ cộng lại thành một số phải nộp cho cả kỳ (gom thành một lần thu).
 /// </summary>
 public sealed class BillingPeriodService(
@@ -49,6 +52,12 @@ public sealed class BillingPeriodService(
     IAuditService audit,
     TimeProvider clock) : IBillingPeriodService
 {
+    /// <summary>Đơn giá đã chọn cho một khoản trong kỳ: một giá chung hoặc đủ ba giá theo loại căn.</summary>
+    private sealed record ItemRates(
+        RateMode Mode,
+        EffectiveRate? Common,
+        IReadOnlyDictionary<ApartmentType, EffectiveRate> ByType);
+
     public async Task<IReadOnlyList<BillingPeriodSummaryResponse>> GetAllAsync(CancellationToken ct = default) =>
         (await repo.GetSummariesAsync(ct))
             .Select(r => new BillingPeriodSummaryResponse(r.Id, r.Year, r.Month, r.ChargeDate, r.DueDate,
@@ -69,19 +78,24 @@ public sealed class BillingPeriodService(
         if (error is not null)
             return Invalid(error);
 
-        // Bước 2: từng khoản thu phải hợp lệ và có đơn giá vào ngày tính phí
+        // Bước 2: từng khoản thu phải hợp lệ và có đơn giá vào ngày tính phí theo chế độ đã chọn
         var feeItems = (await repo.GetFeeItemsAsync(request.FeeItemIds, ct)).OrderBy(f => f.Code).ToList();
         var missing = request.FeeItemIds.Where(id => feeItems.All(f => f.Id != id)).ToList();
         if (missing.Count > 0)
             return Invalid($"Không tìm thấy khoản thu #{missing[0]}.");
 
-        var rates = new Dictionary<int, FeeRateEntity>();
+        var modes = ParseRateChoices(request.RateChoices ?? [], feeItems, out var choiceError);
+        if (choiceError is not null)
+            return Invalid(choiceError);
+
+        var rates = new Dictionary<int, ItemRates>();
         foreach (var feeItem in feeItems)
         {
-            var (rate, rateError) = BillableRate(feeItem, request.ChargeDate);
-            if (rate is null)
+            var mode = modes.GetValueOrDefault(feeItem.Id, RateMode.Chung);
+            var (selected, rateError) = BillableRates(feeItem, request.ChargeDate, mode);
+            if (selected is null)
                 return Invalid(rateError!);
-            rates[feeItem.Id] = rate;
+            rates[feeItem.Id] = selected;
         }
 
         // Bước 3: một khoản chỉ được lập một lần trong chu kỳ của nó, dù áp dụng cho cả chung cư hay chỉ định hộ.
@@ -131,16 +145,38 @@ public sealed class BillingPeriodService(
         var newItems = new List<BillingPeriodItemEntity>();
         foreach (var feeItem in feeItems)
         {
-            var rate = rates[feeItem.Id];
-            var item = new BillingPeriodItemEntity { FeeItemId = feeItem.Id, FeeRateId = rate.Id, Rate = rate.Rate };
+            var selected = rates[feeItem.Id];
+            var item = new BillingPeriodItemEntity { FeeItemId = feeItem.Id, RateMode = selected.Mode };
+            if (selected.Mode == RateMode.Chung && selected.Common is { } common)
+            {
+                item.FeeRateId = common.SourceId;
+                item.Rate = common.Rate;
+            }
+            else
+            {
+                // Chụp cả ba giá đã dùng để bảng chi tiết giải thích được kỳ thu ngay cả khi danh mục đổi giá sau này
+                item.TypeRates.AddRange(ApartmentTypeLabels.All.Select(t =>
+                {
+                    var effective = selected.ByType[t.Type];
+                    return new BillingPeriodItemTypeRateEntity
+                    {
+                        ApartmentType = t.Type,
+                        Rate = effective.Rate,
+                        FeeTypeRateId = effective.SourceId,
+                        EffectiveFrom = effective.EffectiveFrom
+                    };
+                }));
+            }
+
             foreach (var household in payersByFeeItem[feeItem.Id])
             {
                 var quantity = FeeCalculator.QuantityFor(feeItem.CalculationBasis, household);
                 if (quantity <= 0)
                     continue;
 
+                var effective = RateFor(selected, household.ApartmentType);
                 // Không phải nộp đồng nào thì không đưa vào bảng kê, để trang thu tiền không coi hộ đó là "Đã nộp đủ"
-                var amount = FeeCalculator.AmountFor(rate.Rate, quantity);
+                var amount = FeeCalculator.AmountFor(effective.Rate, quantity);
                 if (amount <= 0)
                     continue;
 
@@ -148,6 +184,7 @@ public sealed class BillingPeriodService(
                 {
                     HouseholdId = household.HouseholdId,
                     Quantity = quantity,
+                    Rate = effective.Rate,
                     Amount = amount
                 });
             }
@@ -164,10 +201,12 @@ public sealed class BillingPeriodService(
 
         var receivables = newItems.SelectMany(i => i.Receivables).ToList();
         var householdCount = receivables.Select(r => r.HouseholdId).Distinct().Count();
+        var typedItemCount = newItems.Count(i => i.RateMode == RateMode.TheoLoai);
         await audit.LogAsync(AuditAction.CreateBillingPeriod, actorName, actorId, period.Id.ToString(),
             $"{(supplement ? "Bổ sung khoản thu vào kỳ thu tháng" : "Lập kỳ thu tháng")} " +
             $"{period.Month:00}/{period.Year}: {newItems.Count} khoản thu, " +
-            $"{householdCount} hộ, tổng phải thu {receivables.Sum(r => r.Amount):N0} đ", ct);
+            $"{typedItemCount} khoản giá theo loại, {householdCount} hộ, " +
+            $"tổng phải thu {receivables.Sum(r => r.Amount):N0} đ", ct);
 
         return new(FeeItemStatus.Success, await GetByIdAsync(period.Id, ct));
     }
@@ -180,7 +219,7 @@ public sealed class BillingPeriodService(
             .ToList();
 
     public async Task<FeeItemOperationResult<FeeCalculationResponse>> CalculateAsync(
-        int feeItemId, int householdId, DateOnly? date, CancellationToken ct = default)
+        int feeItemId, int householdId, DateOnly? date, RateMode mode, CancellationToken ct = default)
     {
         var feeItem = (await repo.GetFeeItemsAsync([feeItemId], ct)).SingleOrDefault();
         if (feeItem is null)
@@ -192,8 +231,8 @@ public sealed class BillingPeriodService(
 
         // Cùng các bước kiểm như khi lập bảng kê: loại khoản thu, đơn giá theo ngày, cơ sở tính của hộ
         var day = date ?? Today();
-        var (rate, error) = BillableRate(feeItem, day);
-        if (rate is null)
+        var (selected, error) = BillableRates(feeItem, day, mode);
+        if (selected is null)
             return new(FeeItemStatus.Invalid, Message: error);
 
         error = FeeCalculator.BasisError(feeItem, household);
@@ -201,10 +240,13 @@ public sealed class BillingPeriodService(
             return new(FeeItemStatus.Invalid, Message: error);
 
         var quantity = FeeCalculator.QuantityFor(feeItem.CalculationBasis, household);
+        var effective = RateFor(selected!, household.ApartmentType);
         return new(FeeItemStatus.Success, new FeeCalculationResponse(
             feeItem.Id, feeItem.Code, feeItem.Name, feeItem.CalculationBasis, feeItem.Unit,
             household.HouseholdId, household.HouseholdNumber, household.ApartmentCode,
-            day, quantity, rate.Rate, rate.EffectiveFrom, FeeCalculator.AmountFor(rate.Rate, quantity)));
+            day, quantity, selected!.Mode,
+            selected.Mode == RateMode.TheoLoai ? household.ApartmentType : null,
+            effective.Rate, effective.EffectiveFrom, FeeCalculator.AmountFor(effective.Rate, quantity)));
     }
 
     // ---- Quy tắc ----
@@ -240,20 +282,82 @@ public sealed class BillingPeriodService(
     }
 
     /// <summary>
-    /// Đơn giá dùng để thu khoản này vào ngày đã cho, hoặc lý do không thu được (khoản không đưa vào kỳ thu,
-    /// chưa có đơn giá). Dùng chung cho lập bảng kê và tính thử, để hai nơi luôn cho cùng kết quả.
+    /// Chế độ đơn giá do người dùng chọn ở kỳ thu. Mặc định Chung nếu client cũ không gửi;
+    /// TheoLoai chỉ hợp lệ với khoản tính theo diện tích.
     /// </summary>
-    private static (FeeRateEntity? Rate, string? Error) BillableRate(FeeItemEntity feeItem, DateOnly day)
+    private static Dictionary<int, RateMode> ParseRateChoices(
+        IReadOnlyList<FeeRateChoiceRequest> choices, List<FeeItemEntity> feeItems, out string? error)
+    {
+        var modes = new Dictionary<int, RateMode>();
+        foreach (var choice in choices)
+        {
+            if (choice is null || choice.FeeItemId == 0)
+            {
+                error = "Lựa chọn đơn giá không hợp lệ.";
+                return modes;
+            }
+            var feeItem = feeItems.FirstOrDefault(f => f.Id == choice.FeeItemId);
+            if (feeItem is null)
+            {
+                error = $"Có lựa chọn đơn giá cho khoản thu #{choice.FeeItemId} nhưng khoản này không được chọn vào kỳ.";
+                return modes;
+            }
+            if (modes.ContainsKey(choice.FeeItemId))
+            {
+                error = $"Khoản thu {feeItem.Code} có nhiều hơn một lựa chọn đơn giá.";
+                return modes;
+            }
+            if (choice.Mode == RateMode.TheoLoai && feeItem.CalculationBasis != CalculationBasis.DienTich)
+            {
+                error = $"Khoản thu {feeItem.Code} không tính theo diện tích, không thể dùng đơn giá theo loại căn hộ.";
+                return modes;
+            }
+            modes[choice.FeeItemId] = choice.Mode;
+        }
+        error = null;
+        return modes;
+    }
+
+    /// <summary>
+    /// Đơn giá dùng để thu khoản này vào ngày đã cho theo chế độ đã chọn, hoặc lý do không thu được
+    /// (khoản không đưa vào kỳ thu, chưa có đơn giá, thiếu một trong ba loại căn hộ).
+    /// Dùng chung cho lập bảng kê và tính thử, để hai nơi luôn cho cùng kết quả.
+    /// </summary>
+    private static (ItemRates? Rates, string? Error) BillableRates(
+        FeeItemEntity feeItem, DateOnly day, RateMode mode)
     {
         var error = ValidateFeeItem(feeItem);
         if (error is not null)
             return (null, error);
 
-        var rate = FeeCalculator.RateOn(feeItem.Rates, day);
-        return rate is null
+        if (mode == RateMode.TheoLoai)
+        {
+            if (feeItem.CalculationBasis != CalculationBasis.DienTich)
+                return (null, $"Khoản thu {feeItem.Code} không tính theo diện tích, không thể dùng đơn giá theo loại căn hộ.");
+
+            var byType = new Dictionary<ApartmentType, EffectiveRate>();
+            foreach (var (type, label) in ApartmentTypeLabels.All)
+            {
+                var effective = FeeCalculator.RateOn(feeItem.Rates, feeItem.TypeRates, day, type, RateMode.TheoLoai);
+                if (effective is null)
+                    return (null, $"Khoản thu {feeItem.Code} chưa có đơn giá hiệu lực vào ngày {day:dd/MM/yyyy} " +
+                                 $"cho loại căn hộ {label}.");
+                byType[type] = effective;
+            }
+            return (new ItemRates(RateMode.TheoLoai, null, byType), null);
+        }
+
+        var common = FeeCalculator.RateOn(feeItem.Rates, feeItem.TypeRates, day, default, RateMode.Chung);
+        return common is null
             ? (null, $"Khoản thu {feeItem.Code} chưa có đơn giá hiệu lực vào ngày {day:dd/MM/yyyy}.")
-            : (rate, null);
+            : (new ItemRates(RateMode.Chung, common, new Dictionary<ApartmentType, EffectiveRate>()), null);
     }
+
+    /// <summary>Giá thực tế áp dụng cho một hộ: giá chung, hoặc giá của đúng loại căn hộ của hộ đó.</summary>
+    private static EffectiveRate RateFor(ItemRates selected, ApartmentType apartmentType) =>
+        selected.Mode == RateMode.Chung
+            ? selected.Common!
+            : selected.ByType[apartmentType];
 
     private static string? ValidateFeeItem(FeeItemEntity feeItem) => feeItem switch
     {
@@ -344,7 +448,7 @@ public sealed class BillingPeriodService(
             {
                 var household = g.First().Receivable.Household;
                 var lines = g.Select(x => new ReceivableLineResponse(
-                        x.Item.FeeItemId, x.Receivable.Quantity, x.Item.Rate, x.Receivable.Amount))
+                        x.Item.FeeItemId, x.Receivable.Quantity, x.Receivable.Rate, x.Receivable.Amount))
                     .ToList();
                 return new HouseholdBillResponse(household.Id, household.HouseholdNumber,
                     household.Apartment.Code, household.Apartment.Building.Name, lines, lines.Sum(l => l.Amount));
@@ -354,9 +458,14 @@ public sealed class BillingPeriodService(
             .ToList();
 
         var itemResponses = items
-            .Select(i => new BillingPeriodItemResponse(i.FeeItemId, i.FeeItem.Code, i.FeeItem.Name,
-                i.FeeItem.FeeCycle, i.FeeItem.CalculationBasis, i.FeeItem.Unit, i.Rate,
-                i.FeeRate.EffectiveFrom, i.Receivables.Sum(r => r.Amount)))
+            .Select(i => new BillingPeriodItemResponse(
+                i.FeeItemId, i.FeeItem.Code, i.FeeItem.Name, i.FeeItem.FeeCycle, i.FeeItem.CalculationBasis,
+                i.FeeItem.Unit, i.RateMode, i.Rate, i.FeeRate?.EffectiveFrom,
+                i.TypeRates.OrderBy(r => r.ApartmentType)
+                    .Select(r => new BillingPeriodItemTypeRateResponse(
+                        r.ApartmentType, r.Rate, r.EffectiveFrom))
+                    .ToList(),
+                i.Receivables.Sum(r => r.Amount)))
             .ToList();
 
         return new BillingPeriodResponse(period.Id, period.Year, period.Month, period.ChargeDate, period.DueDate,

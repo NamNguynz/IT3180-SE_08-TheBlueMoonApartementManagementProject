@@ -3,6 +3,15 @@ using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 
 namespace BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 
+public sealed record FeeTypeRateRequest
+{
+    [Required]
+    public ApartmentType ApartmentType { get; init; }
+
+    [Range(typeof(decimal), "0", "1000000000")]
+    public decimal Rate { get; init; }
+}
+
 public sealed record CreateFeeItemRequest
 {
     [Required, StringLength(30)]
@@ -30,8 +39,13 @@ public sealed record CreateFeeItemRequest
     [StringLength(500)]
     public string? Note { get; init; }
 
+    /// <summary>Mặc định Chung để tương thích với client cũ; TheoLoai chỉ hợp lệ với cơ sở DienTich.</summary>
+    public RateMode RateMode { get; init; } = RateMode.Chung;
+
     [Range(typeof(decimal), "0", "1000000000")]
     public decimal Rate { get; init; }
+
+    public IReadOnlyList<FeeTypeRateRequest> TypeRates { get; init; } = [];
 
     public DateOnly EffectiveFrom { get; init; }
 
@@ -40,8 +54,12 @@ public sealed record CreateFeeItemRequest
 
 public sealed record ChangeRateRequest
 {
+    public RateMode RateMode { get; init; } = RateMode.Chung;
+
     [Range(typeof(decimal), "0", "1000000000")]
     public decimal Rate { get; init; }
+
+    public IReadOnlyList<FeeTypeRateRequest> TypeRates { get; init; } = [];
 
     public DateOnly EffectiveFrom { get; init; }
 }
@@ -54,12 +72,21 @@ public sealed record FeeItemResponse(
     FeeScope FeeScope,
     FeeCycle FeeCycle,
     CalculationBasis CalculationBasis,
+    RateMode RateMode,
     string Unit,
     string? Note,
-    IReadOnlyList<FeeRateResponse> Rates);
+    IReadOnlyList<FeeRateResponse> Rates,
+    IReadOnlyList<FeeTypeRateResponse> TypeRates);
 
 public sealed record FeeRateResponse(
     int Id,
+    decimal Rate,
+    DateOnly EffectiveFrom,
+    DateOnly? EffectiveTo);
+
+public sealed record FeeTypeRateResponse(
+    int Id,
+    ApartmentType ApartmentType,
     decimal Rate,
     DateOnly EffectiveFrom,
     DateOnly? EffectiveTo);
@@ -83,6 +110,17 @@ public sealed record FeeRateLookupResponse(
     decimal Rate,
     DateOnly EffectiveFrom,
     DateOnly? EffectiveTo);
+
+/// <summary>Bản xem trước ba giá theo loại căn hộ tại một ngày, dùng chung cho danh mục và trang kỳ thu.</summary>
+public sealed record FeeTypeRateLookupResponse(
+    int FeeItemId,
+    string Code,
+    string Name,
+    CalculationBasis CalculationBasis,
+    string Unit,
+    RateMode RateMode,
+    DateOnly Date,
+    IReadOnlyList<FeeTypeRateResponse> Rates);
 
 public sealed record FeeItemOperationResult<T>(
     FeeItemStatus Status,

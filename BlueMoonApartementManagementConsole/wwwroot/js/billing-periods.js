@@ -5,6 +5,9 @@
     // Nhãn giống trang Khoản thu (fee-items.js)
     const CYCLE_LABELS = { MotLan: 'Một lần', Thang: 'Hàng tháng', Nam: 'Hàng năm' };
     const BASIS_LABELS = { DienTich: 'Diện tích', NhanKhau: 'Nhân khẩu', Ho: 'Theo hộ', CoDinh: 'Cố định' };
+    const RATE_MODE_LABELS = { Chung: 'Chung', TheoLoai: 'Theo loại' };
+    const APT_TYPES = ['CanHo', 'Kiot', 'Penthouse'];
+    const APT_LABELS = { CanHo: 'Căn hộ ở', Kiot: 'Kiot', Penthouse: 'Penthouse' };
 
     let periods = [];
     let detail = null;
@@ -210,8 +213,12 @@
                 cell(item.name),
                 cell(CYCLE_LABELS[item.feeCycle] ?? item.feeCycle),
                 cell(`${BASIS_LABELS[item.calculationBasis] ?? item.calculationBasis} (${item.unit})`),
-                cell(formatMoney(item.rate), 'num'),
-                cell(formatDate(item.rateEffectiveFrom)),
+                cell(RATE_MODE_LABELS[item.rateMode] ?? item.rateMode ?? 'Chung'),
+                item.rateMode === 'TheoLoai'
+                    ? cell((item.typeRates ?? []).map((r) =>
+                        `${APT_LABELS[r.apartmentType] ?? r.apartmentType}: ${formatMoney(r.rate)}`).join(' · '), 'num')
+                    : cell(formatMoney(item.rate), 'num'),
+                cell(item.rateMode === 'TheoLoai' ? '—' : formatDate(item.rateEffectiveFrom)),
                 cell(formatMoney(item.totalAmount), 'num'));
             return row;
         }));
@@ -296,7 +303,8 @@
         // khoản chỉ định hộ không chọn sẵn, tích vào thì mở pop-up chọn hộ.
         const eligible = (response.data ?? []).filter((item) =>
             item.feeType === 'BatBuoc' && (item.feeScope === 'Chung' || item.feeScope === 'ChiDinh'));
-        const now = today();
+        // Đơn giá phải lấy theo ngày tính phí của kỳ, không phải giá hiện hành của hôm nay.
+        const chargeDate = formValue($('#bpCreateForm'), 'chargeDate') || today();
         container.replaceChildren(...eligible.map((item) => {
             feeItems.set(item.id, item);
             const targeted = item.feeScope === 'ChiDinh';
@@ -310,15 +318,51 @@
             checkbox.name = 'feeItemIds';
             checkbox.value = item.id;
             checkbox.checked = !targeted && item.feeCycle === 'Thang';
-            const current = item.rates.find((r) => r.effectiveFrom <= now && (!r.effectiveTo || r.effectiveTo > now));
+            const current = item.rates.find((r) => r.effectiveFrom <= chargeDate && (!r.effectiveTo || r.effectiveTo > chargeDate));
+            const rateText = item.calculationBasis === 'DienTich' && item.rateMode === 'TheoLoai'
+                ? 'có giá theo loại căn hộ (xem bên dưới)'
+                : (current ? `${formatMoney(current.rate)} đ/${item.unit}` : 'chưa có giá chung tại ngày tính phí');
             const text = document.createElement('span');
             text.textContent = [
                 `${item.code} – ${item.name}`,
                 targeted ? 'Chỉ định hộ' : (CYCLE_LABELS[item.feeCycle] ?? item.feeCycle),
-                current ? `${formatMoney(current.rate)} đ/${item.unit}` : 'chưa có đơn giá hiện hành'
+                rateText
             ].join(' · ');
             label.append(checkbox, text);
             row.append(label);
+
+            // Khoản tính theo diện tích: chỉ chọn chế độ, tuyệt đối không nhập số tiền ở trang này.
+            if (item.calculationBasis === 'DienTich') {
+                const choice = document.createElement('fieldset');
+                choice.className = 'bp-rate-choice';
+                const legend = document.createElement('legend');
+                legend.textContent = 'Xem trước đơn giá theo ngày tính phí';
+                choice.append(legend);
+
+                const modeLabel = document.createElement('label');
+                modeLabel.className = 'bp-rate-mode-label';
+                modeLabel.append(document.createTextNode('Cách đặt giá: '));
+                const select = document.createElement('select');
+                select.dataset.rateModeFor = item.id;
+                select.setAttribute('aria-label', `Cách đặt giá ${item.code}`);
+                [
+                    { value: 'Chung', label: 'Giá chung' },
+                    { value: 'TheoLoai', label: 'Theo loại căn hộ' }
+                ].forEach((option) => {
+                    const el = document.createElement('option');
+                    el.value = option.value;
+                    el.textContent = option.label;
+                    select.append(el);
+                });
+                select.value = item.rateMode || 'Chung';
+                modeLabel.append(select);
+
+                const preview = document.createElement('div');
+                preview.className = 'bp-rate-preview';
+                preview.dataset.ratePreviewFor = item.id;
+                choice.append(modeLabel, preview);
+                row.append(choice);
+            }
 
             if (targeted) {
                 // Dòng tóm tắt các hộ đã chọn, hiện sau khi xác nhận ở pop-up
@@ -331,6 +375,50 @@
             return row;
         }));
         $('#bpFeeItemEmpty').hidden = eligible.length > 0;
+        await refreshRatePreviews($('#bpCreateForm'));
+    };
+
+    // Xem trước giá tại ngày tính phí: một giá chung hoặc đủ ba giá theo loại căn hộ.
+    const refreshRatePreviews = async (form) => {
+        if (!form) return;
+        const chargeDate = formValue(form, 'chargeDate') || today();
+        const selects = [...form.querySelectorAll('[data-rate-mode-for]')];
+        await Promise.all(selects.map(async (select) => {
+            const feeItemId = Number(select.dataset.rateModeFor);
+            const preview = form.querySelector(`.bp-rate-preview[data-rate-preview-for="${feeItemId}"]`);
+            const item = feeItems.get(feeItemId);
+            if (!preview || !item) return;
+            // Tránh cập nhật ô cũ nếu người dùng đổi ngày/đổi chế độ trong lúc request đang chạy
+            const render = (text, missing) => {
+                if (select.isConnected && preview.isConnected) {
+                    preview.textContent = text;
+                    preview.classList.toggle('is-missing', Boolean(missing));
+                }
+            };
+            const typed = select.value === 'TheoLoai';
+            const endpoint = typed ? 'don-gia-theo-loai' : 'don-gia';
+            try {
+                const response = await api(`/api/khoan-thu/${feeItemId}/${endpoint}?ngay=${encodeURIComponent(chargeDate)}`);
+                if (response.status === 401 || !select.isConnected) return;
+                if (!response.ok) {
+                    render(messageFor(response, 'Không tải được đơn giá.'), true);
+                    return;
+                }
+                if (typed) {
+                    const byType = {};
+                    (response.data?.rates ?? []).forEach((rate) => { byType[rate.apartmentType] = rate; });
+                    const parts = APT_TYPES.map((type) =>
+                        `${APT_LABELS[type]}: ${byType[type] ? formatMoney(byType[type].rate) + ' đ' : 'Chưa có'}`);
+                    render(parts.join(' · '), APT_TYPES.some((type) => !byType[type]));
+                } else {
+                    render(response.data
+                        ? `Giá chung: ${formatMoney(response.data.rate)} đ/${item.unit}`
+                        : 'Chưa có giá chung tại ngày tính phí', !response.data);
+                }
+            } catch {
+                render('Không thể tải đơn giá.', true);
+            }
+        }));
     };
 
     const openCreate = async () => {
@@ -396,6 +484,11 @@
             targetedFeeItems.push({ feeItemId, householdIds: [...selected] });
         }
 
+        // Trang kỳ thu chỉ gửi chế độ; số tiền do Ban quản trị khai báo ở trang Khoản thu.
+        const rateChoices = [...form.querySelectorAll('[data-rate-mode-for]')]
+            .filter((select) => feeItemIds.includes(Number(select.dataset.rateModeFor)))
+            .map((select) => ({ feeItemId: Number(select.dataset.rateModeFor), mode: select.value }));
+
         const [year, month] = formValue(form, 'period').split('-').map(Number);
         const body = {
             year,
@@ -404,6 +497,7 @@
             dueDate: formValue(form, 'dueDate'),
             feeItemIds,
             targetedFeeItems,
+            rateChoices,
             note: formValue(form, 'note').trim() || null
         };
 
@@ -670,7 +764,11 @@
         }
 
         if (target.form?.getAttribute('id') === 'bpCreateForm') {
-            if (['period', 'chargeDate'].includes(target.name)) onPeriodChange(target.form);
+            if (['period', 'chargeDate'].includes(target.name)) {
+                onPeriodChange(target.form);
+                void refreshRatePreviews(target.form);
+            }
+            if (target.dataset.rateModeFor) void refreshRatePreviews(target.form);
             if (target.name === 'feeItemIds') void onFeeItemToggle(target);
             return;
         }
