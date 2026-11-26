@@ -13,6 +13,7 @@
 
 @inject IAuthService Auth
 @inject NavigationManager Nav
+@inject Microsoft.Extensions.Options.IOptions<LoginLockoutOptions> Lockout
 
 <PageTitle>@(IsRegisterMode ? "Đăng ký" : "Đăng nhập") - Bluemoon</PageTitle>
 
@@ -139,7 +140,7 @@ else
             Input.Password = string.Empty;
             _error = result.Status switch
             {
-                LoginStatus.Locked => "Tài khoản tạm bị khóa do đăng nhập sai nhiều lần. Vui lòng thử lại sau 15 phút.",
+                LoginStatus.Locked => $"Tài khoản tạm bị khóa do đăng nhập sai nhiều lần. Vui lòng thử lại sau {Lockout.Value.Minutes} phút.",
                 LoginStatus.PendingApproval => "Tài khoản đang chờ Ban quản trị xác nhận.",
                 _ => "Tài khoản, mật khẩu hoặc tư cách đăng nhập không đúng."
             };

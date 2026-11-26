@@ -3,6 +3,7 @@ using BlueMoonApartementManagementConsole.BackEnd.Models.DTOs;
 using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Repositories;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace BlueMoonApartementManagementConsole.BackEnd.Services;
 
@@ -19,8 +20,11 @@ public interface IAccountManagementService
 public class AccountManagementService(
     IAppUserRepo users,
     IPasswordHasher<AppUserEntity> hasher,
-    IAuditService audit) : IAccountManagementService
+    IAuditService audit,
+    IOptions<LoginLockoutOptions>? lockoutOptions = null) : IAccountManagementService
 {
+    // Số lần sai và thời gian khóa dùng chung với đăng nhập (G3, issue #69)
+    private readonly LoginLockoutOptions lockout = lockoutOptions?.Value ?? new();
     private const int MaxDepth = 100;
 
     public async Task<IReadOnlyList<AccountDto>> GetAccountsAsync(int actorId, CancellationToken ct = default)
@@ -131,11 +135,42 @@ public class AccountManagementService(
         var user = await users.GetByIdAsync(userId, ct);
         if (user is null) return new(ManageStatus.NotFound);
 
-        if (hasher.VerifyHashedPassword(user, user.PasswordHash, req.CurrentPassword) == PasswordVerificationResult.Failed)
-            return new(ManageStatus.Invalid, Message: "Mật khẩu hiện tại không đúng.");
+        // G3 (issue #69): dùng chung bộ đếm sai và thời gian khóa với đăng nhập (AuthService)
+        var now = DateTimeOffset.UtcNow;
+        var lockedMessage = $"Tài khoản tạm bị khóa do nhập sai mật khẩu nhiều lần. Vui lòng đăng nhập lại sau {lockout.Minutes} phút.";
+        if (user.LockedUntil is { } until && until > now)
+        {
+            await audit.LogAsync(AuditAction.LoginLocked, user.Username, user.Id, user.Id.ToString(),
+                $"Đổi mật khẩu khi đang bị khóa, khóa đến {until.ToLocalTime():HH:mm:ss dd/MM/yyyy}", ct);
+            return new(ManageStatus.Locked, Message: lockedMessage);
+        }
 
-        if (string.IsNullOrEmpty(req.NewPassword) || req.NewPassword.Length is < 8 or > 100)
-            return new(ManageStatus.Invalid, Message: "Mật khẩu mới phải từ 8 đến 100 ký tự.");
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, req.CurrentPassword) == PasswordVerificationResult.Failed)
+        {
+            var attempt = ++user.FailedAttempts;
+            var locked = attempt >= lockout.MaxFailedAttempts;
+            if (locked)
+            {
+                user.LockedUntil = now.Add(lockout.Duration);
+                user.FailedAttempts = 0;
+                // Đăng xuất mọi phiên đang mở (cùng cơ chế G2), để người dùng máy bị bỏ quên không ở lại được trong app
+                user.SecurityStamp = AppUserEntity.NewSecurityStamp();
+            }
+            await users.SaveChangesAsync(ct);
+            await audit.LogAsync(AuditAction.LoginFailed, user.Username, user.Id, user.Id.ToString(),
+                $"Sai mật khẩu hiện tại khi đổi mật khẩu, lần {attempt}", ct);
+
+            if (!locked)
+                return new(ManageStatus.Invalid, Message: "Mật khẩu hiện tại không đúng.");
+
+            await audit.LogAsync(AuditAction.LoginLocked, user.Username, user.Id, user.Id.ToString(),
+                $"Khóa đến {user.LockedUntil!.Value.ToLocalTime():HH:mm:ss dd/MM/yyyy}, đăng xuất mọi phiên", ct);
+            return new(ManageStatus.Locked, Message: lockedMessage);
+        }
+
+        if (!PasswordRules.HasValidLength(req.NewPassword))
+            return new(ManageStatus.Invalid,
+                Message: $"Mật khẩu mới phải từ {PasswordRules.MinLength} đến {PasswordRules.MaxLength} ký tự.");
 
         if (req.NewPassword == req.CurrentPassword)
             return new(ManageStatus.Invalid, Message: "Mật khẩu mới phải khác mật khẩu hiện tại.");
@@ -143,6 +178,8 @@ public class AccountManagementService(
         user.PasswordHash = hasher.HashPassword(user, req.NewPassword);
         user.MustChangePassword = false;
         user.PasswordChangedAt = DateTimeOffset.UtcNow;
+        user.FailedAttempts = 0;
+        user.LockedUntil = null;
         // Các phiên khác bị đăng xuất (G2). Phiên đang đổi được ProfileController cấp lại cookie với mã mới
         user.SecurityStamp = AppUserEntity.NewSecurityStamp();
         await users.SaveChangesAsync(ct);

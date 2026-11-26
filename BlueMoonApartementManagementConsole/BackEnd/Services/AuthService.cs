@@ -3,6 +3,7 @@ using BlueMoonApartementManagementConsole.BackEnd.Models.Enities;
 using BlueMoonApartementManagementConsole.BackEnd.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace BlueMoonApartementManagementConsole.BackEnd.Services
 {
@@ -35,10 +36,11 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
         IAppUserRepo users,
         IPasswordHasher<AppUserEntity> hasher,
         IAuditService audit,
-        ILogger<AuthService> log) : IAuthService
+        ILogger<AuthService> log,
+        IOptions<LoginLockoutOptions>? lockoutOptions = null) : IAuthService
     {
-        private const int MaxFailedAttempts = 5;
-        private static readonly TimeSpan LockDuration = TimeSpan.FromMinutes(15); // đề xuất, PO cần xác nhận
+        // Số lần sai và thời gian khóa dùng chung với đổi mật khẩu (LoginLockoutOptions)
+        private readonly LoginLockoutOptions lockout = lockoutOptions?.Value ?? new();
 
         public async Task<LoginResult> LoginAsync(LoginRequest request, CancellationToken ct = default)
         {
@@ -62,14 +64,15 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
 
             if (verify == PasswordVerificationResult.Failed)
             {
-                user.FailedAttempts++;
-                if (user.FailedAttempts >= MaxFailedAttempts)
+                // Giữ số lần sai trước khi đặt lại bộ đếm, để nhật ký ghi đúng "lần 5" khi khóa (lỗi #3, issue #68)
+                var attempt = ++user.FailedAttempts;
+                if (attempt >= lockout.MaxFailedAttempts)
                 {
-                    user.LockedUntil = now.Add(LockDuration);
+                    user.LockedUntil = now.Add(lockout.Duration);
                     user.FailedAttempts = 0;
                 }
                 await users.SaveChangesAsync(ct);
-                await audit.LogAsync(AuditAction.LoginFailed, user.Username, user.Id, target: user.Id.ToString(), detail: $"Sai mật khẩu, lần {user.FailedAttempts}");
+                await audit.LogAsync(AuditAction.LoginFailed, user.Username, user.Id, target: user.Id.ToString(), detail: $"Sai mật khẩu, lần {attempt}");
                 return new(LoginStatus.InvalidCredentials);
             }
 
@@ -112,7 +115,7 @@ namespace BlueMoonApartementManagementConsole.BackEnd.Services
             if (fullName.Length is 0 or > 100)
                 return new(RegisterStatus.InvalidFullName);
 
-            if (string.IsNullOrEmpty(request.Password) || request.Password.Length is < 8 or > 100)
+            if (!PasswordRules.HasValidLength(request.Password))
                 return new(RegisterStatus.InvalidPassword);
 
             if (!Enum.IsDefined(request.Role))
